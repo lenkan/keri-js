@@ -1,20 +1,39 @@
+x-healthcheck: &x-healthcheck
+  test: ["CMD", "/healthcheck.sh"]
+  interval: 3s
+  timeout: 3s
+  retries: 20
+  start_period: 2s
+
+x-witness: &x-witness
+  build:
+    context: images/keripy-witness
+    dockerfile: Dockerfile
+  healthcheck:
+    <<: *x-healthcheck
+  stop_grace_period: 0s
+
 services:
-  witness-demo:
-    image: weboftrust/keri-witness-demo:1.1.0
+  witness-1:
+    <<: *x-witness
     environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONIOENCODING=UTF-8
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5642/oobi"]
-      interval: 2s
-      timeout: 3s
-      retries: 5
-      start_period: 2s
-    stop_grace_period: 0s
-    # volumes:
-    #   - ./config/witness-demo:/keripy/scripts/keri/cf/main
-    # network_mode: "host"
+      HTTP_PORT: 5641
+      SALT: 0AAX68oik54bKHhENZhlyg3Q
+    ports:
+      - 5641:5641
+
+  witness-2:
+    <<: *x-witness
+    environment:
+      HTTP_PORT: 5642
+      SALT: 0AAMhYCbV5C58ueD9qYcr_du
     ports:
       - 5642:5642
+
+  witness-3:
+    <<: *x-witness
+    environment:
+      HTTP_PORT: 5643
+      SALT: 0ACcQEIuv9SGcw6qPaj1UfLo
+    ports:
       - 5643:5643
-      - 5644:5644

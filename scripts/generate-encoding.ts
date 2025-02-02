@@ -1,7 +1,7 @@
 import { format } from "prettier";
 import { readFile, writeFile } from "node:fs/promises";
 
-export type CodeEntry = {
+export interface CodeEntry {
   type: "matter" | "indexer" | "counter";
   code: string;
   name: string;
@@ -10,7 +10,7 @@ export type CodeEntry = {
   xs: number | null;
   fs: number | null;
   ls: number | null;
-};
+}
 
 const codes = JSON.parse(await readFile("codec.json", "utf-8")) as CodeEntry[];
 

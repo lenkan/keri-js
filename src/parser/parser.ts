@@ -1,76 +1,100 @@
 import { parseVersion } from "./version.ts";
-import { Base64 } from "../cesr/base64.ts";
+import { decodeBase64Int } from "./base64.ts";
 import { CounterCode, CounterCodeTable, IndexerCodeTable, MatterCodeTable } from "./codes.ts";
+import type { KeyEvent } from "../events/main.ts";
 
-type CountContext = {
+interface CountContext {
   code: keyof typeof CounterCodeTable;
   count: number;
-};
+}
+
+function concat(a: Uint8Array, b: Uint8Array) {
+  if (a.length === 0) {
+    return b;
+  }
+
+  if (b.length === 0) {
+    return a;
+  }
+
+  const merged = new Uint8Array(a.length + b.length);
+  merged.set(a);
+  merged.set(b, a.length);
+  return merged;
+}
 
 export class Parser {
-  #buffer: Uint8Array = new Uint8Array(0);
   #decoder = new TextDecoder();
-  #index: number = 0;
   #countContext: CountContext;
+  #stream: AsyncIterableIterator<Uint8Array<ArrayBufferLike>>;
+  #buffer: Uint8Array | null;
 
-  #finished() {
-    return this.#index >= this.#buffer.length;
+  constructor(stream: AsyncIterableIterator<Uint8Array>) {
+    this.#stream = stream;
   }
 
-  #peekBytes(size: number) {
+  async #readBytes(size: number): Promise<Uint8Array | null> {
     if (typeof size !== "number") {
       throw new Error(`Size must be a number, got '${size}'`);
     }
 
-    return this.#buffer.slice(this.#index, this.#index + size);
-  }
+    while (!this.#buffer || this.#buffer.length < size) {
+      const result = await this.#stream.next();
 
-  #readBytes(size: number) {
-    if (typeof size !== "number") {
-      throw new Error(`Size must be a number, got '${size}'`);
+      if (result.done) {
+        return null;
+      }
+
+      this.#buffer = concat(this.#buffer ?? new Uint8Array(0), result.value);
     }
 
-    const chunk = this.#peekBytes(size);
-    this.#index += size;
+    const chunk = this.#buffer.slice(0, size);
+    this.#buffer = this.#buffer.slice(size);
     return chunk;
   }
 
-  #readCharacters(count: number): string {
-    const chunk = this.#readBytes(count);
+  async #readCharacters(count: number): Promise<string> {
+    const chunk = await this.#readBytes(count);
     return this.#decoder.decode(chunk);
   }
 
-  #readOne(): string {
+  async readOne(): Promise<string | null> {
     let code = "";
 
     while (code.length < 4) {
-      code = this.#decoder.decode(this.#peekBytes(code.length + 1));
+      const next = await this.#readBytes(1);
+      if (next === null) {
+        return null;
+      }
+
+      code += this.#decoder.decode(next);
 
       if (code === "{") {
-        const version = parseVersion(this.#peekBytes(23));
-        return this.#readCharacters(version.size);
+        const prefix = code + (await this.#readCharacters(22));
+        const version = parseVersion(prefix);
+        return prefix + (await this.#readCharacters(version.size - prefix.length));
       }
 
       if (code.startsWith("-") && code in CounterCodeTable) {
         const size = CounterCodeTable[code];
-        if (size.fs === null) {
-          throw new Error("Variable length currently not supported");
+        if (size && size.fs !== null) {
+          const qb64 = await this.#readCharacters(size.fs - size.hs);
+          const count = decodeBase64Int(qb64);
+
+          if (code === CounterCode.AttachmentGroup || code === CounterCode.BigAttachmentGroup) {
+            // Attachment group, currently no need to keep track of the count
+          } else {
+            // Stores the counter and expected count so we know what to expect next
+            this.#countContext = {
+              code,
+              count,
+            };
+          }
+
+          return code + qb64;
+        } else if (!size || size.fs === null) {
+          throw new Error(`Variable length currently not supported code=${code}`);
         }
-
-        const qb64 = this.#readCharacters(size.fs);
-        const count = Base64.toInt(qb64.slice(size.hs));
-
-        if (code === CounterCode.AttachmentGroup || code === CounterCode.BigAttachmentGroup) {
-          // Attachment group, currently no need to keep track of the count
-        } else {
-          // Stores the counter and expected count so we know what to expect next
-          this.#countContext = {
-            code,
-            count,
-          };
-        }
-
-        return qb64;
       } else if (
         this.#countContext &&
         this.#countContext.count > 0 &&
@@ -81,79 +105,78 @@ export class Parser {
           CounterCode.TransLastIdxSigGroups,
         ].includes(this.#countContext.code)
       ) {
-        let code = "";
-
-        while (code.length < 2) {
-          code = this.#decoder.decode(this.#peekBytes(code.length + 1));
+        if (code in IndexerCodeTable) {
           const size = IndexerCodeTable[code];
 
-          if (size.fs === null) {
-            throw new Error(`Variable length not supported`);
-          }
-
-          if (size) {
+          if (size && size.fs) {
             this.#countContext.count--;
-            return this.#readCharacters(size.fs);
+            const qb64 = await this.#readCharacters(size.fs - size.hs);
+            return code + qb64;
+          } else if (size) {
+            throw new Error(`Variable length currently not supported code=${code}`);
           }
         }
-
-        throw new Error(`Expected indexer code, got ${code}`);
       } else if (code in MatterCodeTable) {
         const size = MatterCodeTable[code];
 
-        if (size.fs === null) {
-          throw new Error(`Variable length not supported`);
+        if (size && size.fs) {
+          const qb64 = await this.#readCharacters(size.fs - size.hs);
+          return code + qb64;
+        } else if (size) {
+          throw new Error(`Variable length currently not supported code=${code}`);
         }
-
-        return this.#readCharacters(size.fs);
       }
     }
 
     throw new Error(`Unknown code in ${code}`);
   }
+}
 
-  parse(data: Uint8Array): string[] {
-    this.#buffer = data;
-
-    const result: string[] = [];
-
-    while (!this.#finished()) {
-      result.push(this.#readOne());
-    }
-
-    return result;
+async function* iter<T>(iterator: AsyncIterable<T>): AsyncIterableIterator<T> {
+  for await (const item of iterator) {
+    yield item;
   }
 }
 
-export function parse(data: Uint8Array): string[] {
-  const parser = new Parser();
-  return parser.parse(data);
+export async function* decode(input: AsyncIterable<Uint8Array>): AsyncIterableIterator<string> {
+  const decoder = new Parser(iter(input));
+
+  while (true) {
+    const frame = await decoder.readOne();
+
+    if (frame === null) {
+      return;
+    }
+
+    yield frame;
+  }
 }
 
-export async function* parseStream(stream: ReadableStream<Uint8Array>): AsyncIterableIterator<Message> {
-  const decoder = new Parser();
+export interface Message {
+  payload: KeyEvent;
+  attachments: string[];
+}
 
-  let payload: unknown = null;
+export async function* parse(input: AsyncIterable<Uint8Array>): AsyncIterableIterator<Message> {
+  let payload: KeyEvent | null = null;
   let attachments: string[] = [];
 
   function reset(): Message {
     const result = { payload, attachments };
     payload = null;
     attachments = [];
-    return result;
+    return result as Message;
   }
 
-  for await (const chunk of stream) {
-    for (const frame of decoder.parse(chunk)) {
-      if (frame.startsWith("{")) {
-        if (payload) {
-          yield reset();
-        }
-
-        payload = JSON.parse(frame);
-      } else {
-        attachments.push(frame);
+  for await (const frame of decode(input)) {
+    if (frame.startsWith("{")) {
+      if (payload) {
+        yield reset();
       }
+
+      payload = JSON.parse(frame);
+    } else {
+      attachments.push(frame);
     }
   }
 
@@ -163,6 +186,6 @@ export async function* parseStream(stream: ReadableStream<Uint8Array>): AsyncIte
 }
 
 export interface Message {
-  payload: unknown;
+  payload: KeyEvent;
   attachments: string[];
 }

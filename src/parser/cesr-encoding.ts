@@ -1,5 +1,6 @@
-import { Base64, decodeBase64Url, encodeBase64Url } from "../cesr/base64.ts";
-import { CodeSize, IndexerCode, IndexerCodeTable, MatterCode, MatterCodeTable } from "./codes.ts";
+import { ed25519 } from "@noble/curves/ed25519";
+import { decodeBase64Int, decodeBase64Url, encodeBase64Int, encodeBase64Url } from "./base64.ts";
+import { type CodeSize, IndexerCode, IndexerCodeTable, MatterCode, MatterCodeTable } from "./codes.ts";
 
 function padNumber(num: number, length: number) {
   return num.toString().padStart(length, "0");
@@ -8,10 +9,10 @@ function padNumber(num: number, length: number) {
 /**
  * Represents the Raw domain
  */
-export type Raw = {
+export interface Raw {
   code: string;
   buffer: Uint8Array;
-};
+}
 
 function findPrimitiveCode(text: string): [string, CodeSize] {
   let i = 0;
@@ -156,13 +157,13 @@ export function index(text: string, index: number): string {
   const [code, size] = findPrimitiveCode(text);
   const [indexCode, indexCodeSize] = resolveIndexCode(code);
 
-  return indexCode + Base64.fromInt(index, indexCodeSize.ss) + text.slice(size.hs + size.ss);
+  return indexCode + encodeBase64Int(index, indexCodeSize.ss) + text.slice(size.hs + size.ss);
 }
 
-export type Indexed = {
+export interface Indexed {
   value: string;
   index: number;
-};
+}
 
 /**
  * Converts indexed material to primitive and index
@@ -171,7 +172,7 @@ export function deindex(text: string): Indexed {
   const [indexCode, indexCodeSize] = findIndexCode(text);
   const [primitiveCode] = resolvePrimitiveCode(indexCode);
 
-  const index = Base64.toInt(text.slice(indexCodeSize.hs, indexCodeSize.ss));
+  const index = decodeBase64Int(text.slice(indexCodeSize.hs, indexCodeSize.ss));
   const value = primitiveCode + text.slice(indexCodeSize.hs + indexCodeSize.ss);
 
   return {
@@ -180,9 +181,32 @@ export function deindex(text: string): Indexed {
   };
 }
 
+export function sign(message: Uint8Array, privateKey: Uint8Array, curve: "ed25519"): string {
+  switch (curve) {
+    case "ed25519":
+      return cesr.encode(MatterCode.Ed25519_Sig, ed25519.sign(message, privateKey));
+    default:
+      throw new Error(`Unsupported curve ${curve}`);
+  }
+}
+
+export function verify(message: Uint8Array, publicKey: string, signature: string): boolean {
+  const decodedPublicKey = cesr.decode(publicKey);
+  const decodedSignature = cesr.decode(signature);
+
+  switch (decodedSignature.code) {
+    case MatterCode.Ed25519_Sig:
+      return ed25519.verify(decodedSignature.buffer, message, decodedPublicKey.buffer);
+  }
+
+  throw new Error(`Unsupported signature code ${decodedSignature.code}`);
+}
+
 const cesr = {
   encode,
   decode,
+  sign,
+  verify,
   index,
   deindex,
   encodeDate,
