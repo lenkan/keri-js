@@ -1,0 +1,29 @@
+{
+  "name": "keri-cli",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint && prettier --check . && tsc --noEmit",
+    "lint:fix": "eslint --fix && prettier --write .",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --no-warnings --experimental-strip-types --experimental-sqlite scripts/run-test.ts",
+    "clean": "node scripts/clean.js"
+  },
+  "bin": {
+    "keri": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "keri": "workspace:*"
+  }
+}

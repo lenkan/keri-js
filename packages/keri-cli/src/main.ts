@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 import { program } from "commander";
-import { parse } from "../parser/parser.ts";
-import { type InceptEvent } from "../events/incept.ts";
-import { FileSystemKeyStore } from "../keystore/keystore-fs.ts";
-import { SqliteEventStore } from "../db/sqlite-db.ts";
-import { Habitat } from "../keri/habitat.ts";
+import type { InceptEvent} from "keri";
+import { parse, FileSystemKeyStore, Habitat, SqliteEventStore } from "keri";
 
 const db = new SqliteEventStore({ filename: ".keri/db.sqlite" });
 db.init();
