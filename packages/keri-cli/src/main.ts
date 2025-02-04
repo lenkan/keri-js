@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { program } from "commander";
-import type { InceptEvent} from "keri";
+import type { InceptEvent } from "keri";
 import { parse, FileSystemKeyStore, Habitat, SqliteEventStore } from "keri";
 
 const db = new SqliteEventStore({ filename: ".keri/db.sqlite" });

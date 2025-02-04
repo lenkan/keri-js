@@ -9,7 +9,7 @@ async function clean(dir: string) {
   }
 }
 
-for(const pattern of ["dist", "node_modules", "packages/*/dist", "packages/*/node_modules"]) {
+for (const pattern of ["dist", "node_modules", "packages/*/dist", "packages/*/node_modules"]) {
   for await (const entry of glob(pattern)) {
     await clean(entry);
   }
