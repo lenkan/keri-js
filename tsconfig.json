@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "strictNullChecks": true,
     "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "preserveWatchOutput": true
   }
 }

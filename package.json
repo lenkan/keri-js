@@ -6,6 +6,7 @@
     "lint": "eslint && prettier --check .",
     "lint:fix": "eslint --fix && prettier --write .",
     "build": "pnpm -r build",
+    "dev": "pnpm run --parallel dev",
     "test": "node --no-warnings --experimental-strip-types --experimental-sqlite scripts/run-test.ts",
     "clean": "node --no-warnings --experimental-strip-types scripts/clean.ts",
     "set-version": "node --no-warnings --experimental-strip-types scripts/set-version.ts"

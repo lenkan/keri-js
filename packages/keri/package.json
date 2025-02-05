@@ -2,7 +2,8 @@
   "name": "keri",
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch"
   },
   "exports": {
     ".": "./dist/main.js",

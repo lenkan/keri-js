@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "paths": {
-      "keri": ["../keri/src"]
-    }
+    "lib": ["DOM", "DOM.AsyncIterable"],
+    "jsx": "react-jsx"
   }
 }
