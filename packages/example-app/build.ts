@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 
 const outdir = "dist";
 
+const isServing = process.argv.includes("--serve");
 const context = await esbuild.context({
   outdir,
   entryPoints: ["src/main.tsx"],
@@ -27,7 +28,7 @@ await writeFile(
     "<body>",
     "<div id='root'></div>",
     "<script src='main.js'></script>",
-    "<script>new EventSource('/esbuild').addEventListener('change', () => location.reload())</script>",
+    isServing ? "<script>new EventSource('/esbuild').addEventListener('change', () => location.reload())</script>" : "",
     "</body>",
     "</html>",
   ]

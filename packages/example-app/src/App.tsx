@@ -27,7 +27,7 @@ export function App() {
 
   useEffect(() => {
     if (!url) {
-      setSearchParams({ url: "/samples/geda.cesr" });
+      setSearchParams({ url: "./samples/geda.cesr" });
     }
   }, []);
 
