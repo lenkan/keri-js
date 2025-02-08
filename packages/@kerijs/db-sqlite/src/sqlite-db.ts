@@ -1,8 +1,7 @@
 import { DatabaseSync, type SupportedValueType } from "node:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import type { KeyEvent } from "../events/main.ts";
-import type { EventStore, KeyEventAttachment, KeyEventMessage, ListArgs } from "./event-store.ts";
+import type { KeyEvent, EventStore, KeyEventAttachment, KeyEventMessage, ListArgs } from "keri";
 
 function parseRow(row: unknown): KeyEventMessage {
   if (!row || typeof row !== "object") {

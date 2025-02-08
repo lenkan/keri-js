@@ -5,7 +5,8 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:only": "node --test --test-only --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts"
   },
   "exports": {
     ".": "./dist/main.js",

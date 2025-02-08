@@ -7,7 +7,8 @@
     "lint:fix": "eslint --fix && prettier --write .",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts"
+    "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts",
+    "test:only": "node --test --test-only --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts"
   },
   "bin": {
     "keri": "./dist/main.js"
@@ -24,7 +25,8 @@
   },
   "dependencies": {
     "commander": "^13.0.0",
-    "keri": "workspace:*"
+    "keri": "workspace:*",
+    "@kerijs/db-sqlite": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

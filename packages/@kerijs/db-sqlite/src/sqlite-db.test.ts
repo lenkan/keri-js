@@ -1,17 +1,17 @@
 import { before, test } from "node:test";
 import assert from "node:assert";
 import { SqliteEventStore } from "./sqlite-db.ts";
-import { reply, incept } from "../events/main.ts";
-import { cesr, CounterCode, MatterCode } from "../main-common.ts";
+import { cesr, keri, CounterCode, MatterCode } from "keri";
 import { randomBytes } from "@noble/hashes/utils";
 
 const db = new SqliteEventStore();
+
 before(() => {
   db.init();
 });
 
 test("Should insert and read event", async () => {
-  const event = incept({ k: [], kt: [], n: [], nt: [] });
+  const event = keri.incept({ k: [], kt: [], n: [], nt: [] });
 
   await db.saveEvent(event);
   const events = await db.list({ i: event.i });
@@ -21,7 +21,7 @@ test("Should insert and read event", async () => {
 });
 
 test("Can insert and read attachment", async () => {
-  const event = incept({ k: [], kt: [], n: [], nt: [] });
+  const event = keri.incept({ k: [], kt: [], n: [], nt: [] });
 
   const signature = cesr.index(cesr.encode(MatterCode.Ed25519_Sig, randomBytes(64)), 1);
   await db.saveEvent(event);
@@ -38,7 +38,7 @@ test("Can insert and read attachment", async () => {
 });
 
 test("Should query for event type", async () => {
-  const event = reply({
+  const event = keri.reply({
     dt: "2022-01-20T12:57:59.823350+00:00",
     r: "/loc/scheme",
     a: {

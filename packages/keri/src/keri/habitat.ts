@@ -1,4 +1,4 @@
-import type { EventStore, KeyEventMessage } from "../db/event-store.ts";
+import type { EventStore, KeyEventMessage } from "../events/event-store.ts";
 import type { KeyStore } from "../keystore/keystore.ts";
 import { cesr, CounterCode } from "../main-common.ts";
 import { parse } from "../parser/parser.ts";

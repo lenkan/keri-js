@@ -36,6 +36,36 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0(eslint@9.19.0)(typescript@5.7.3)
 
+  packages/@kerijs/db-sqlite:
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.17.0
+        version: 9.19.0
+      '@noble/hashes':
+        specifier: ^1.5.0
+        version: 1.7.1
+      eslint:
+        specifier: ^9.17.0
+        version: 9.19.0
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.0(eslint@9.19.0)
+      globals:
+        specifier: ^15.12.0
+        version: 15.14.0
+      keri:
+        specifier: workspace:*
+        version: link:../../keri
+      prettier:
+        specifier: ^3.4.2
+        version: 3.4.2
+      typescript:
+        specifier: ^5.7.3
+        version: 5.7.3
+      typescript-eslint:
+        specifier: ^8.19.0
+        version: 8.23.0(eslint@9.19.0)(typescript@5.7.3)
+
   packages/example-app:
     devDependencies:
       '@eslint/js':
@@ -123,6 +153,9 @@ importers:
 
   packages/keri-cli:
     dependencies:
+      '@kerijs/db-sqlite':
+        specifier: workspace:*
+        version: link:../@kerijs/db-sqlite
       commander:
         specifier: ^13.0.0
         version: 13.1.0

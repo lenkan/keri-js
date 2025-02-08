@@ -37,3 +37,12 @@ services:
       SALT: 0ACcQEIuv9SGcw6qPaj1UfLo
     ports:
       - 5643:5643
+
+  dynamodb:
+    build:
+      context: images/dynamodb
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    healthcheck:
+      <<: *x-healthcheck
