@@ -1,4 +1,4 @@
-import { decodeBase64 } from "../packages/keri/src/parser/base64.ts";
+import { decodeBase64 } from "../src/parser/base64.ts";
 
 export const privateKey00 = decodeBase64("vEf7c50OqZJQLOjns/3B8k5Q/PQeh9smuZgiQXU7heU=");
 export const privateKey11 = decodeBase64("Ky3v2P+1/6yGB1ZI4o8vk/Zi629oa64ks88X02i9vag=");

@@ -4,8 +4,9 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
+  { ignores: ["node_modules", "dist"] },
   {
-    files: ["scripts/*.{js,mjs,cjs,ts}"],
+    files: ["**/*.{js,mjs,cjs,ts}"],
     extends: [pluginJs.configs.recommended, tseslint.configs.strict, tseslint.configs.stylistic],
     languageOptions: { globals: globals.node },
   },
@@ -13,8 +14,8 @@ export default tseslint.config(
   {
     rules: {
       // Rules for --experimental-strip-types to work
-      // "@typescript-eslint/consistent-type-imports": "error",
-      // "@typescript-eslint/parameter-properties": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/parameter-properties": "error",
     },
   },
 );

@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { ed25519 } from "@noble/curves/ed25519";
 import cesr from "./cesr-encoding.ts";
 import { MatterCode } from "./codes.ts";
-import { privateKey00 } from "../../../../fixtures/keys.ts";
+import { privateKey00 } from "../../fixtures/keys.ts";
 
 test("Salty key sign", () => {
   const message = new TextEncoder().encode("Hello, World!");

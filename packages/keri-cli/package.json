@@ -3,12 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "lint": "eslint && prettier --check . && tsc --noEmit",
+    "lint": "eslint",
     "lint:fix": "eslint --fix && prettier --write .",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --no-warnings --experimental-strip-types --experimental-sqlite scripts/run-test.ts",
-    "clean": "node scripts/clean.js"
+    "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts"
   },
   "bin": {
     "keri": "./dist/main.js"
@@ -26,5 +25,14 @@
   "dependencies": {
     "commander": "^13.0.0",
     "keri": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.0"
   }
 }

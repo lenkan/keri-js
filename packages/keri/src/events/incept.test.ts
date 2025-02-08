@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { incept } from "./incept.ts";
 import cesr from "../parser/cesr-encoding.ts";
-import { privateKey00, privateKey11 } from "../../../../fixtures/keys.ts";
+import { privateKey00, privateKey11 } from "../../fixtures/keys.ts";
 import { MatterCode } from "../parser/codes.ts";
 import { ed25519 } from "@noble/curves/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
