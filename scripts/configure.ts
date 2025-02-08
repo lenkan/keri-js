@@ -17,7 +17,7 @@ async function configure() {
 
       packageJSON.scripts.lint = "eslint";
 
-      await writeFile(entry, JSON.stringify(packageJSON, null, 2));
+      await writeFile(entry, JSON.stringify(packageJSON, null, 2) + "\n");
       console.log(`Configured ${entry}`);
     }
   }
