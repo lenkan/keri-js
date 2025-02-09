@@ -12,7 +12,6 @@ async function configure() {
         "--test-reporter=spec",
         "--no-warnings",
         "--experimental-strip-types",
-        "src/**/*.test.ts",
       ].join(" ");
 
       packageJSON.scripts.lint = "eslint";

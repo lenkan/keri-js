@@ -48,7 +48,7 @@ test("Can insert and read attachment", async () => {
   assert.deepEqual(events[0].attachments, [{ code: CounterCode.ControllerIdxSigs, value: signature }]);
 });
 
-test.skip("Should query for event type", async () => {
+test("Should query for event type", async () => {
   const event = keri.reply({
     dt: "2022-01-20T12:57:59.823350+00:00",
     r: "/loc/scheme",

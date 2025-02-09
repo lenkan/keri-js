@@ -1,9 +1,9 @@
 import {
+  type ScanCommandInput,
   CreateTableCommand,
   DynamoDBClient,
   paginateScan,
   PutItemCommand,
-  ScanCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -78,13 +78,22 @@ export class DynamoEventStore implements EventStore {
 
   async list(args: ListArgs = {}): Promise<KeyEventMessage[]> {
     const result: KeyEventMessage[] = [];
+    const input: ScanCommandInput = {
+      TableName: this.tableName,
+    };
 
-    for await (const page of paginateScan(
-      { client: this.#client, pageSize: 10 },
-      {
-        TableName: this.tableName,
-      },
-    )) {
+    const filterEntries = Object.entries(args);
+    if (filterEntries.length > 0) {
+      input.FilterExpression = filterEntries.map(([key]) => `event.#${key} = :${key}`).join(" AND ");
+      input.ExpressionAttributeValues = filterEntries.reduce((acc, [key, value]) => {
+        return { ...acc, [`:${key}`]: { S: value } };
+      }, input.ExpressionAttributeValues);
+      input.ExpressionAttributeNames = filterEntries.reduce((acc, [key]) => {
+        return { ...acc, [`#${key}`]: key };
+      }, input.ExpressionAttributeNames);
+    }
+
+    for await (const page of paginateScan({ client: this.#client, pageSize: 10 }, input)) {
       for (const item of page.Items ?? []) {
         const obj = unmarshall(item);
 
