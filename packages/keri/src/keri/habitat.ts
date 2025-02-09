@@ -2,9 +2,11 @@ import type { EventStore, KeyEventMessage } from "../events/event-store.ts";
 import type { KeyStore } from "../keystore/keystore.ts";
 import { cesr, CounterCode } from "../main-common.ts";
 import { parse } from "../parser/parser.ts";
+import { encodeBase64Int } from "../parser/base64.ts";
+import { MatterCode } from "../parser/codes.ts";
 import { resolveKeyState, submit } from "./keri.ts";
 import type { InteractEvent, ReplyEvent, InceptEvent } from "../events/main.ts";
-import { interact, incept } from "../events/main.ts";
+import { interact } from "../events/main.ts";
 
 export interface HabitatDeps {
   keystore: KeyStore;
@@ -12,6 +14,8 @@ export interface HabitatDeps {
 }
 
 export interface InceptIdentifierArgs {
+  keys: string[];
+  next?: string[];
   wits: string[];
   toad?: number;
 }
@@ -25,37 +29,24 @@ export class Habitat {
     this.#keystore = deps.keystore;
   }
 
-  async create(args: InceptIdentifierArgs): Promise<InceptEvent> {
-    const keys = [await this.#keystore.incept(), await this.#keystore.incept()];
-    const toad = args.toad ?? (args.wits.length === 0 ? 0 : args.wits.length === 1 ? 1 : args.wits.length - 1);
+  async create(event: InceptEvent, signatures: string[]): Promise<void> {
+    await this.#db.saveEvent(event);
 
-    const payload = incept({
-      kt: "1",
-      k: keys.map((key) => key.current),
-      nt: "1",
-      n: keys.map((key) => key.next),
-      bt: toad.toString(),
-      b: args.wits,
+    await this.#db.saveAttachment(event.d, {
+      code: CounterCode.FirstSeenReplayCouples,
+      value: ["0A", MatterCode.Salt_128, encodeBase64Int(0, 22), cesr.encodeDate(new Date())].join(""),
     });
 
-    await this.#db.saveEvent(payload);
-
-    const raw = new TextEncoder().encode(JSON.stringify(payload));
-
     await Promise.all(
-      keys.map(async (key, index) => {
-        const sig = await this.#keystore.sign(key.current, raw);
-
-        await this.#db.saveAttachment(payload.d, {
+      signatures.map(async (sig, index) => {
+        await this.#db.saveAttachment(event.d, {
           code: CounterCode.ControllerIdxSigs,
           value: cesr.index(sig, index),
         });
       }),
     );
 
-    await this.submit(payload.d);
-
-    return payload;
+    await this.submit(event.d);
   }
 
   async interact(aid: string): Promise<InteractEvent> {
@@ -110,6 +101,7 @@ export class Habitat {
   }
 
   async submit(eventId: string) {
+    console.log("Submitting");
     const [event] = await this.#db.list({ d: eventId });
 
     if (!event || !("i" in event.event && typeof event.event.i === "string")) {
@@ -137,20 +129,10 @@ export class Habitat {
         return result.a.url as string;
       }),
     );
+    console.log("Submitting");
 
     for (const wit of witnessEndpoints) {
-      const response = await submit(
-        {
-          event: event.event,
-          signatures: {
-            controllers: event.attachments
-              .filter((attachment) => attachment.code === CounterCode.ControllerIdxSigs)
-              .map((attachment) => attachment.value),
-            witnesses: [],
-          },
-        },
-        wit,
-      );
+      const response = await submit(event, wit);
 
       for await (const receipt of parse(response)) {
         await this.#db.saveEvent(receipt.payload);

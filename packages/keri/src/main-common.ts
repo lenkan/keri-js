@@ -6,6 +6,7 @@ export * from "./parser/codes.ts";
 export * from "./parser/base64.ts";
 export * from "./parser/parser.ts";
 export * from "./keri/habitat.ts";
+export { serializeAttachment } from "./keri/keri.ts";
 
 export const keri = { incept, interact, reply };
 

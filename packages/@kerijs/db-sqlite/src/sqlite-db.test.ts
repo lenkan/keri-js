@@ -10,8 +10,12 @@ before(() => {
   db.init();
 });
 
+function randomKey() {
+  return cesr.encode(MatterCode.Ed25519, randomBytes(32));
+}
+
 test("Should insert and read event", async () => {
-  const event = keri.incept({ k: [], kt: [], n: [], nt: [] });
+  const event = keri.incept({ k: [randomKey()] });
 
   await db.saveEvent(event);
   const events = await db.list({ i: event.i });
@@ -21,7 +25,7 @@ test("Should insert and read event", async () => {
 });
 
 test("Can insert and read attachment", async () => {
-  const event = keri.incept({ k: [], kt: [], n: [], nt: [] });
+  const event = keri.incept({ k: [randomKey()] });
 
   const signature = cesr.index(cesr.encode(MatterCode.Ed25519_Sig, randomBytes(64)), 1);
   await db.saveEvent(event);

@@ -31,10 +31,7 @@ export class FileSystemKeyStore implements KeyStore {
     ];
   }
 
-  async incept(): Promise<Key> {
-    const key0 = ed25519.utils.randomPrivateKey();
-    const key1 = ed25519.utils.randomPrivateKey();
-
+  async import(key0: Uint8Array, key1: Uint8Array) {
     await mkdir(this.options.dir, { recursive: true });
 
     const current = cesr.encode(MatterCode.Ed25519, ed25519.getPublicKey(key0));
@@ -50,6 +47,13 @@ export class FileSystemKeyStore implements KeyStore {
     );
 
     return { current, next };
+  }
+
+  async incept(): Promise<Key> {
+    const key0 = ed25519.utils.randomPrivateKey();
+    const key1 = ed25519.utils.randomPrivateKey();
+
+    return await this.import(key0, key1);
   }
 
   async rotate(currentKey: string): Promise<Key> {

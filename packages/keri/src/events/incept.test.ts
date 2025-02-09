@@ -8,6 +8,12 @@ import { ed25519 } from "@noble/curves/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
 import assert from "node:assert";
 
+describe("Input validation", () => {
+  test("Should throw when no keys are provided", () => {
+    assert.throws(() => incept({ k: [], kt: "0", n: [], nt: "0" }), { message: "No keys provided in inception event" });
+  });
+});
+
 describe("Transferable single sig AID", () => {
   let currentKey: string;
   let nextKey: string;

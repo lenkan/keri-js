@@ -7,9 +7,9 @@ import type { Threshold } from "./common.ts";
 
 export interface InceptArgs {
   k: string[];
-  kt: Threshold;
-  n: string[];
-  nt: Threshold;
+  kt?: Threshold;
+  n?: string[];
+  nt?: Threshold;
   b?: string[];
   bt?: string;
 }
@@ -42,17 +42,37 @@ function isTransferable(key: string) {
   }
 }
 
+function resolveBackerThreshold(data: InceptArgs) {
+  if (data.bt) {
+    return data.bt;
+  }
+
+  if (!data.b || data.b.length === 0) {
+    return 0;
+  }
+
+  if (data.b.length === 1) {
+    return 1;
+  }
+
+  return data.b.length - 1;
+}
+
 export function incept(data: InceptArgs): InceptEvent {
+  if (data.k.length === 0) {
+    throw new Error("No keys provided in inception event");
+  }
+
   const event = versify({
     t: "icp" as const,
     d: "#".repeat(44),
     i: "#".repeat(44),
     s: "0",
-    kt: data.kt,
+    kt: data.kt ?? data.k.length.toString(),
     k: data.k,
-    nt: data.nt,
-    n: data.n,
-    bt: data.bt ?? "0",
+    nt: data.nt ?? data.n?.length.toString() ?? "0",
+    n: data.n ?? [],
+    bt: resolveBackerThreshold(data).toString(),
     b: data.b ?? [],
     c: [] as string[],
     a: [] as DataArray,

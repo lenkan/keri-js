@@ -6,8 +6,7 @@
     "build": "node --experimental-strip-types --no-warnings build.ts",
     "dev": "node --watch --experimental-strip-types --no-warnings build.ts --serve",
     "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types",
-    "lint": "eslint",
-    "test:only": "node --test --test-only --test-reporter=spec --no-warnings --experimental-strip-types src/**/*.test.ts"
+    "lint": "eslint"
   },
   "files": [
     "dist"

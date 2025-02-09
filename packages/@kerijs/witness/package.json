@@ -1,16 +1,12 @@
 {
-  "name": "@kerijs/cli",
+  "name": "@kerijs/witness",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix && prettier --write .",
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch",
+    "dev": "node --watch --experimental-strip-types src/main.ts",
     "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types"
-  },
-  "bin": {
-    "keri": "./dist/main.js"
   },
   "files": [
     "dist"
@@ -23,12 +19,14 @@
     "node": ">=22"
   },
   "dependencies": {
-    "commander": "^13.0.0",
-    "keri": "workspace:*",
-    "@kerijs/db-sqlite": "workspace:*"
+    "@kerijs/db-dynamo": "workspace:*",
+    "@noble/curves": "^1.6.0",
+    "express": "^4.21.2",
+    "keri": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@types/express": "^5.0.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.12.0",

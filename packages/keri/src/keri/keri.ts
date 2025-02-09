@@ -1,4 +1,4 @@
-import type { InceptEvent, KeyEvent } from "../events/main.ts";
+import type { InceptEvent, KeyEvent, KeyEventAttachment, KeyEventMessage } from "../events/main.ts";
 import { CounterCode, encodeBase64Int } from "../main-common.ts";
 
 export interface WitnessSignature {
@@ -9,11 +9,6 @@ export interface WitnessSignature {
 export interface KeyEventSignatures {
   controllers: string[];
   witnesses?: WitnessSignature[];
-}
-
-export interface KeyEventMessage {
-  event: KeyEvent;
-  signatures: KeyEventSignatures;
 }
 
 export function resolveKeyState(events: KeyEvent[]) {
@@ -32,15 +27,30 @@ export function resolveKeyState(events: KeyEvent[]) {
   };
 }
 
-export function serializeAttachment(message: KeyEventMessage): string {
-  const sigs = message.signatures.controllers;
+export function serializeAttachment(attachments: KeyEventAttachment[]): string {
+  let attachment = "";
 
-  const controllerSigs = `${CounterCode.ControllerIdxSigs}${encodeBase64Int(message.signatures.controllers.length, 2)}${sigs.join("")}`;
+  const sigs = attachments
+    .filter((attachment) => attachment.code === CounterCode.ControllerIdxSigs)
+    .map((attachment) => attachment.value);
 
-  const attachmentSize = new TextEncoder().encode(controllerSigs).length / 4;
-  const attachment = `${CounterCode.AttachmentGroup}${encodeBase64Int(attachmentSize, 2)}${controllerSigs}`;
+  if (sigs.length > 0) {
+    attachment += `${CounterCode.ControllerIdxSigs}${encodeBase64Int(sigs.length, 2)}${sigs.join("")}`;
+  }
 
-  return attachment;
+  const replayCouples = attachments
+    .filter((attachment) => attachment.code === CounterCode.FirstSeenReplayCouples)
+    .map((attachment) => attachment.value);
+
+  if (replayCouples.length > 0) {
+    attachment += `${CounterCode.FirstSeenReplayCouples}${encodeBase64Int(replayCouples.length, 2)}${replayCouples.join("")}`;
+  }
+
+  // TODO: This should not need to be floored
+  const attachmentSize = Math.floor(new TextEncoder().encode(attachment).length / 4);
+  const size = encodeBase64Int(attachmentSize, 2);
+
+  return `${CounterCode.AttachmentGroup}${size}${attachment}`;
 }
 
 export interface Receipt {
@@ -55,7 +65,9 @@ export async function submit(message: KeyEventMessage, witnessEndpoint: string):
     body: JSON.stringify(message.event),
     headers: {
       "Content-Type": "application/cesr+json",
-      "CESR-ATTACHMENT": serializeAttachment(message),
+      "CESR-ATTACHMENT": serializeAttachment(
+        message.attachments.filter((a) => a.code === CounterCode.ControllerIdxSigs),
+      ),
     },
   });
 
