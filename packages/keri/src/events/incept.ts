@@ -30,6 +30,18 @@ export interface InceptEvent {
   a: DataArray;
 }
 
+function isTransferable(key: string) {
+  const raw = cesr.decode(key);
+  switch (raw.code) {
+    case MatterCode.ECDSA_256k1N:
+    case MatterCode.Ed25519N:
+    case MatterCode.Ed448N:
+      return false;
+    default:
+      return true;
+  }
+}
+
 export function incept(data: InceptArgs): InceptEvent {
   const event = versify({
     t: "icp" as const,
@@ -47,16 +59,18 @@ export function incept(data: InceptArgs): InceptEvent {
   });
 
   const encoder = new TextEncoder();
-  const digest = cesr.encode(
-    MatterCode.Blake3_256,
-    blake3
-      .create({ dkLen: 32 })
-      .update(encoder.encode(JSON.stringify(event)))
-      .digest(),
-  );
+  const transferable = event.k.length > 1 || isTransferable(event.k[0]);
 
-  event["d"] = digest;
-  event["i"] = digest;
+  if (!transferable) {
+    event["i"] = event.k[0];
+  }
+
+  const raw = encoder.encode(JSON.stringify(event));
+
+  const said = cesr.encode(MatterCode.Blake3_256, blake3.create({ dkLen: 32 }).update(raw).digest());
+
+  event["d"] = said;
+  event["i"] = transferable ? said : event["i"];
 
   return event;
 }
