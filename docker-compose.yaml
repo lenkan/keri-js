@@ -16,25 +16,22 @@ x-witness: &x-witness
 services:
   witness-1:
     <<: *x-witness
-    environment:
-      HTTP_PORT: 5641
-      SALT: 0AAX68oik54bKHhENZhlyg3Q
+    env_file:
+      - config/witness-1.env
     ports:
       - 5641:5641
 
   witness-2:
     <<: *x-witness
-    environment:
-      HTTP_PORT: 5642
-      SALT: 0AAMhYCbV5C58ueD9qYcr_du
+    env_file:
+      - config/witness-2.env
     ports:
       - 5642:5642
 
   witness-3:
     <<: *x-witness
-    environment:
-      HTTP_PORT: 5643
-      SALT: 0ACcQEIuv9SGcw6qPaj1UfLo
+    env_file:
+      - config/witness-3.env
     ports:
       - 5643:5643
 

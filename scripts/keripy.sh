@@ -18,8 +18,8 @@ kli incept \
     --wits BNRSNuPrmgAeoossFZSejufyCaPLRRyEPRKn1wUxVeX9 \
     --wits BDOx8sbSqohKdpMFauzL4wTmzf2WwntKfsPov63-magB
 
-kli status --name alice --alias alice
+# kli status --name alice --alias alice
 
-kli interact --name alice --alias alice --data '{"msg":"foobar"}'
+# kli interact --name alice --alias alice --data '{"msg":"foobar"}'
 
-kli export --name alice --alias alice > fixtures/alice.cesr
+# kli export --name alice --alias alice > fixtures/alice.cesr

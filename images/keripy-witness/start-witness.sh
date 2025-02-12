@@ -2,26 +2,30 @@
 set -e
 
 port=${HTTP_PORT:-"5631"}
+tcp=${TCP_PORT:-"5632"}
 hostname=${PUBLIC_HOSTNAME:-"localhost"}
 protocol=${PUBLIC_PROTOCOL:-"http"}
 url="$protocol://$hostname:$port"
 salt=${SALT:-"0ACDEyMzQ1Njc4OWxtbm9aBc"}
 name=${NAME:-"witness"}
+base=${BASE:-"witness"}
 
 kli init \
     --salt "$salt" \
     --name "$name" \
+    --base "$base" \
     --nopasscode \
     --config-file "$name"
 
 status() {
-    kli status --name "$name" --alias "$name"
+    kli status --name "$name" --alias "$name" --base "$base"
 }
 
 incept() {
     kli incept \
         --name "$name" \
         --alias "$name" \
+        --base "$base" \
         --ncount 1 \
         --icount 1 \
         --isith 1 \
@@ -33,12 +37,14 @@ incept() {
     kli ends add \
         --name "$name" \
         --alias "$name" \
+        --base "$base" \
         --role controller \
         --eid "$prefix"
 
     kli location add \
         --name "$name" \
         --alias "$name" \
+        --base "$base" \
         --url "$url"
 }
 
@@ -47,4 +53,6 @@ status || incept
 kli witness start \
     --name "$name" \
     --alias "$name" \
-    -H "$port"
+    --base "$base" \
+    -H "$port" \
+    -T "$tcp"
