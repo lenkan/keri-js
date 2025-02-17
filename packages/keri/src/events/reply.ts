@@ -1,6 +1,6 @@
 import type { DataObject } from "../data-type.ts";
 import { versify } from "../parser/version.ts";
-import { calculateSaid } from "./common.ts";
+import { saidify } from "./common.ts";
 
 export interface ReplyArgs {
   dt?: string;
@@ -26,9 +26,5 @@ export function reply(data: ReplyArgs): ReplyEvent {
     a: data.a,
   });
 
-  const digest = calculateSaid(event);
-
-  event["d"] = digest;
-
-  return event;
+  return saidify(event);
 }

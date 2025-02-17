@@ -62,10 +62,12 @@ export function incept(data: InceptArgs): InceptEvent {
     throw new Error("No keys provided in inception event");
   }
 
+  const transferable = data.k.length > 1 || isTransferable(data.k[0]);
+
   const event = versify({
     t: "icp" as const,
     d: "#".repeat(44),
-    i: "#".repeat(44),
+    i: transferable ? "#".repeat(44) : data.k[0],
     s: "0",
     kt: data.kt ?? data.k.length.toString(),
     k: data.k,
@@ -76,8 +78,6 @@ export function incept(data: InceptArgs): InceptEvent {
     c: [] as string[],
     a: [] as DataArray,
   });
-
-  const transferable = event.k.length > 1 || isTransferable(event.k[0]);
 
   if (!transferable) {
     event["i"] = event.k[0];

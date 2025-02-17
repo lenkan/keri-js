@@ -27,3 +27,19 @@ export function calculateSaid(event: KeyEvent) {
 
   return digest;
 }
+
+export function saidify<T extends KeyEvent>(event: T): T {
+  const encoder = new TextEncoder();
+
+  const digest = cesr.encode(
+    MatterCode.Blake3_256,
+    blake3
+      .create({ dkLen: 32 })
+      .update(encoder.encode(JSON.stringify(event)))
+      .digest(),
+  );
+
+  event["d"] = digest;
+
+  return { ...event };
+}
