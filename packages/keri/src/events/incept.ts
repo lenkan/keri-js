@@ -1,9 +1,8 @@
-import { blake3 } from "@noble/hashes/blake3";
 import cesr from "../parser/cesr-encoding.ts";
 import { MatterCode } from "../parser/codes.ts";
 import type { DataArray } from "../data-type.ts";
 import { versify } from "../parser/version.ts";
-import type { Threshold } from "./common.ts";
+import { calculateSaid, type Threshold } from "./common.ts";
 
 export interface InceptArgs {
   k: string[];
@@ -78,16 +77,13 @@ export function incept(data: InceptArgs): InceptEvent {
     a: [] as DataArray,
   });
 
-  const encoder = new TextEncoder();
   const transferable = event.k.length > 1 || isTransferable(event.k[0]);
 
   if (!transferable) {
     event["i"] = event.k[0];
   }
 
-  const raw = encoder.encode(JSON.stringify(event));
-
-  const said = cesr.encode(MatterCode.Blake3_256, blake3.create({ dkLen: 32 }).update(raw).digest());
+  const said = calculateSaid(event);
 
   event["d"] = said;
   event["i"] = transferable ? said : event["i"];
