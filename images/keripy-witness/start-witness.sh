@@ -9,6 +9,8 @@ url="$protocol://$hostname:$port"
 salt=${SALT:-"0ACDEyMzQ1Njc4OWxtbm9aBc"}
 name=${NAME:-"witness"}
 base=${BASE:-"witness"}
+location=${LOCATION:-"$url"}
+log_level=${LOG_LEVEL:-"CRITICAL"}
 
 kli init \
     --salt "$salt" \
@@ -45,7 +47,7 @@ incept() {
         --name "$name" \
         --alias "$name" \
         --base "$base" \
-        --url "$url"
+        --url "$location"
 }
 
 status || incept 
@@ -54,5 +56,6 @@ kli witness start \
     --name "$name" \
     --alias "$name" \
     --base "$base" \
+    --loglevel "$log_level" \
     -H "$port" \
     -T "$tcp"
