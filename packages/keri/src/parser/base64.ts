@@ -43,7 +43,7 @@ export function decodeBase64(b64: string): Uint8Array {
   return bytes;
 }
 
-export function decodeBase64Int(value: string) {
+export function decodeBase64Int(value: string): number {
   return value
     .split("")
     .reverse()
