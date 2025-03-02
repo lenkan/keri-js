@@ -101,7 +101,6 @@ export class Habitat {
   }
 
   async submit(eventId: string) {
-    console.log("Submitting");
     const [event] = await this.#db.list({ d: eventId });
 
     if (!event || !("i" in event.event && typeof event.event.i === "string")) {
@@ -129,7 +128,6 @@ export class Habitat {
         return result.a.url as string;
       }),
     );
-    console.log("Submitting");
 
     for (const wit of witnessEndpoints) {
       const response = await submit(event, wit);
