@@ -1,12 +1,14 @@
 import { parseVersion } from "./version.ts";
 import { decodeBase64Int } from "./base64.ts";
-import { CounterCode, CounterCodeTable, IndexerCodeTable, MatterCodeTable } from "./codes.ts";
+import { type CodeSize, CounterCode, CounterCodeTable, IndexerCodeTable, MatterCodeTable } from "./codes.ts";
 import type { KeyEvent } from "../events/main.ts";
 
-interface CountContext {
-  code: keyof typeof CounterCodeTable;
-  count: number;
-}
+export type Frame =
+  | {
+      code: string;
+      text: string;
+    }
+  | { v: string; t: string; d: string; [key: string]: unknown };
 
 function concat(a: Uint8Array, b: Uint8Array) {
   if (a.length === 0) {
@@ -25,7 +27,6 @@ function concat(a: Uint8Array, b: Uint8Array) {
 
 export class Parser {
   #decoder = new TextDecoder();
-  #countContext: CountContext;
   #stream: AsyncIterableIterator<Uint8Array<ArrayBufferLike>>;
   #buffer: Uint8Array | null;
 
@@ -58,77 +59,116 @@ export class Parser {
     return this.#decoder.decode(chunk);
   }
 
-  async readOne(): Promise<string | null> {
-    let code = "";
+  async #readIndexer(): Promise<Frame> {
+    let size: CodeSize | null = null;
 
+    let code = "";
     while (code.length < 4) {
       const next = await this.#readBytes(1);
       if (next === null) {
-        return null;
+        throw new Error("Unexpected end of stream");
       }
 
       code += this.#decoder.decode(next);
+      size = IndexerCodeTable[code];
 
-      if (code === "{") {
-        const prefix = code + (await this.#readCharacters(22));
-        const version = parseVersion(prefix);
-        return prefix + (await this.#readCharacters(version.size - prefix.length));
-      }
-
-      if (code.startsWith("-") && code in CounterCodeTable) {
-        const size = CounterCodeTable[code];
-        if (size && size.fs !== null) {
-          const qb64 = await this.#readCharacters(size.fs - size.hs);
-          const count = decodeBase64Int(qb64);
-
-          if (code === CounterCode.AttachmentGroup || code === CounterCode.BigAttachmentGroup) {
-            // Attachment group, currently no need to keep track of the count
-          } else {
-            // Stores the counter and expected count so we know what to expect next
-            this.#countContext = {
-              code,
-              count,
-            };
-          }
-
-          return code + qb64;
-        } else if (!size || size.fs === null) {
-          throw new Error(`Variable length currently not supported code=${code}`);
-        }
-      } else if (
-        this.#countContext &&
-        this.#countContext.count > 0 &&
-        [
-          CounterCode.ControllerIdxSigs,
-          CounterCode.WitnessIdxSigs,
-          CounterCode.TransIdxSigGroups,
-          CounterCode.TransLastIdxSigGroups,
-        ].includes(this.#countContext.code)
-      ) {
-        if (code in IndexerCodeTable) {
-          const size = IndexerCodeTable[code];
-
-          if (size && size.fs) {
-            this.#countContext.count--;
-            const qb64 = await this.#readCharacters(size.fs - size.hs);
-            return code + qb64;
-          } else if (size) {
-            throw new Error(`Variable length currently not supported code=${code}`);
-          }
-        }
-      } else if (code in MatterCodeTable) {
-        const size = MatterCodeTable[code];
-
-        if (size && size.fs) {
-          const qb64 = await this.#readCharacters(size.fs - size.hs);
-          return code + qb64;
-        } else if (size) {
-          throw new Error(`Variable length currently not supported code=${code}`);
-        }
+      if (size && size.fs !== null) {
+        const qb64 = await this.#readCharacters(size.fs - size.hs);
+        return { code, text: qb64 };
       }
     }
 
-    throw new Error(`Unknown code in ${code}`);
+    throw new Error(`Unexpected end of stream '${code}'`);
+  }
+
+  async #readPrimitive(): Promise<Frame> {
+    let size: CodeSize | null = null;
+
+    let code = "";
+    while (code.length < 4) {
+      const next = await this.#readBytes(1);
+      if (next === null) {
+        throw new Error("Unexpected end of stream");
+      }
+
+      code += this.#decoder.decode(next);
+      size = MatterCodeTable[code];
+
+      if (size && size.fs !== null) {
+        const qb64 = await this.#readCharacters(size.fs - size.hs);
+        return { code, text: qb64 };
+      }
+    }
+
+    throw new Error(`Unexpected end of stream '${code}'`);
+  }
+
+  private async *readCounter(): AsyncIterableIterator<Frame> {
+    let code = "-";
+
+    let size: CodeSize | null = null;
+    while (!size && code.length < 4) {
+      const next = await this.#readBytes(1);
+      if (next === null) {
+        throw new Error("Unexpected end of stream");
+      }
+
+      code += this.#decoder.decode(next);
+      size = CounterCodeTable[code];
+      if (size && size.fs !== null) {
+        const qb64 = await this.#readCharacters(size.fs - size.hs);
+        yield { code, text: qb64 };
+
+        switch (code) {
+          case CounterCode.ControllerIdxSigs:
+          case CounterCode.WitnessIdxSigs: {
+            let count = decodeBase64Int(qb64);
+
+            while (count > 0) {
+              yield this.#readIndexer();
+              count--;
+            }
+
+            break;
+          }
+          case CounterCode.NonTransReceiptCouples:
+          case CounterCode.SealSourceCouples:
+          case CounterCode.FirstSeenReplayCouples: {
+            let count = decodeBase64Int(qb64);
+
+            while (count > 0) {
+              yield this.#readPrimitive();
+              yield this.#readPrimitive();
+              count--;
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  async *read(): AsyncIterableIterator<Frame> {
+    while (true) {
+      const start = await this.#readBytes(1);
+      if (start === null) {
+        return;
+      }
+
+      const code = this.#decoder.decode(start);
+      if (code === "{") {
+        const prefix = this.#decoder.decode(start) + (await this.#readCharacters(22));
+        const version = parseVersion(prefix);
+        const payload = JSON.parse(prefix + (await this.#readCharacters(version.size - prefix.length)));
+        yield payload;
+      } else if (code === "-") {
+        for await (const frame of this.readCounter()) {
+          yield frame;
+        }
+      } else {
+        throw new Error(`Unexpected start of stream '${code}'`);
+      }
+    }
   }
 }
 
@@ -141,47 +181,42 @@ async function* iter<T>(iterator: AsyncIterable<T>): AsyncIterableIterator<T> {
 export async function* decode(input: AsyncIterable<Uint8Array>): AsyncIterableIterator<string> {
   const decoder = new Parser(iter(input));
 
-  while (true) {
-    const frame = await decoder.readOne();
+  for await (const frame of decoder.read()) {
+    if (typeof frame.code === "string" && typeof frame.text === "string") {
+      yield frame.code + frame.text;
+    } else {
+      yield JSON.stringify(frame);
+    }
+  }
+}
 
+export async function* parse(input: AsyncIterable<Uint8Array>): AsyncIterableIterator<Message> {
+  const decoder = new Parser(iter(input));
+
+  let payload: KeyEvent | null = null;
+  let attachments: string[] = [];
+
+  for await (const frame of decoder.read()) {
     if (frame === null) {
       return;
     }
 
-    yield frame;
-  }
-}
-
-export interface Message {
-  payload: KeyEvent;
-  attachments: string[];
-}
-
-export async function* parse(input: AsyncIterable<Uint8Array>): AsyncIterableIterator<Message> {
-  let payload: KeyEvent | null = null;
-  let attachments: string[] = [];
-
-  function reset(): Message {
-    const result = { payload, attachments };
-    payload = null;
-    attachments = [];
-    return result as Message;
-  }
-
-  for await (const frame of decode(input)) {
-    if (frame.startsWith("{")) {
+    if ("v" in frame) {
       if (payload) {
-        yield reset();
+        yield { payload, attachments };
       }
 
-      payload = JSON.parse(frame);
-    } else {
-      attachments.push(frame);
+      payload = frame as KeyEvent;
+      attachments = [];
+    }
+
+    if (typeof frame.code === "string" && typeof frame.text === "string") {
+      attachments.push(frame.code + frame.text);
     }
   }
 
   if (payload) {
-    yield reset();
+    yield { payload, attachments };
   }
 }
 

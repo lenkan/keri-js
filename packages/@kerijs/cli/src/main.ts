@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { program } from "commander";
 import type { InceptEvent } from "keri";
-import { parse, FileSystemKeyStore, Habitat } from "keri";
+import { parse, FileSystemKeyStore, Habitat, keri } from "keri";
 import { SqliteEventStore } from "@kerijs/db-sqlite";
 
 const db = new SqliteEventStore({ filename: ".keri/db.sqlite" });
@@ -58,9 +58,12 @@ program
       wits.push(wit);
     }
 
-    const result = await hab.create({ wits });
+    const key = await keystore.incept();
+    const event = keri.incept({ b: wits, k: [key.current], n: [key.next] });
+    const signature = await keystore.sign(key.current, new TextEncoder().encode(JSON.stringify(event)));
+    await hab.create(event, [signature]);
 
-    console.dir(result);
+    console.dir(await hab.list(event.i), { depth: 100 });
   });
 
 program
