@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { decode, parse } from "./parser.ts";
 import { readFile } from "node:fs/promises";
 import { versify } from "./version.ts";
+import { CounterCode } from "./codes.ts";
 
 async function* chunk(filename: string, size = 100): AsyncIterable<Uint8Array> {
   let index = 0;
@@ -39,29 +40,29 @@ test("Test alice", { timeout: 100 }, async () => {
 
   assert.equal(result.length, 2);
   assert.equal(result[0].payload.t, "icp");
-  assert.deepEqual(result[0].attachments, [
-    "-VBU",
-    "-AAB",
-    "AABNdZWH0GbClYvhaOCeFDVU5ZzfK8fyYV9bRkPy-be92qcPT51PpbAKqleKJ0He9OiwYVQ5sYHUzC7RfUsUQyEE",
-    "-BAC",
-    "AAD3BFVo11CTQy2S-5x8gGij_PXBpKDApRtNmoqyITNolRVGNBQKOp0bpgaRqtLGMQBkIejLH4jAf_juj8qGlmIP",
-    "ABACLmNhfNNNYNidckbPK_bN0p7v1uXFWee-rMbMrlAIEsD2B5OacGRN77gqje9t-uJHHCLm8DgErQq9UN88ZtcO",
-    "-EAB",
-    "0AAAAAAAAAAAAAAAAAAAAAAA",
-    "1AAG2025-02-01T12c03c46d247069p00c00",
-  ]);
+
+  assert.deepEqual(result[0].attachments, {
+    [CounterCode.ControllerIdxSigs]: [
+      "AABNdZWH0GbClYvhaOCeFDVU5ZzfK8fyYV9bRkPy-be92qcPT51PpbAKqleKJ0He9OiwYVQ5sYHUzC7RfUsUQyEE",
+    ],
+    [CounterCode.WitnessIdxSigs]: [
+      "AAD3BFVo11CTQy2S-5x8gGij_PXBpKDApRtNmoqyITNolRVGNBQKOp0bpgaRqtLGMQBkIejLH4jAf_juj8qGlmIP",
+      "ABACLmNhfNNNYNidckbPK_bN0p7v1uXFWee-rMbMrlAIEsD2B5OacGRN77gqje9t-uJHHCLm8DgErQq9UN88ZtcO",
+    ],
+    [CounterCode.FirstSeenReplayCouples]: ["0AAAAAAAAAAAAAAAAAAAAAAA", "1AAG2025-02-01T12c03c46d247069p00c00"],
+  });
+
   assert.equal(result[1].payload.t, "ixn");
-  assert.deepEqual(result[1].attachments, [
-    "-VBU",
-    "-AAB",
-    "AAAf10ab3SbPCY5g9pkFEITFu64Q-Pu9ErEUot6RM25o68s7x4Y8NxeI2Sq85KCIre_r1RkE4C-QvslgT7LUDF4J",
-    "-BAC",
-    "AAB1eHRUTMxehm1_N3mCIuUtVPqFwGoW6LVsGXKthVph8p3szmD4gKdjqJc2S_sG-T9xEQQim_1qGmY439ZcQp0C",
-    "ABDA8ndBBf9iAZNyq2k33TILE7WX-_k1CuhQ_bXoQIiUGvYKRweODHWBgbvhH8oTuKl6li4h818aNkQzAsaGj6UO",
-    "-EAB",
-    "0AAAAAAAAAAAAAAAAAAAAAAB",
-    "1AAG2025-02-01T12c03c48d444070p00c00",
-  ]);
+  assert.deepEqual(result[1].attachments, {
+    [CounterCode.ControllerIdxSigs]: [
+      "AAAf10ab3SbPCY5g9pkFEITFu64Q-Pu9ErEUot6RM25o68s7x4Y8NxeI2Sq85KCIre_r1RkE4C-QvslgT7LUDF4J",
+    ],
+    [CounterCode.WitnessIdxSigs]: [
+      "AAB1eHRUTMxehm1_N3mCIuUtVPqFwGoW6LVsGXKthVph8p3szmD4gKdjqJc2S_sG-T9xEQQim_1qGmY439ZcQp0C",
+      "ABDA8ndBBf9iAZNyq2k33TILE7WX-_k1CuhQ_bXoQIiUGvYKRweODHWBgbvhH8oTuKl6li4h818aNkQzAsaGj6UO",
+    ],
+    [CounterCode.FirstSeenReplayCouples]: ["0AAAAAAAAAAAAAAAAAAAAAAB", "1AAG2025-02-01T12c03c48d444070p00c00"],
+  });
 });
 
 test("Test witness", { timeout: 100 }, async () => {

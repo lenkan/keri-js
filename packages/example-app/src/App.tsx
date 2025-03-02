@@ -3,11 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import { ResolveOobiForm } from "./components/ResolveOobiForm.tsx";
 import { EventList } from "./components/EventList.tsx";
 import { useCallback, useEffect, useState } from "react";
-import { decode } from "keri/web";
+import type { Message } from "keri/web";
+import { parse } from "keri/web";
 
 export function App() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [events, setEvents] = useState<string[]>([]);
+  const [events, setEvents] = useState<Message[]>([]);
   const url = searchParams.get("url");
 
   const fetchEvents = useCallback(async () => {
@@ -20,7 +21,7 @@ export function App() {
       return;
     }
 
-    for await (const chunk of decode(response.body)) {
+    for await (const chunk of parse(response.body)) {
       setEvents((prev) => [...prev, chunk]);
     }
   }, [url]);

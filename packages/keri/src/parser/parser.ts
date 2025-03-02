@@ -3,12 +3,10 @@ import { decodeBase64Int } from "./base64.ts";
 import { type CodeSize, CounterCode, CounterCodeTable, IndexerCodeTable, MatterCodeTable } from "./codes.ts";
 import type { KeyEvent } from "../events/main.ts";
 
-export type Frame =
-  | {
-      code: string;
-      text: string;
-    }
-  | { v: string; t: string; d: string; [key: string]: unknown };
+export interface Frame {
+  code: string;
+  text: string;
+}
 
 function concat(a: Uint8Array, b: Uint8Array) {
   if (a.length === 0) {
@@ -159,8 +157,8 @@ export class Parser {
       if (code === "{") {
         const prefix = this.#decoder.decode(start) + (await this.#readCharacters(22));
         const version = parseVersion(prefix);
-        const payload = JSON.parse(prefix + (await this.#readCharacters(version.size - prefix.length)));
-        yield payload;
+        const text = prefix + (await this.#readCharacters(version.size - prefix.length));
+        yield { code, text };
       } else if (code === "-") {
         for await (const frame of this.readCounter()) {
           yield frame;
@@ -182,10 +180,10 @@ export async function* decode(input: AsyncIterable<Uint8Array>): AsyncIterableIt
   const decoder = new Parser(iter(input));
 
   for await (const frame of decoder.read()) {
-    if (typeof frame.code === "string" && typeof frame.text === "string") {
-      yield frame.code + frame.text;
+    if (frame.code === "{") {
+      yield frame.text;
     } else {
-      yield JSON.stringify(frame);
+      yield frame.code + frame.text;
     }
   }
 }
@@ -194,24 +192,26 @@ export async function* parse(input: AsyncIterable<Uint8Array>): AsyncIterableIte
   const decoder = new Parser(iter(input));
 
   let payload: KeyEvent | null = null;
-  let attachments: string[] = [];
+  let group: string | null = null;
+  let attachments: Record<string, string[]> = {};
 
   for await (const frame of decoder.read()) {
     if (frame === null) {
       return;
     }
 
-    if ("v" in frame) {
+    if (frame.code === "{") {
       if (payload) {
         yield { payload, attachments };
       }
 
-      payload = frame as KeyEvent;
-      attachments = [];
-    }
-
-    if (typeof frame.code === "string" && typeof frame.text === "string") {
-      attachments.push(frame.code + frame.text);
+      payload = JSON.parse(frame.text);
+      attachments = {};
+      group = null;
+    } else if (frame.code.startsWith("-")) {
+      group = frame.code;
+    } else if (group) {
+      attachments[group] = [...(attachments[group] ?? []), frame.code + frame.text];
     }
   }
 
@@ -222,5 +222,5 @@ export async function* parse(input: AsyncIterable<Uint8Array>): AsyncIterableIte
 
 export interface Message {
   payload: KeyEvent;
-  attachments: string[];
+  attachments: Record<string, string[]>;
 }

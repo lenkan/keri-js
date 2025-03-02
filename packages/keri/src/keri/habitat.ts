@@ -135,13 +135,9 @@ export class Habitat {
       for await (const receipt of parse(response)) {
         await this.#db.saveEvent(receipt.payload);
 
-        let code: string | null = null;
-        for (const attachment of receipt.attachments) {
-          if (attachment.startsWith("-")) {
-            code = attachment;
-          } else if (code) {
-            await this.#db.saveAttachment(receipt.payload.d, { code: code, value: attachment });
-            code = null;
+        for (const [group, attachments] of Object.entries(receipt.attachments)) {
+          for (const attachment of attachments) {
+            await this.#db.saveAttachment(receipt.payload.d, { code: group, value: attachment });
           }
         }
       }

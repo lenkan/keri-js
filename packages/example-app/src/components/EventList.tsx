@@ -1,24 +1,31 @@
+import type { Message } from "keri/web";
 import styles from "./EventList.module.css";
 
 export interface EventListProps {
-  frames: string[];
+  frames: Message[];
 }
 
 export function EventList(props: EventListProps) {
   return (
     <ul className={styles.list}>
       {props.frames.map((frame, index) => {
-        if (frame.startsWith("{")) {
-          return (
-            <li className={styles.item} key={index}>
-              <pre>{JSON.stringify(JSON.parse(frame), null, 2)}</pre>
-            </li>
-          );
-        }
-
         return (
           <li className={styles.item} key={index}>
-            <pre>{frame}</pre>
+            <pre>{JSON.stringify(frame.payload, null, 2)}</pre>
+            {Object.entries(frame.attachments).map(([group, attachments]) => {
+              return (
+                <ul key={group}>
+                  <li>{group}</li>
+                  {attachments.map((attachment, index) => {
+                    return (
+                      <li key={index}>
+                        <pre>{attachment}</pre>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })}
           </li>
         );
       })}
