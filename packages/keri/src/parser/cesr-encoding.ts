@@ -21,7 +21,7 @@ function findPrimitiveCode(text: string): [string, CodeSize] {
 
   while (!size && i <= 4) {
     code = text.slice(0, i);
-    size = MatterCodeTable[text.slice(0, i)];
+    size = MatterCodeTable[code];
     ++i;
   }
 
