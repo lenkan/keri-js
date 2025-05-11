@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "*"
+      - main
   pull_request:
     branches:
       - main
@@ -26,21 +26,33 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run linter
-        run: pnpm lint
+        run: npm run lint
 
       - name: Run build
-        run: pnpm build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
 
       - name: Run test witnesses
         run: docker compose up --wait
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Setup python 3.13
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r test_scripts/requirements.txt
+
+      - name: Run test scripts tests
+        run: npm run test:scripts

@@ -1,4 +1,4 @@
-FROM weboftrust/keri:1.2.3
+FROM weboftrust/keri:1.2.6
 COPY start-witness.sh healthcheck.sh /
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=UTF-8
