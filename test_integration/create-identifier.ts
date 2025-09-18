@@ -45,7 +45,7 @@ beforeEach(() => {
 describe("Create identifier", () => {
   test("Create identifier", async () => {
     const state = await controller.createIdentifier();
-    const events = await controller.list(state.i);
+    const events = await controller.listEvents(state.i);
 
     assert.equal(events.length, 1);
     assert.partialDeepStrictEqual(events[0]?.event, {
@@ -58,7 +58,7 @@ describe("Create identifier", () => {
     await controller.resolve(wan.oobi);
     const state = await controller.createIdentifier({ wits: [wan.aid] });
 
-    const events = await controller.list(state.i);
+    const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
     assert.partialDeepStrictEqual(events[0]?.event, {
       i: state.i,
@@ -75,7 +75,7 @@ describe("Create identifier", () => {
 
     const state = await controller.createIdentifier({ wits: [wan.aid, wil.aid], toad: 2 });
 
-    const events = await controller.list(state.i);
+    const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
     assert.partialDeepStrictEqual(events[0]?.event, {
       i: state.i,
@@ -96,7 +96,7 @@ describe("Create identifier", () => {
 
     const state = await controller.createIdentifier({ wits: [wan.aid, wil.aid, wes.aid], toad: 3 });
 
-    const events = await controller.list(state.i);
+    const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
     assert.partialDeepStrictEqual(events[0]?.event, {
       i: state.i,

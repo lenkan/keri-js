@@ -49,7 +49,7 @@ export class KeyStore {
     return [await this.encrypter.decrypt(decodeBase64Url(key0)), await this.encrypter.decrypt(decodeBase64Url(key1))];
   }
 
-  async import(key0: Uint8Array, key1: Uint8Array) {
+  async import(key0: Uint8Array, key1: Uint8Array): Promise<Key> {
     const current = encodeMatter({
       code: MatterCode.Ed25519,
       raw: ed25519.getPublicKey(key0),

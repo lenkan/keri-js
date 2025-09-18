@@ -421,7 +421,7 @@ export class Controller {
     return result;
   }
 
-  async list(id: string): Promise<KeyEventMessage[]> {
+  async listEvents(id: string): Promise<KeyEventMessage[]> {
     return this.#store.list(id);
   }
 
@@ -524,7 +524,7 @@ export class Controller {
 
   async grant(args: IpexGrantArgs): Promise<void> {
     const state = await this.state(args.credential.i);
-    const [registry] = (await this.list(args.credential.ri)) as KeyEventMessage<RegistryInceptEvent>[];
+    const [registry] = (await this.listEvents(args.credential.ri)) as KeyEventMessage<RegistryInceptEvent>[];
 
     if (!registry) {
       throw new Error(`Registry not found for said ${args.credential.ri}`);
