@@ -17,7 +17,7 @@ import {
   type KeyState,
   type LocationRecord,
 } from "./events/event-store.ts";
-import type { Key, KeyStore } from "./keystore/keystore.ts";
+import type { Key, KeyManager } from "./keystore/key-manager.ts";
 import {
   keri,
   type KeyEvent,
@@ -30,7 +30,7 @@ import {
 import { Client, parseKeyEvents } from "./client.ts";
 
 export interface ControllerDeps {
-  keystore: KeyStore;
+  keyManager: KeyManager;
   storage: KeyValueStorage;
 }
 
@@ -174,7 +174,7 @@ export interface CreateCredentialArgs {
 }
 
 export class Controller {
-  #keystore: KeyStore;
+  #keyManager: KeyManager;
   #store: ControllerEventStore;
 
   get store() {
@@ -183,11 +183,11 @@ export class Controller {
 
   constructor(deps: ControllerDeps) {
     this.#store = new ControllerEventStore(deps.storage);
-    this.#keystore = deps.keystore;
+    this.#keyManager = deps.keyManager;
   }
 
   async createIdentifier(args: InceptArgs = {}): Promise<KeyState> {
-    const keys = args.keys ?? [await this.#keystore.incept()];
+    const keys = args.keys ?? [await this.#keyManager.incept()];
 
     const event = keri.incept({
       k: keys.map((key) => key.current),
@@ -649,7 +649,7 @@ export class Controller {
   async sign(event: Record<string, unknown>, keys: string[]): Promise<string[]> {
     const encoder = new TextEncoder();
     const payload = encoder.encode(JSON.stringify(event));
-    const sigs = await Promise.all(keys.map((key, idx) => this.#keystore.sign(key, payload, idx)));
+    const sigs = await Promise.all(keys.map((key, idx) => this.#keyManager.sign(key, payload, idx)));
     return sigs;
   }
 }

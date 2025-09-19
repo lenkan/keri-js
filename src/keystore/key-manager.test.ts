@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setTimeout } from "node:timers/promises";
-import { KeyStore } from "./keystore.ts";
+import { KeyManager } from "./key-manager.ts";
 import { PassphraseEncrypter } from "../main.ts";
 
 test("Incept and sign with async key store", async () => {
   const map = new Map<string, string>();
 
-  const keystore = new KeyStore({
+  const keystore = new KeyManager({
     encrypter: new PassphraseEncrypter("password"),
     storage: {
       async get(key) {

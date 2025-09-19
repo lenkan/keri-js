@@ -2,7 +2,7 @@
 import { program } from "commander";
 import { Controller } from "../controller.ts";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
-import { KeyStore } from "../keystore/keystore.ts";
+import { KeyManager } from "../keystore/key-manager.ts";
 import { keri, type CredentialEvent } from "../events/events.ts";
 import { PassphraseEncrypter } from "../keystore/encrypt.ts";
 
@@ -53,7 +53,7 @@ function getString(options: unknown, key: string): string {
 program.command("resolve <oobi>").action(async (oobi) => {
   const controller = new Controller({
     storage,
-    keystore: new KeyStore({ storage, encrypter: new PassphraseEncrypter("") }),
+    keyManager: new KeyManager({ storage, encrypter: new PassphraseEncrypter("") }),
   });
 
   await controller.resolve(oobi);
@@ -68,8 +68,8 @@ program
     const wits = getStringArray(options, "wit");
 
     const encrypter = new PassphraseEncrypter(passcode);
-    const keystore = new KeyStore({ encrypter, storage });
-    const controller = new Controller({ storage, keystore });
+    const keystore = new KeyManager({ encrypter, storage });
+    const controller = new Controller({ storage, keyManager: keystore });
 
     const event = await controller.createIdentifier({ wits });
 
@@ -93,12 +93,12 @@ program
     const topic = getString(options, "topic");
     const data = JSON.parse(getString(options, "data"));
 
-    const keystore = new KeyStore({
+    const keystore = new KeyManager({
       storage,
       encrypter: new PassphraseEncrypter(passcode),
     });
 
-    const controller = new Controller({ storage, keystore });
+    const controller = new Controller({ storage, keyManager: keystore });
     const client = await controller.getClient(receiver);
 
     await controller.forward(client, {
@@ -124,12 +124,12 @@ program
     const passcode = getString(options, "passcode");
     const owner = getString(options, "owner");
 
-    const keystore = new KeyStore({
+    const keystore = new KeyManager({
       storage,
       encrypter: new PassphraseEncrypter(passcode),
     });
 
-    const controller = new Controller({ storage, keystore });
+    const controller = new Controller({ storage, keyManager: keystore });
 
     const registry = await controller.createRegistry({ owner });
     console.log(registry.i);
@@ -156,12 +156,12 @@ program
     const rules = JSON.parse(getString(options, "rules"));
     const edges = JSON.parse(getOptionalString(options, "edges") ?? "null");
 
-    const keystore = new KeyStore({
+    const keystore = new KeyManager({
       storage,
       encrypter: new PassphraseEncrypter(passcode),
     });
 
-    const controller = new Controller({ storage, keystore });
+    const controller = new Controller({ storage, keyManager: keystore });
 
     const acdc = await controller.createCredential({
       holder: receiver,
@@ -184,14 +184,14 @@ program
     const passcode = getString(options, "passcode");
     const said = getString(options, "said");
 
-    const keystore = new KeyStore({
+    const keystore = new KeyManager({
       storage,
       encrypter: new PassphraseEncrypter(passcode),
     });
 
     const controller = new Controller({
       storage,
-      keystore,
+      keyManager: keystore,
     });
 
     const acdc = (await controller.store.get(said))?.event as unknown as CredentialEvent;

@@ -23,22 +23,22 @@ export interface Key {
   next: string;
 }
 
-export interface FileSystemKeyStoreOptions {
+export interface KeyManagerOptions {
   encrypter: Encrypter;
   storage: KeyValueStorage;
 }
 
-export class KeyStore {
+export class KeyManager {
   storage: KeyValueStorage;
   encrypter: Encrypter;
 
-  constructor(options: FileSystemKeyStoreOptions) {
+  constructor(options: KeyManagerOptions) {
     this.encrypter = options.encrypter;
     this.storage = options.storage;
   }
 
   private async load(publicKey: string): Promise<[Uint8Array, Uint8Array]> {
-    const value = await this.storage.get(publicKey);
+    const value = await this.storage.get(`keys.${publicKey}`);
 
     if (!value) {
       throw new Error(`Key ${publicKey} not found`);
@@ -61,7 +61,7 @@ export class KeyStore {
     });
 
     await this.storage.set(
-      current,
+      `keys.${current}`,
       [
         encodeBase64Url(await this.encrypter.encrypt(key0)),
         encodeBase64Url(await this.encrypter.encrypt(key1)),
@@ -79,8 +79,8 @@ export class KeyStore {
     return await this.import(key0, key1);
   }
 
-  async rotate(currentKey: string): Promise<Key> {
-    const [, key0] = await this.load(currentKey);
+  async rotate(publicKey: string): Promise<Key> {
+    const [, key0] = await this.load(publicKey);
     const key1 = ed25519.utils.randomPrivateKey();
 
     const current = encodeMatter({

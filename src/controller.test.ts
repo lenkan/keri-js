@@ -2,7 +2,7 @@ import { beforeEach, test, mock, describe } from "node:test";
 import assert from "node:assert";
 import { parse } from "cesr";
 import { formatDate, keri } from "./events/events.ts";
-import { type Key, KeyStore } from "./keystore/keystore.ts";
+import { type Key, KeyManager } from "./keystore/key-manager.ts";
 import { Controller } from "./controller.ts";
 import { SqliteStorage } from "./db/storage-sqlite.ts";
 import { privateKey00, privateKey11 } from "../fixtures/keys.ts";
@@ -11,7 +11,7 @@ import { type KeyState } from "./events/event-store.ts";
 
 let storage: SqliteStorage;
 let controller: Controller;
-let keystore: KeyStore;
+let keyManager: KeyManager;
 
 async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
   const output: T[] = [];
@@ -26,11 +26,11 @@ const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
 
 beforeEach(async () => {
   storage = new SqliteStorage();
-  keystore = new KeyStore({
+  keyManager = new KeyManager({
     encrypter: new PassphraseEncrypter("password"),
     storage,
   });
-  controller = new Controller({ storage, keystore });
+  controller = new Controller({ storage, keyManager });
 
   storage.init();
 
@@ -66,7 +66,7 @@ describe("When identifier is created", () => {
 
   beforeEach(async () => {
     fetch.mock.resetCalls();
-    key = await keystore.import(privateKey00, privateKey11);
+    key = await keyManager.import(privateKey00, privateKey11);
     state = await controller.createIdentifier({ keys: [key] });
   });
 

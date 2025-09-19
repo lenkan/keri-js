@@ -1,6 +1,6 @@
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
-import { Controller, KeyStore, PassphraseEncrypter } from "../src/main.ts";
+import { Controller, KeyManager, PassphraseEncrypter } from "../src/main.ts";
 import { SqliteStorage } from "../src/db/storage-sqlite.ts";
 
 const wan: Witness = {
@@ -29,15 +29,15 @@ interface Witness {
 
 let storage: SqliteStorage;
 let controller: Controller;
-let keystore: KeyStore;
+let keystore: KeyManager;
 
 beforeEach(() => {
   storage = new SqliteStorage();
-  keystore = new KeyStore({
+  keystore = new KeyManager({
     encrypter: new PassphraseEncrypter("password"),
     storage,
   });
-  controller = new Controller({ storage, keystore });
+  controller = new Controller({ storage, keyManager: keystore });
 
   storage.init();
 });
