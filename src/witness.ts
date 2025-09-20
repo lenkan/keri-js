@@ -1,8 +1,8 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { cesr, IndexCode, MatterCode } from "cesr/__unstable__";
+import { cesr, CountCode_10, encodeCounter, IndexCode, MatterCode } from "cesr/__unstable__";
 import { type InceptEvent, keri, type KeyEvent } from "./events/events.ts";
 import { type KeyEventMessage } from "./main.ts";
-import { serializeAttachments, serializeReceipts, serializeSignatures } from "./serializer.ts";
+import { encodeHexNumber, serializeAttachments, serializeReceipts, serializeSignatures } from "./serializer.ts";
 
 export interface OobiArgs {
   aid?: string;
@@ -35,19 +35,24 @@ export class Witness {
     });
   }
 
-  async oobi(): Promise<KeyEventMessage[]> {
-    return [{ event: this.#icp, receipts: [], signatures: [this.#signature], timestamp: new Date() }];
-  }
-
   #createResponse(message: KeyEventMessage): Response {
     const body = [
       JSON.stringify(message.event),
-      serializeAttachments([serializeSignatures(message.signatures), serializeReceipts(message.receipts)]),
+      serializeAttachments([
+        serializeSignatures(message.signatures),
+        serializeReceipts(message.receipts),
+        encodeCounter({
+          code: CountCode_10.FirstSeenReplayCouples,
+          count: 1,
+        }),
+        encodeHexNumber(message.event.s ?? "0"),
+        cesr.encodeDate(message.timestamp),
+      ]),
     ].join("");
 
     return new Response(body, {
       status: 200,
-      headers: { "Content-Type": "application/cesr+json" },
+      headers: { "Content-Type": "application/json+cesr" },
     });
   }
 
@@ -61,12 +66,15 @@ export class Witness {
       return new Response("Not Found", { status: 404 });
     }
 
-    return this.#createResponse({
+    const response = this.#createResponse({
       event: this.#icp,
       signatures: [this.#signature],
       receipts: [],
       timestamp: new Date(),
     });
+
+    response.headers.set("Keri-Aid", this.#icp.i);
+    return response;
   }
 
   #sign(event: KeyEvent): string {

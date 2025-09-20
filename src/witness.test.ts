@@ -37,7 +37,7 @@ describe("Witness oobi request", () => {
 
     assert(response.status === 200);
     assert(response.body);
-    assert.strictEqual(response.headers.get("Content-Type"), "application/cesr+json");
+    assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
 
     const messages = await collect(parseKeyEvents(response.body));
 
@@ -68,7 +68,7 @@ describe("Witness receipt request", () => {
 
     assert(response.status === 200);
     assert(response.body);
-    assert.strictEqual(response.headers.get("Content-Type"), "application/cesr+json");
+    assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
 
     const messages = await collect(parseKeyEvents(response.body));
 
