@@ -1,10 +1,11 @@
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { ed25519 } from "@noble/curves/ed25519";
-import { blake3 } from "@noble/hashes/blake3";
+import { ed25519 } from "@noble/curves/ed25519.js";
 import { cesr, MatterCode } from "cesr/__unstable__";
-import { formatDate, keri, saidify, type InceptEvent } from "./events.ts";
+import { formatDate, keri, type KeyEvent, saidify, type InceptEvent } from "./events.ts";
 import { privateKey00, privateKey11 } from "../../fixtures/keys.ts";
+import { type Key, KeyManager } from "../keystore/key-manager.ts";
+import { MapStore } from "../main.ts";
 
 describe("Incept event", () => {
   describe("Input validation", () => {
@@ -16,25 +17,22 @@ describe("Incept event", () => {
   });
 
   describe("Transferable single sig AID", () => {
-    let currentKey: string;
-    let nextKey: string;
-    let event: InceptEvent;
+    const keyManager = new KeyManager({
+      storage: new MapStore(),
+      encrypter: { decrypt: async (x) => x, encrypt: async (x) => x },
+    });
 
-    beforeEach(() => {
-      currentKey = cesr.encodeMatter({ code: MatterCode.Ed25519, raw: ed25519.getPublicKey(privateKey00) });
-      nextKey = cesr.encodeMatter({
-        code: MatterCode.Blake3_256,
-        raw: blake3
-          .create({ dkLen: 32 })
-          .update(cesr.encodeMatter({ code: MatterCode.Ed25519, raw: ed25519.getPublicKey(privateKey11) }))
-          .digest(),
-      });
+    let key: Key;
+    let event: KeyEvent;
+
+    beforeEach(async () => {
+      key = await keyManager.import(privateKey00, privateKey11);
 
       event = keri.incept({
         kt: "1",
-        k: [currentKey],
+        k: [key.current],
         nt: "1",
-        n: [nextKey],
+        n: [key.next],
         bt: "1",
         b: ["BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM"],
       });

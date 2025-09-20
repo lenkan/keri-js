@@ -1,4 +1,4 @@
-import { blake3 } from "@noble/hashes/blake3";
+import { blake3 } from "@noble/hashes/blake3.js";
 import { cesr, MatterCode } from "cesr/__unstable__";
 
 export type KeyEvent<T = Record<string, unknown>> = {

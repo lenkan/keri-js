@@ -1,6 +1,7 @@
-import { ed25519 } from "@noble/curves/ed25519";
-import { blake3 } from "@noble/hashes/blake3";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { blake3 } from "@noble/hashes/blake3.js";
 import {
+  cesr,
   decodeBase64Url,
   encodeBase64Url,
   encodeIndexer,
@@ -26,6 +27,20 @@ export interface Key {
 export interface KeyManagerOptions {
   encrypter: Encrypter;
   storage: KeyValueStorage;
+}
+
+function createDigest(key: Uint8Array): string {
+  const encoded = encodeMatter({
+    code: MatterCode.Ed25519,
+    raw: ed25519.getPublicKey(key),
+  });
+
+  const next = encodeMatter({
+    code: MatterCode.Blake3_256,
+    raw: blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(encoded)).digest(),
+  });
+
+  return next;
 }
 
 export class KeyManager {
@@ -55,10 +70,7 @@ export class KeyManager {
       raw: ed25519.getPublicKey(key0),
     });
 
-    const next = encodeMatter({
-      code: MatterCode.Blake3_256,
-      raw: blake3.create({ dkLen: 32 }).update(current).digest(),
-    });
+    const next = createDigest(key1);
 
     await this.storage.set(
       `keys.${current}`,
@@ -73,25 +85,22 @@ export class KeyManager {
   }
 
   async incept(): Promise<Key> {
-    const key0 = ed25519.utils.randomPrivateKey();
-    const key1 = ed25519.utils.randomPrivateKey();
+    const key0 = ed25519.utils.randomSecretKey();
+    const key1 = ed25519.utils.randomSecretKey();
 
     return await this.import(key0, key1);
   }
 
   async rotate(publicKey: string): Promise<Key> {
     const [, key0] = await this.load(publicKey);
-    const key1 = ed25519.utils.randomPrivateKey();
+    const key1 = ed25519.utils.randomSecretKey();
 
     const current = encodeMatter({
       code: MatterCode.Ed25519,
       raw: ed25519.getPublicKey(key0),
     });
 
-    const next = encodeMatter({
-      code: MatterCode.Blake3_256,
-      raw: blake3.create({ dkLen: 32 }).update(current).digest(),
-    });
+    const next = createDigest(key1);
 
     await this.import(key0, key1);
 
@@ -114,5 +123,23 @@ export class KeyManager {
       code: MatterCode.Ed25519_Sig,
       raw: signature,
     });
+  }
+}
+
+export function verify(publicKey: string, message: Uint8Array, signature: string): boolean {
+  const key = cesr.decodeMatter(publicKey);
+  const sig = cesr.decodeMatter(signature);
+
+  switch (key.code) {
+    case MatterCode.Ed25519:
+    case MatterCode.Ed25519N:
+      switch (sig.code) {
+        case MatterCode.Ed25519_Sig:
+          return ed25519.verify(sig.raw, message, key.raw);
+        default:
+          throw new Error(`Unsupported signature code: ${sig.code}`);
+      }
+    default:
+      throw new Error(`Unsupported key code: ${key.code}`);
   }
 }
