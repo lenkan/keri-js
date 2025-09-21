@@ -194,7 +194,7 @@ export class ControllerEventStore {
     let state: KeyState = INITIAL_STATE;
 
     for await (const message of this.iter(said)) {
-      state = reduce(state, message);
+      state = reduceKeyState(state, message);
     }
 
     return state;
@@ -348,13 +348,23 @@ function merge(a: KeyState, b: Partial<KeyState>): KeyState {
   };
 }
 
+export function resolveKeyStateSync(event: Iterable<KeyEventMessage>): KeyState {
+  let state: KeyState = INITIAL_STATE;
+
+  for (const message of event) {
+    state = reduceKeyState(state, message);
+  }
+
+  return state;
+}
+
 export async function resolveKeyState(
   event: Iterable<KeyEventMessage> | AsyncIterable<KeyEventMessage>,
 ): Promise<KeyState> {
   let state: KeyState = INITIAL_STATE;
 
   for await (const message of event) {
-    state = reduce(state, message);
+    state = reduceKeyState(state, message);
   }
 
   return state;
@@ -380,7 +390,7 @@ const INITIAL_STATE: KeyState = {
   di: "",
 };
 
-function reduce(state: KeyState, message: KeyEventMessage): KeyState {
+function reduceKeyState(state: KeyState, message: KeyEventMessage): KeyState {
   if (!message.event.v.startsWith("KERI")) {
     return state;
   }
