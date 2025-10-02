@@ -5,3 +5,4 @@ export * from "./keystore/key-manager.ts";
 export * from "./keystore/encrypt.ts";
 export * from "./controller.ts";
 export * from "./witness.ts";
+export * from "./serializer.ts";
