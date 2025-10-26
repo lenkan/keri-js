@@ -98,26 +98,25 @@ describe("When identifier is created", () => {
     });
 
     const headers = fetch.mock.calls[0].arguments[1]?.headers ?? {};
-    const actual = await collect(parse(headers["CESR-ATTACHMENT"], { version: 1 }));
-    assert.deepStrictEqual(
-      actual.map((x) => x.text),
-      [
-        "-FAB",
-        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-        "0AAAAAAAAAAAAAAAAAAAAAAA",
-        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-        "-AAB",
-        "AADHI3wDprYdXv0YHImildstc0yg0Wm-0BBMEzFdpAejiTiGh14wzgX4Z0vVtzAHykFT9bZzt9heArbAU24HXNoI",
-        "-LA3",
-        "5AACAA-e-evt",
-        "-FAB",
-        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-        "0AAAAAAAAAAAAAAAAAAAAAAA",
-        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-        "-AAB",
-        "AABn3K1qm3CF57lKqa6AQ4QuVM4w2dy1xLjQy0nqllMcRBaj1h20Ibd0yFHKxGb4tJfJKxguO89sTEwrlQUNcT4C",
-      ],
-    );
+    const body = fetch.mock.calls[0].arguments[1]?.body as string;
+    const [message] = await collect(parse(body + headers["CESR-ATTACHMENT"], { version: 1 }));
+
+    assert.deepStrictEqual(message.attachments, [
+      "-FAB",
+      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+      "0AAAAAAAAAAAAAAAAAAAAAAA",
+      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+      "-AAB",
+      "AADHI3wDprYdXv0YHImildstc0yg0Wm-0BBMEzFdpAejiTiGh14wzgX4Z0vVtzAHykFT9bZzt9heArbAU24HXNoI",
+      "-LA3",
+      "5AACAA-e-evt",
+      "-FAB",
+      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+      "0AAAAAAAAAAAAAAAAAAAAAAA",
+      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+      "-AAB",
+      "AABn3K1qm3CF57lKqa6AQ4QuVM4w2dy1xLjQy0nqllMcRBaj1h20Ibd0yFHKxGb4tJfJKxguO89sTEwrlQUNcT4C",
+    ]);
   });
 
   test("Forward grant message to recipient", async () => {
@@ -186,13 +185,13 @@ describe("When identifier is created", () => {
       "0AAAAAAAAAAAAAAAAAAAAAAC",
     ];
 
-    const actual = await collect(parse(headers["CESR-ATTACHMENT"], { version: 1 }));
+    const [message] = await collect(parse(JSON.stringify(body) + headers["CESR-ATTACHMENT"], { version: 1 }));
 
-    assert.partialDeepStrictEqual(body, {
+    assert.partialDeepStrictEqual(message.payload, {
       d: "EDp3UvrqHr1MTcJjP59zFF-L0w-QUShdXbwX8xHgaF3x",
       t: "exn",
     });
-    assert.deepStrictEqual(actual.map((frame) => frame.text).slice(0, -1), expected);
+    assert.deepStrictEqual(message.attachments.slice(0, -1), expected);
   });
 
   test("Create credential", async () => {

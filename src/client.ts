@@ -1,4 +1,5 @@
-import { cesr, CountCode_10, type Counter, parseMessages } from "cesr/__unstable__";
+import { cesr, CountCode_10, type Counter } from "cesr/__unstable__";
+import { parse } from "cesr";
 import { type KeyEvent, type ReceiptEvent } from "./events/events.ts";
 import { type KeyEventMessage, type LocationRecord } from "./events/event-store.ts";
 
@@ -77,7 +78,7 @@ export class Client {
 }
 
 export async function* parseKeyEvents(input: ReadableStream<Uint8Array>): AsyncIterableIterator<KeyEventMessage> {
-  for await (const message of parseMessages(input)) {
+  for await (const message of parse(input)) {
     const signatures: string[] = [];
     const receipts: string[] = [];
 
