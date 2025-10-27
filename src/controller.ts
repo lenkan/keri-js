@@ -1,8 +1,6 @@
-import { cesr, CountCode_10, encodeCounter } from "cesr/__unstable__";
 import {
   ControllerEventStore,
   type KeyValueStorage,
-  type KeyEventMessage,
   type KeyEventSeal,
   type KeyState,
   type LocationRecord,
@@ -10,24 +8,18 @@ import {
 import type { Key, KeyManager } from "./keystore/key-manager.ts";
 import {
   keri,
-  type KeyEvent,
   type InteractEvent,
   type CredentialEvent,
   type RegistryInceptEvent,
   type IssueEvent,
   formatDate,
+  type ReceiptEvent,
 } from "./events/events.ts";
-import { Client, parseKeyEvents } from "./client.ts";
-import {
-  encodeHexNumber,
-  serializeAttachments,
-  serializeDigestSeal,
-  serializeEventSeal,
-  serializePathedGroup,
-  serializeReceipts,
-  serializeSignatures,
-  serializeWitnessSignatures,
-} from "./serializer.ts";
+import { Client, parseKeyEvents as parseMessages } from "./client.ts";
+import { KeyEventMessage } from "./events/message.ts";
+import { Attachments } from "./events/attachments.ts";
+import { cesr } from "cesr/__unstable__";
+import { getIndexedCode } from "./serializer.ts";
 
 export interface ControllerDeps {
   keyManager: KeyManager;
@@ -41,11 +33,10 @@ export interface IpexGrantArgs {
 }
 
 export interface ForwardArgs {
-  event: KeyEvent;
+  message: KeyEventMessage;
   sender: KeyState;
   topic: string;
   recipient: string;
-  attachment?: string;
   timestamp?: string;
 }
 
@@ -104,14 +95,12 @@ export class Controller {
       keys.map((key) => key.current),
     );
 
-    await this.#store.save({
-      event,
-      signatures: sigs,
-    });
+    const message = new KeyEventMessage(event, { sigs });
 
-    await this.submit(event, sigs);
+    await this.#store.save(message);
+    await this.submit(message);
 
-    return await this.#store.state(event.i);
+    return await this.#store.state(message.event.i);
   }
 
   async interact(args: InteractArgs): Promise<InteractEvent> {
@@ -121,13 +110,10 @@ export class Controller {
     const event = keri.interact({ i: state.i, p: state.d, s: sn, a: [args.data] });
 
     const sigs = await this.sign(event, state.k);
+    const message = new KeyEventMessage(event, { sigs });
 
-    await this.#store.save({
-      event,
-      signatures: sigs,
-    });
-
-    await this.submit(event, sigs);
+    await this.#store.save(message);
+    await this.submit(message);
 
     return event;
   }
@@ -149,22 +135,13 @@ export class Controller {
 
     const state = await this.state(args.owner);
 
+    const message = new KeyEventMessage(registry, { source: { i: anchor.i, s: anchor.s, d: anchor.d } });
     for (const wit of state.b) {
       const endpoint = await this.getClient(wit);
-
-      const attachment = serializeAttachments([serializeDigestSeal(anchor)]);
-
-      await endpoint.sendMessage({ event: registry, attachment });
+      await endpoint.sendMessage(message);
     }
 
-    await this.#store.save({
-      event: registry,
-      seal: {
-        i: anchor.i,
-        s: anchor.s,
-        d: anchor.d,
-      },
-    });
+    await this.#store.save(message);
 
     return registry;
   }
@@ -207,21 +184,22 @@ export class Controller {
       },
     });
 
+    const issMessage = new KeyEventMessage(iss, {
+      source: { i: anchor.i, s: anchor.s, d: anchor.d },
+    });
+
     for (const wit of state.b) {
       const client = await this.getClient(wit);
-      const attachment = serializeAttachments([serializeDigestSeal(anchor)]);
-      await client.sendMessage({ event: iss, attachment });
+      await client.sendMessage(issMessage);
     }
 
-    await this.#store.save({
-      event: acdc as unknown as KeyEvent,
-      seal: iss,
-    });
+    await this.#store.save(
+      new KeyEventMessage(acdc, {
+        source: { i: iss.i, s: iss.s, d: iss.d },
+      }),
+    );
 
-    await this.#store.save({
-      event: iss,
-      seal: anchor,
-    });
+    await this.#store.save(issMessage);
 
     return acdc;
   }
@@ -236,13 +214,12 @@ export class Controller {
       throw new Error(`No body in response`);
     }
 
-    for await (const event of parseKeyEvents(response.body)) {
-      await this.#store.save(event);
+    for await (const message of parseMessages(response.body)) {
+      await this.#store.save(message);
     }
   }
 
   async getClient(cid: string): Promise<Client> {
-    // const
     const mailbox = await this.#store.endrole(cid, "mailbox");
     const agent = await this.#store.endrole(cid, "agent");
     const controller = await this.#store.endrole(cid, "controller");
@@ -278,22 +255,34 @@ export class Controller {
     };
   }
 
-  async submit(event: KeyEvent, signatures: string[]): Promise<void> {
-    if (!event || !("i" in event && typeof event.i === "string")) {
+  async submit(message: KeyEventMessage): Promise<void> {
+    if (!message.event || !("i" in message.event && typeof message.event.i === "string")) {
       throw new Error("No such event");
     }
 
-    const state = await this.state(event.i);
-    const receipts: Record<string, KeyEventMessage> = {};
+    const state = await this.state(message.event.i);
+    const receipts: Record<string, KeyEventMessage<ReceiptEvent>> = {};
 
     for (const wit of state.b) {
       const client = await this.getClient(wit);
 
-      const attachment = serializeAttachments([serializeSignatures(signatures)]);
-      const response = await client.getReceipt({ event, attachment });
+      const response = await client.getReceipt(message);
       await this.#store.save(response);
 
       receipts[wit] = response;
+
+      for (const receipt of response.attachments.receipts) {
+        const index = state.b.indexOf(receipt.backer);
+        const wig = cesr.decodeMatter(receipt.signature);
+
+        message.attachments.wigs.push(
+          cesr.encodeIndexer({
+            code: getIndexedCode(wig.code),
+            index,
+            raw: wig.raw,
+          }),
+        );
+      }
     }
 
     for (const wit of state.b) {
@@ -304,8 +293,7 @@ export class Controller {
           continue;
         }
 
-        const attachment = serializeAttachments([serializeReceipts(receipt.receipts)]);
-        await client.sendMessage({ event: receipt.event, attachment });
+        await client.sendMessage(receipt);
       }
     }
   }
@@ -339,13 +327,12 @@ export class Controller {
 
           if (source && source.event.v.startsWith("ACDC")) {
             await this.sendCredentialArficats(source.event as CredentialEvent, recipient);
-            if (source.seal && source.event.i) {
+            if (source.event.i && source.attachments.source) {
               await this.forward(client, {
-                event: source.event,
+                message: source,
                 recipient: recipient,
                 sender: await this.state(source.event.i),
                 topic: "credential",
-                attachment: serializeEventSeal(source.seal),
               });
             }
           }
@@ -356,19 +343,7 @@ export class Controller {
     // Introduce sender to mailbox
     for (const event of await this.#store.list(state.i)) {
       if ("t" in event.event) {
-        await client.sendMessage({
-          event: event.event,
-          attachment: serializeAttachments([
-            serializeSignatures(event.signatures),
-            serializeWitnessSignatures(event.receipts, state.b),
-            encodeCounter({
-              code: CountCode_10.FirstSeenReplayCouples,
-              count: 1,
-            }),
-            encodeHexNumber(event.event.s ?? "0"),
-            cesr.encodeDate(event.timestamp),
-          ]),
-        });
+        await client.sendMessage(event);
       }
     }
 
@@ -376,51 +351,47 @@ export class Controller {
     for (const event of await this.#store.list(state.i)) {
       if ("t" in event.event) {
         await this.forward(client, {
-          event: event.event,
+          message: event,
           recipient: recipient,
           sender: state,
           topic: "credential",
-          attachment: serializeAttachments([
-            serializeSignatures(event.signatures),
-            serializeWitnessSignatures(event.receipts, state.b),
-            encodeCounter({
-              code: CountCode_10.FirstSeenReplayCouples,
-              count: 1,
-            }),
-            encodeHexNumber(event.event.s ?? "0"),
-            cesr.encodeDate(event.timestamp),
-          ]),
         });
       }
     }
 
     // Introduce registry to recipient
     for (const event of await this.#store.list(credential.ri)) {
-      if (!event.seal) {
-        throw new Error("No seal found for registry");
+      if (!event.attachments.source) {
+        throw new Error("No source seal found for registry");
+      }
+
+      if (!event.attachments.sigs) {
+        throw new Error("No signatures found for registry");
       }
 
       await this.forward(client, {
-        event: event.event,
+        message: event,
         recipient,
         sender: state,
         topic: "credential",
-        attachment: serializeAttachments([serializeDigestSeal(event.seal)]),
       });
     }
 
     // Introduce transaction to recipient
     for (const event of await this.#store.list(credential.d)) {
-      if (!event.seal) {
-        throw new Error("No seal found for issuance");
+      if (!event.attachments.source) {
+        throw new Error("No source seal found for credential");
+      }
+
+      if (!event.attachments.sigs) {
+        throw new Error("No signatures found credential");
       }
 
       await this.forward(client, {
-        event: event.event,
+        message: event,
         recipient,
         sender: state,
         topic: "credential",
-        attachment: serializeAttachments([serializeDigestSeal(event.seal)]),
       });
     }
   }
@@ -440,12 +411,6 @@ export class Controller {
 
     const client = await this.getClient(recipient);
 
-    const seal: KeyEventSeal = {
-      i: state.i,
-      s: state.ee.s,
-      d: state.ee.d,
-    };
-
     const transactions = await this.#store.list(args.credential.d);
     const [iss] = transactions as KeyEventMessage<IssueEvent>[];
 
@@ -453,17 +418,21 @@ export class Controller {
       throw new Error(`No issuance found for said ${args.credential.d}`);
     }
 
-    if (!iss.seal) {
-      throw new Error(`No seal found for issuance ${iss.event.d}`);
+    if (!iss.attachments.source) {
+      throw new Error(`No source seal found for issuance ${iss.event.d}`);
     }
 
-    const anchor = await this.#store.get(iss.seal.d);
+    const anchor = (await this.#store.get(iss.attachments.source.d)) as KeyEventMessage<InteractEvent> | null;
 
     if (!anchor) {
       throw new Error(`No anchor found for issuance ${iss.event.d}`);
     }
 
-    const grant = keri.exchange({
+    if (!anchor.attachments.sigs || anchor.attachments.sigs.length === 0) {
+      throw new Error(`No signatures found for anchor event ${anchor.event.i}`);
+    }
+
+    const event = keri.exchange({
       i: state.i,
       r: "/ipex/grant",
       dt: args.timestamp,
@@ -479,44 +448,43 @@ export class Controller {
       },
     });
 
-    const grantsigs = await this.sign(grant, state.k);
+    const attachments = new Attachments({
+      seal: { i: state.i, s: state.ee.s, d: state.ee.d },
+      sigs: await this.sign(event, state.k),
+      nested: {
+        "-e-acdc": {
+          source: {
+            i: iss.event.i,
+            s: iss.event.s,
+            d: iss.event.d,
+          },
+        },
+        "-e-iss": {
+          source: {
+            // i: iss.attachments.source.i,
+            s: iss.attachments.source.s,
+            d: iss.attachments.source.d,
+          },
+          grouped: true,
+        },
+        "-e-anc": anchor.attachments,
+      },
+    });
+
+    const message = new KeyEventMessage(event, attachments);
 
     await this.forward(client, {
-      event: grant,
+      message: message,
       recipient,
       sender: state,
       topic: "credential",
       timestamp: args.timestamp,
-      attachment: [
-        serializeSignatures(grantsigs, seal),
-        serializePathedGroup(["e", "acdc"], [serializeEventSeal(iss.event)]),
-        serializePathedGroup(["e", "iss"], [serializeAttachments([serializeDigestSeal(anchor.event as KeyEventSeal)])]),
-        serializePathedGroup(
-          ["e", "anc"],
-          [
-            serializeAttachments([
-              serializeSignatures(anchor.signatures),
-              serializeWitnessSignatures(anchor.receipts, state.b),
-              encodeCounter({
-                code: CountCode_10.FirstSeenReplayCouples,
-                count: 1,
-              }),
-              encodeHexNumber(anchor.event.s ?? "0"),
-              cesr.encodeDate(anchor.timestamp),
-            ]),
-          ],
-        ),
-      ].join(""),
     });
   }
 
   async forward(client: Client, args: ForwardArgs): Promise<void> {
     if (client.role !== "mailbox" && client.role !== "witness") {
-      const sigs = await this.sign(args.event, args.sender.k);
-
-      const attachments = [args.attachment ? [args.attachment] : [serializeSignatures(sigs)]].join("");
-
-      await client.sendMessage({ event: args.event, attachment: attachments });
+      await client.sendMessage(args.message);
       return;
     }
 
@@ -534,19 +502,28 @@ export class Controller {
       q: { pre: args.recipient, topic: args.topic },
       a: {},
       e: {
-        evt: args.event,
+        evt: args.message.event,
       },
     });
 
     const fwdsigs = await this.sign(fwd, args.sender.k);
-    const evtsigs = await this.sign(args.event, args.sender.k);
+    const message = new KeyEventMessage(fwd, {
+      sigs: fwdsigs,
+      seal: seal,
+      nested: {
+        "-e-evt": {
+          sigs: args.message.attachments.sigs,
+          seal: args.message.attachments.seal,
+          nested: args.message.attachments.nested,
+          source: args.message.attachments.source,
+          firstSeen: args.message.attachments.firstSeen,
+          receipts: args.message.attachments.receipts,
+          grouped: false,
+        },
+      },
+    });
 
-    const attachments = [
-      serializeSignatures(fwdsigs, seal),
-      serializePathedGroup(["e", "evt"], args.attachment ? [args.attachment] : [serializeSignatures(evtsigs, seal)]),
-    ].join("");
-
-    await client.sendMessage({ event: fwd, attachment: attachments });
+    await client.sendMessage(message);
   }
 
   async sign(event: Record<string, unknown>, keys: string[]): Promise<string[]> {

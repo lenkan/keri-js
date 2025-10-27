@@ -5,6 +5,7 @@ import { SqliteStorage } from "../db/storage-sqlite.ts";
 import { KeyManager } from "../keystore/key-manager.ts";
 import { keri, type CredentialEvent } from "../events/events.ts";
 import { PassphraseEncrypter } from "../keystore/encrypt.ts";
+import { KeyEventMessage } from "../events/message.ts";
 
 const storage = new SqliteStorage({ filename: ".keri/db.sqlite" });
 storage.init();
@@ -100,18 +101,21 @@ program
 
     const controller = new Controller({ storage, keyManager: keystore });
     const client = await controller.getClient(receiver);
-
-    await controller.forward(client, {
-      sender: await controller.state(sender),
-      topic,
-      recipient: receiver,
-      event: keri.exchange({
+    const message = new KeyEventMessage(
+      keri.exchange({
         i: sender,
         r: route,
         q: {},
         a: { i: sender, ...data },
         e: {},
       }),
+    );
+
+    await controller.forward(client, {
+      sender: await controller.state(sender),
+      topic,
+      recipient: receiver,
+      message,
     });
   });
 

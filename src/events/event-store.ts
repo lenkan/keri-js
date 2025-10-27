@@ -6,19 +6,7 @@ import {
   type InteractEvent,
   type Threshold,
 } from "./events.ts";
-
-export interface KeyEventMessageInput<T extends KeyEvent = KeyEvent> {
-  event: T;
-  seal?: KeyEventSeal;
-  signatures?: string[];
-  receipts?: KeyEventReceipt[];
-}
-
-export interface KeyEventMessage<T extends KeyEvent = KeyEvent> extends KeyEventMessageInput<T> {
-  timestamp: Date;
-  signatures: string[];
-  receipts: KeyEventReceipt[];
-}
+import { KeyEventMessage } from "./message.ts";
 
 export interface LocationRecord {
   url: string;
@@ -30,6 +18,11 @@ export interface EndRoleRecord {
   cid: string;
   role: string;
   eid: string;
+}
+
+export interface DigestSeal {
+  s: string;
+  d: string;
 }
 
 export interface KeyEventSeal {
@@ -61,39 +54,40 @@ export class ControllerEventStore {
     this.#db = db;
   }
 
-  async save(event: KeyEventMessageInput) {
-    switch (event.event.t) {
+  async save(message: KeyEventMessage) {
+    switch (message.event.t) {
       case "icp":
       case "ixn":
       case "iss":
       case "vcp":
       case "rot": {
-        if (!event.event.s) {
-          throw new Error(`Event sequence number (s) is required for key event ${event.event.t}(${event.event.d})`);
+        if (!message.event.s || typeof message.event.s !== "string") {
+          throw new Error(`Event sequence number (s) is required for key event ${message.event.t}(${message.event.d})`);
         }
 
-        const sn = event.event.s.padStart(24, "0");
+        const sn = message.event.s.padStart(24, "0");
         await this.#db.set(
-          `key_event.${event.event.d}`,
+          `key_event.${message.event.d}`,
           JSON.stringify({
-            event: event.event,
+            event: message.event,
+            signatures: message.attachments.sigs || [],
             timestamp: new Date().toISOString(),
-            seal: event.seal || null,
-            sigs: event.signatures || [],
+            seal: message.attachments.seal || null,
+            source: message.attachments.source || null,
           }),
         );
 
-        await this.#db.set(`key_event_log.${event.event.i}.${sn}`, event.event.d);
+        await this.#db.set(`key_event_log.${message.event.i}.${sn}`, message.event.d);
         break;
       }
       case "rct": {
-        await this.#db.set(`key_event_receipts.${event.event.d}`, JSON.stringify(event.receipts));
+        await this.#db.set(`key_event_receipts.${message.event.d}`, JSON.stringify(message.attachments.receipts));
         break;
       }
       case "rpy":
-        switch (event.event.r) {
+        switch (message.event.r) {
           case "/end/role/add": {
-            const record = event.event.a;
+            const record = message.event.a;
             if (
               record &&
               typeof record === "object" &&
@@ -119,7 +113,7 @@ export class ControllerEventStore {
             break;
           }
           case "/loc/scheme": {
-            const record = event.event.a;
+            const record = message.event.a;
             if (
               record &&
               typeof record === "object" &&
@@ -145,13 +139,13 @@ export class ControllerEventStore {
         }
     }
 
-    if (event.event.v.startsWith("ACDC")) {
+    if (message.event.v.startsWith("ACDC")) {
       await this.#db.set(
-        `key_event.${event.event.d}`,
+        `key_event.${message.event.d}`,
         JSON.stringify({
-          event: event.event,
+          event: message.event,
           timestamp: new Date().toISOString(),
-          seal: event.seal || null,
+          source: message.attachments.source || null,
         }),
       );
     }
@@ -181,13 +175,14 @@ export class ControllerEventStore {
 
     const receipts = JSON.parse((await this.#db.get(`key_event_receipts.${said}`)) ?? "[]");
 
-    return {
-      event: item.event,
-      signatures: item.sigs as string[],
-      receipts: receipts as unknown as KeyEventReceipt[],
-      timestamp: new Date(Date.parse(item.timestamp)),
+    return new KeyEventMessage(item.event, {
+      sigs: item.signatures as string[],
+      receipts: receipts,
+      firstSeen: [{ s: item.event.s, timestamp: new Date(Date.parse(item.timestamp)) }],
+      wigs: item.wigs,
       seal: item.seal,
-    };
+      source: item.source,
+    });
   }
 
   async state(said: string): Promise<KeyState> {
