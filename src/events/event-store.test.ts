@@ -5,6 +5,7 @@ import { ControllerEventStore } from "./event-store.ts";
 import { cesr, encodeIndexedSignature, encodeSignature, MatterCode } from "cesr/__unstable__";
 import { randomBytes } from "node:crypto";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
+import { KeyEventMessage } from "./message.ts";
 
 let db: SqliteStorage;
 let store: ControllerEventStore;
@@ -25,14 +26,14 @@ beforeEach(() => {
 
 describe("Key value store", () => {
   test("Should list inserted event", async () => {
-    const event0 = keri.incept({ k: [randomKey()] });
+    const message = new KeyEventMessage(keri.incept({ k: [randomKey()] }));
 
-    await store.save({ event: event0 });
-    const result = await store.list(event0.i);
+    await store.save(message);
+    const result = await store.list(message.event.i);
 
     assert.equal(result.length, 1);
     assert.partialDeepStrictEqual(result[0], {
-      event: event0,
+      event: message.event,
     });
   });
 
@@ -43,10 +44,10 @@ describe("Key value store", () => {
     const event10 = keri.incept({ k: [randomKey()] });
     const event11 = keri.interact({ p: event10.d, i: event10.i, s: increment(event10.s) });
 
-    await store.save({ event: event00 });
-    await store.save({ event: event10 });
-    await store.save({ event: event01 });
-    await store.save({ event: event11 });
+    await store.save(new KeyEventMessage(event00));
+    await store.save(new KeyEventMessage(event10));
+    await store.save(new KeyEventMessage(event01));
+    await store.save(new KeyEventMessage(event11));
 
     const result0 = await store.list(event00.i);
     assert.equal(result0.length, 2);
@@ -73,8 +74,8 @@ describe("Key value store", () => {
     const event0 = keri.incept({ k: [randomKey()] });
     const event1 = keri.interact({ p: event0.d, i: event0.i, s: increment(event0.s) });
 
-    await store.save({ event: event0 });
-    await store.save({ event: event1 });
+    await store.save(new KeyEventMessage(event0));
+    await store.save(new KeyEventMessage(event1));
 
     const result0 = await store.state(event0.i);
     assert.equal(result0.s, "1");
@@ -99,17 +100,18 @@ describe("Key value store", () => {
     const signature0 = encodeIndexedSignature("ed25519", randomBytes(64), 0);
     const signature1 = encodeIndexedSignature("ed25519", randomBytes(64), 2);
 
-    await store.save({
-      event,
-      signatures: [signature0, signature1],
-    });
+    await store.save(
+      new KeyEventMessage(event, {
+        sigs: [signature0, signature1],
+      }),
+    );
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
-    assert.equal(events[0].signatures.length, 2);
-    assert.equal(events[0].signatures[0], signature0);
-    assert.equal(events[0].signatures[1], signature1);
+    assert.equal(events[0].attachments.sigs.length, 2);
+    assert.equal(events[0].attachments.sigs[0], signature0);
+    assert.equal(events[0].attachments.sigs[1], signature1);
   });
 
   test("Should return receipts for event", async () => {
@@ -117,35 +119,39 @@ describe("Key value store", () => {
     const signature0 = encodeSignature("ed25519", randomBytes(64));
     const signature1 = encodeSignature("ed25519", randomBytes(64));
 
-    await store.save({ event });
+    await store.save(new KeyEventMessage(event));
 
-    await store.save({
-      event: keri.receipt({
-        d: event.d,
-        i: event.i,
-        s: event.s,
-      }),
-      receipts: [
+    await store.save(
+      new KeyEventMessage(
+        keri.receipt({
+          d: event.d,
+          i: event.i,
+          s: event.s,
+        }),
         {
-          backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-          signature: signature0,
+          receipts: [
+            {
+              backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
+              signature: signature0,
+            },
+            {
+              backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
+              signature: signature1,
+            },
+          ],
         },
-        {
-          backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-          signature: signature1,
-        },
-      ],
-    });
+      ),
+    );
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
-    assert.equal(events[0].receipts.length, 2);
-    assert.deepEqual(events[0].receipts[0], {
+    assert.equal(events[0].attachments.receipts.length, 2);
+    assert.deepEqual(events[0].attachments.receipts[0], {
       backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
       signature: signature0,
     });
-    assert.deepEqual(events[0].receipts[1], {
+    assert.deepEqual(events[0].attachments.receipts[1], {
       backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
       signature: signature1,
     });
@@ -160,16 +166,13 @@ describe("Key value store", () => {
       s: "3",
     };
 
-    await store.save({
-      event,
-      seal,
-    });
+    await store.save(new KeyEventMessage(event, { seal }));
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
     assert.deepEqual(events[0].event, event);
-    assert.deepEqual(events[0].seal, seal);
+    assert.deepEqual(events[0].attachments.seal, seal);
   });
 
   test("Should return end role for identifier", async () => {
@@ -183,7 +186,7 @@ describe("Key value store", () => {
       },
     });
 
-    await store.save({ event });
+    await store.save(new KeyEventMessage(event));
 
     const endrole = await store.endrole(cid, "mailbox");
 
@@ -206,7 +209,7 @@ describe("Key value store", () => {
       },
     });
 
-    await store.save({ event });
+    await store.save(new KeyEventMessage(event));
 
     const location = await store.location(eid);
 

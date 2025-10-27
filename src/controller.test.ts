@@ -8,6 +8,7 @@ import { SqliteStorage } from "./db/storage-sqlite.ts";
 import { privateKey00, privateKey11 } from "../fixtures/keys.ts";
 import { PassphraseEncrypter } from "./keystore/encrypt.ts";
 import { type KeyState } from "./events/event-store.ts";
+import { KeyEventMessage } from "./events/message.ts";
 
 let storage: SqliteStorage;
 let controller: Controller;
@@ -34,27 +35,31 @@ beforeEach(async () => {
 
   storage.init();
 
-  await controller.store.save({
-    event: keri.reply({
-      r: "/loc/scheme",
-      a: {
-        eid: mailbox,
-        scheme: "http",
-        url: "http://localhost:5642",
-      },
-    }),
-  });
+  await controller.store.save(
+    new KeyEventMessage(
+      keri.reply({
+        r: "/loc/scheme",
+        a: {
+          eid: mailbox,
+          scheme: "http",
+          url: "http://localhost:5642",
+        },
+      }),
+    ),
+  );
 
-  await controller.store.save({
-    event: keri.reply({
-      r: "/end/role/add",
-      a: {
-        eid: mailbox,
-        cid: recipient,
-        role: "mailbox",
-      },
-    }),
-  });
+  await controller.store.save(
+    new KeyEventMessage(
+      keri.reply({
+        r: "/end/role/add",
+        a: {
+          eid: mailbox,
+          cid: recipient,
+          role: "mailbox",
+        },
+      }),
+    ),
+  );
 });
 
 describe("When identifier is created", () => {
@@ -84,24 +89,34 @@ describe("When identifier is created", () => {
     const client = await controller.getClient(recipient);
 
     const timestamp = formatDate(new Date(Date.parse("2023-10-01T00:00:00Z")));
+    const event = keri.exchange({
+      dt: timestamp,
+      i: state.i,
+      r: "/challenge/response",
+    });
+    const exn = new KeyEventMessage(event, {
+      seal: {
+        i: state.i,
+        d: state.d,
+        s: state.s,
+      },
+      sigs: await controller.sign(event, state.k),
+    });
 
     await controller.forward(client, {
       sender: await controller.state(state.i),
       topic: "challenge",
       recipient: recipient,
       timestamp: timestamp,
-      event: keri.exchange({
-        dt: timestamp,
-        i: state.i,
-        r: "/challenge/response",
-      }),
+      message: exn,
     });
 
     const headers = fetch.mock.calls[0].arguments[1]?.headers ?? {};
-    const body = fetch.mock.calls[0].arguments[1]?.body as string;
+    const body = new TextDecoder().decode(fetch.mock.calls[0].arguments[1]?.body as Uint8Array);
     const [message] = await collect(parse(body + headers["CESR-ATTACHMENT"], { version: 1 }));
 
-    assert.deepStrictEqual(message.attachments, [
+    // TODO: Slice because to remove wrapping attachment group
+    assert.deepStrictEqual(message.attachments.slice(1), [
       "-FAB",
       "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
       "0AAAAAAAAAAAAAAAAAAAAAAA",
@@ -148,7 +163,7 @@ describe("When identifier is created", () => {
 
     const [, request] = fetch.mock.calls[0].arguments;
     const headers = request?.headers ?? {};
-    const body = JSON.parse(request?.body as string);
+    const body = JSON.parse(new TextDecoder().decode(request?.body as Uint8Array));
     const expected = [
       "-FAB",
       state.i,
@@ -191,7 +206,7 @@ describe("When identifier is created", () => {
       d: "EDp3UvrqHr1MTcJjP59zFF-L0w-QUShdXbwX8xHgaF3x",
       t: "exn",
     });
-    assert.deepStrictEqual(message.attachments.slice(0, -1), expected);
+    assert.deepStrictEqual(message.attachments.slice(1, -1), expected);
   });
 
   test("Create credential", async () => {

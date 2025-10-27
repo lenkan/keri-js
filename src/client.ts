@@ -1,7 +1,8 @@
-import { cesr, CountCode_10, type Counter } from "cesr/__unstable__";
 import { parse } from "cesr";
 import { type KeyEvent, type ReceiptEvent } from "./events/events.ts";
-import { type KeyEventMessage, type LocationRecord } from "./events/event-store.ts";
+import { type LocationRecord } from "./events/event-store.ts";
+import { KeyEventMessage } from "./events/message.ts";
+import { Attachments } from "./events/attachments.ts";
 
 export interface Message {
   event: KeyEvent;
@@ -26,7 +27,7 @@ export class Client {
     this.role = options.role;
   }
 
-  async getReceipt(message: Message): Promise<KeyEventMessage<ReceiptEvent>> {
+  async getReceipt(message: KeyEventMessage): Promise<KeyEventMessage<ReceiptEvent>> {
     const url = new URL("/receipts", this.#location.url);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error(`Invalid protocol: ${url}`);
@@ -34,10 +35,10 @@ export class Client {
 
     const response = await fetch(url, {
       method: "POST",
-      body: JSON.stringify(message.event),
+      body: message.raw,
       headers: {
         "Content-Type": "application/cesr+json",
-        "CESR-ATTACHMENT": message.attachment,
+        "CESR-ATTACHMENT": message.attachments.toString(),
       },
     });
 
@@ -58,15 +59,15 @@ export class Client {
     throw new Error(`Failed to get receipt for event: ${response.status} ${response.statusText}`);
   }
 
-  async sendMessage(message: Message) {
+  async sendMessage(message: KeyEventMessage) {
     const url = new URL("/", this.#location.url);
 
     const response = await fetch(url, {
       method: "POST",
-      body: JSON.stringify(message.event),
+      body: message.raw,
       headers: {
         "Content-Type": "application/cesr+json",
-        "CESR-ATTACHMENT": message.attachment,
+        "CESR-ATTACHMENT": message.attachments.toString(),
         "CESR-DESTINATION": this.#location.eid,
       },
     });
@@ -78,44 +79,7 @@ export class Client {
 }
 
 export async function* parseKeyEvents(input: ReadableStream<Uint8Array>): AsyncIterableIterator<KeyEventMessage> {
-  for await (const message of parse(input)) {
-    const signatures: string[] = [];
-    const receipts: string[] = [];
-
-    let group: Counter | null = null;
-
-    for (const attachment of message.attachments) {
-      if (attachment.startsWith("-")) {
-        group = cesr.decodeCounter(attachment);
-      } else if (group) {
-        switch (group.code) {
-          case CountCode_10.ControllerIdxSigs:
-            signatures.push(attachment);
-            break;
-          case CountCode_10.NonTransReceiptCouples:
-            receipts.push(attachment);
-            break;
-        }
-      }
-    }
-
-    yield {
-      event: message.payload as KeyEvent,
-      receipts: decouple(receipts).map(([backer, signature]) => ({ backer, signature })),
-      signatures,
-      timestamp: new Date(),
-    };
+  for await (const frame of parse(input)) {
+    yield new KeyEventMessage(frame.payload as KeyEvent, Attachments.parse(frame.attachments.join("")));
   }
-}
-
-function decouple<T>(arr: T[]): [T, T][] {
-  const result: [T, T][] = [];
-
-  for (let i = 0; i < arr.length; i++) {
-    if (i % 2 === 0) {
-      result.push([arr[i], arr[i + 1]]);
-    }
-  }
-
-  return result;
 }

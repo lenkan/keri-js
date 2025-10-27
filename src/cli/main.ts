@@ -105,7 +105,7 @@ program
       sender: await controller.state(sender),
       topic,
       recipient: receiver,
-      event: keri.exchange({
+      message: keri.exchange({
         i: sender,
         r: route,
         q: {},
