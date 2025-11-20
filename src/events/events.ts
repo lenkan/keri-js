@@ -1,4 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
+import { Message, VersionString } from "cesr";
 import { cesr, MatterCode } from "cesr/__unstable__";
 
 export type KeyEvent<T = Record<string, unknown>> = {
@@ -203,7 +204,7 @@ export interface CredentialSubject {
   /**
    * Issuance timestamp
    */
-  dt: string;
+  dt?: string;
 
   [key: string]: string | undefined;
 }
@@ -273,13 +274,11 @@ export function randomNonce() {
 }
 
 function calculateSaid(event: Record<string, unknown>): string {
-  const encoder = new TextEncoder();
-
   const digest = cesr.encodeMatter({
     code: MatterCode.Blake3_256,
     raw: blake3
       .create({ dkLen: 32 })
-      .update(encoder.encode(JSON.stringify(event)))
+      .update(new TextEncoder().encode(JSON.stringify(event)))
       .digest(),
   });
 
@@ -339,7 +338,7 @@ export class KeriEventCreator {
     this.#version = options.version;
   }
 
-  #encode<T extends Record<string, unknown>>(data: T, labels: string[] = ["d"]): T & { v: "string" } {
+  #encode<T extends Record<string, unknown>>(data: T, labels: string[] = ["d"]): T & { v: string } {
     for (const label of labels) {
       if (!(label in data)) {
         throw new Error(`Input missing label '${label}'`);
@@ -348,8 +347,13 @@ export class KeriEventCreator {
       (data as Record<string, unknown>)[label] = "#".repeat(44);
     }
 
-    const event = JSON.parse(cesr.encodeMessage(data, { legacy: this.#version === 1 }));
-    return saidify(event, labels);
+    return saidify(
+      new Message({
+        v: VersionString.encode({ protocol: "KERI", legacy: this.#version === 1 }),
+        ...data,
+      }).body,
+      labels,
+    );
   }
 
   registry(args: RegistryInceptEventInit): RegistryInceptEvent {
@@ -471,29 +475,28 @@ export class KeriEventCreator {
   }
 
   credential(data: CredentialInit): CredentialEvent {
-    const event = JSON.parse(
-      cesr.encodeMessage(
+    const body = new Message({
+      v: VersionString.encode({
+        protocol: "ACDC",
+        legacy: this.#version === 1,
+      }),
+      d: "#".repeat(44),
+      ...(data.u && { u: data.u }),
+      i: data.i,
+      ri: data.ri,
+      s: data.s,
+      a: saidify(
         {
           d: "#".repeat(44),
-          ...(data.u && { u: data.u }),
-          i: data.i,
-          ri: data.ri,
-          s: data.s,
-          a: saidify(
-            {
-              d: "#".repeat(44),
-              ...data.a,
-            },
-            ["d"],
-          ),
-          ...(data.e && { e: saidify({ d: "#".repeat(44), ...data.e }, ["d"]) }),
-          r: saidify({ d: "#".repeat(44), ...data.r }, ["d"]),
+          ...data.a,
         },
-        { legacy: this.#version === 1, protocol: "ACDC" },
+        ["d"],
       ),
-    );
+      ...(data.e && { e: saidify({ d: "#".repeat(44), ...data.e }, ["d"]) }),
+      r: saidify({ d: "#".repeat(44), ...data.r }, ["d"]),
+    }).body;
 
-    return saidify(event, ["d"]);
+    return saidify(body, ["d"]);
   }
 }
 

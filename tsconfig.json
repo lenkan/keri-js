@@ -1,13 +1,12 @@
 {
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
-    "lib": ["ES2024"],
-    "module": "nodenext",
     "noEmit": true,
-    "resolveJsonModule": true,
-    "strictNullChecks": true,
-    "allowImportingTsExtensions": true,
+    "target": "esnext",
+    "module": "nodenext",
     "rewriteRelativeImportExtensions": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true
   }
 }
