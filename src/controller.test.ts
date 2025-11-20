@@ -1,6 +1,6 @@
 import { beforeEach, test, mock, describe } from "node:test";
 import assert from "node:assert";
-import { parse } from "cesr";
+import { Attachments, Message } from "cesr";
 import { formatDate, keri } from "./events/events.ts";
 import { type Key, KeyManager } from "./keystore/key-manager.ts";
 import { Controller } from "./controller.ts";
@@ -12,14 +12,6 @@ import { type KeyState } from "./events/event-store.ts";
 let storage: SqliteStorage;
 let controller: Controller;
 let keyManager: KeyManager;
-
-async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
-  const output: T[] = [];
-  for await (const item of iterable) {
-    output.push(item);
-  }
-  return output;
-}
 
 const recipient = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
 const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
@@ -34,27 +26,31 @@ beforeEach(async () => {
 
   storage.init();
 
-  await controller.store.save({
-    event: keri.reply({
-      r: "/loc/scheme",
-      a: {
-        eid: mailbox,
-        scheme: "http",
-        url: "http://localhost:5642",
-      },
-    }),
-  });
+  await controller.store.save(
+    new Message(
+      keri.reply({
+        r: "/loc/scheme",
+        a: {
+          eid: mailbox,
+          scheme: "http",
+          url: "http://localhost:5642",
+        },
+      }),
+    ),
+  );
 
-  await controller.store.save({
-    event: keri.reply({
-      r: "/end/role/add",
-      a: {
-        eid: mailbox,
-        cid: recipient,
-        role: "mailbox",
-      },
-    }),
-  });
+  await controller.store.save(
+    new Message(
+      keri.reply({
+        r: "/end/role/add",
+        a: {
+          eid: mailbox,
+          cid: recipient,
+          role: "mailbox",
+        },
+      }),
+    ),
+  );
 });
 
 describe("When identifier is created", () => {
@@ -75,9 +71,9 @@ describe("When identifier is created", () => {
 
     const [icp] = list;
 
-    assert.deepStrictEqual(icp.event.t, "icp");
-    assert.deepStrictEqual(icp.event.d, state.ee.d);
-    assert.deepStrictEqual(icp.event.s, "0");
+    assert.deepStrictEqual(icp.payload.t, "icp");
+    assert.deepStrictEqual(icp.payload.d, state.ee.d);
+    assert.deepStrictEqual(icp.payload.s, "0");
   });
 
   test("Forward exchange event", async () => {
@@ -85,23 +81,25 @@ describe("When identifier is created", () => {
 
     const timestamp = formatDate(new Date(Date.parse("2023-10-01T00:00:00Z")));
 
+    const exn = keri.exchange({
+      dt: timestamp,
+      i: state.i,
+      r: "/challenge/response",
+    });
+
     await controller.forward(client, {
       sender: await controller.state(state.i),
       topic: "challenge",
       recipient: recipient,
       timestamp: timestamp,
-      event: keri.exchange({
-        dt: timestamp,
-        i: state.i,
-        r: "/challenge/response",
-      }),
+      message: new Message(exn),
     });
 
     const headers = fetch.mock.calls[0].arguments[1]?.headers ?? {};
-    const body = fetch.mock.calls[0].arguments[1]?.body as string;
-    const [message] = await collect(parse(body + headers["CESR-ATTACHMENT"], { version: 1 }));
+    const attachments = Attachments.parse(new TextEncoder().encode(headers["CESR-ATTACHMENT"]));
 
-    assert.deepStrictEqual(message.attachments, [
+    assert(attachments);
+    assert.deepStrictEqual(attachments.frames(), [
       "-FAB",
       "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
       "0AAAAAAAAAAAAAAAAAAAAAAA",
@@ -185,13 +183,14 @@ describe("When identifier is created", () => {
       "0AAAAAAAAAAAAAAAAAAAAAAC",
     ];
 
-    const [message] = await collect(parse(JSON.stringify(body) + headers["CESR-ATTACHMENT"], { version: 1 }));
+    const attachments = Attachments.parse(new TextEncoder().encode(headers["CESR-ATTACHMENT"]));
 
-    assert.partialDeepStrictEqual(message.payload, {
+    assert.partialDeepStrictEqual(body, {
       d: "EDp3UvrqHr1MTcJjP59zFF-L0w-QUShdXbwX8xHgaF3x",
       t: "exn",
     });
-    assert.deepStrictEqual(message.attachments.slice(0, -1), expected);
+    assert(attachments);
+    assert.deepStrictEqual(attachments.frames().slice(0, -1), expected);
   });
 
   test("Create credential", async () => {

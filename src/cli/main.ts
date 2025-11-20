@@ -5,6 +5,7 @@ import { SqliteStorage } from "../db/storage-sqlite.ts";
 import { KeyManager } from "../keystore/key-manager.ts";
 import { keri, type CredentialEvent } from "../events/events.ts";
 import { PassphraseEncrypter } from "../keystore/encrypt.ts";
+import { Message } from "cesr";
 
 const storage = new SqliteStorage({ filename: ".keri/db.sqlite" });
 storage.init();
@@ -100,18 +101,21 @@ program
 
     const controller = new Controller({ storage, keyManager: keystore });
     const client = await controller.getClient(receiver);
-
-    await controller.forward(client, {
-      sender: await controller.state(sender),
-      topic,
-      recipient: receiver,
-      event: keri.exchange({
+    const message = new Message(
+      keri.exchange({
         i: sender,
         r: route,
         q: {},
         a: { i: sender, ...data },
         e: {},
       }),
+    );
+
+    await controller.forward(client, {
+      sender: await controller.state(sender),
+      topic,
+      recipient: receiver,
+      message,
     });
   });
 
@@ -173,6 +177,11 @@ program
       edges: edges || undefined,
     });
 
+    const s = await controller.store.get(acdc.d);
+    if (!s) {
+      throw new Error("Failed to store created credential");
+    }
+
     console.log(acdc.d);
   });
 
@@ -194,7 +203,7 @@ program
       keyManager: keystore,
     });
 
-    const acdc = (await controller.store.get(said))?.event as unknown as CredentialEvent;
+    const acdc = (await controller.store.get(said))?.payload as unknown as CredentialEvent;
     if (!acdc) {
       throw new Error(`No ACDC found for said ${said}`);
     }

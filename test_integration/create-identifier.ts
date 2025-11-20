@@ -48,7 +48,7 @@ describe("Create identifier", () => {
     const events = await controller.listEvents(state.i);
 
     assert.equal(events.length, 1);
-    assert.partialDeepStrictEqual(events[0]?.event, {
+    assert.partialDeepStrictEqual(events[0]?.payload, {
       i: state.i,
       b: [],
     });
@@ -60,7 +60,7 @@ describe("Create identifier", () => {
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
-    assert.partialDeepStrictEqual(events[0]?.event, {
+    assert.partialDeepStrictEqual(events[0]?.payload, {
       i: state.i,
       b: [wan.aid],
     });
@@ -77,7 +77,7 @@ describe("Create identifier", () => {
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
-    assert.partialDeepStrictEqual(events[0]?.event, {
+    assert.partialDeepStrictEqual(events[0]?.payload, {
       i: state.i,
       b: [wan.aid, wil.aid],
     });
@@ -98,7 +98,7 @@ describe("Create identifier", () => {
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
-    assert.partialDeepStrictEqual(events[0]?.event, {
+    assert.partialDeepStrictEqual(events[0]?.payload, {
       i: state.i,
       b: [wan.aid, wil.aid, wes.aid],
     });

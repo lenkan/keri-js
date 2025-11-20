@@ -1,5 +1,6 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { cesr, MatterCode } from "cesr/__unstable__";
+import { MessageBody } from "cesr";
+import { cesr, MatterCode, VersionString } from "cesr/__unstable__";
 
 export type KeyEvent<T = Record<string, unknown>> = {
   v: string;
@@ -339,7 +340,7 @@ export class KeriEventCreator {
     this.#version = options.version;
   }
 
-  #encode<T extends Record<string, unknown>>(data: T, labels: string[] = ["d"]): T & { v: "string" } {
+  #encode<T extends Record<string, unknown>>(data: T, labels: string[] = ["d"]): T & { v: string } {
     for (const label of labels) {
       if (!(label in data)) {
         throw new Error(`Input missing label '${label}'`);
@@ -348,8 +349,11 @@ export class KeriEventCreator {
       (data as Record<string, unknown>)[label] = "#".repeat(44);
     }
 
-    const event = JSON.parse(cesr.encodeMessage(data, { legacy: this.#version === 1 }));
-    return saidify(event, labels);
+    const body = new MessageBody<T>({
+      v: VersionString.encode({ protocol: "KERI", legacy: this.#version === 1 }),
+      ...data,
+    });
+    return saidify(body.payload, labels);
   }
 
   registry(args: RegistryInceptEventInit): RegistryInceptEvent {
@@ -471,29 +475,28 @@ export class KeriEventCreator {
   }
 
   credential(data: CredentialInit): CredentialEvent {
-    const event = JSON.parse(
-      cesr.encodeMessage(
+    const body = new MessageBody<CredentialEvent>({
+      v: VersionString.encode({
+        protocol: "ACDC",
+        legacy: this.#version === 1,
+      }),
+      d: "#".repeat(44),
+      ...(data.u && { u: data.u }),
+      i: data.i,
+      ri: data.ri,
+      s: data.s,
+      a: saidify(
         {
           d: "#".repeat(44),
-          ...(data.u && { u: data.u }),
-          i: data.i,
-          ri: data.ri,
-          s: data.s,
-          a: saidify(
-            {
-              d: "#".repeat(44),
-              ...data.a,
-            },
-            ["d"],
-          ),
-          ...(data.e && { e: saidify({ d: "#".repeat(44), ...data.e }, ["d"]) }),
-          r: saidify({ d: "#".repeat(44), ...data.r }, ["d"]),
+          ...data.a,
         },
-        { legacy: this.#version === 1, protocol: "ACDC" },
+        ["d"],
       ),
-    );
+      ...(data.e && { e: saidify({ d: "#".repeat(44), ...data.e }, ["d"]) }),
+      r: saidify({ d: "#".repeat(44), ...data.r }, ["d"]),
+    });
 
-    return saidify(event, ["d"]);
+    return saidify(body.payload, ["d"]);
   }
 }
 

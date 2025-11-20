@@ -32,7 +32,7 @@
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.0",
     "@noble/secp256k1": "^3.0.0",
-    "cesr": "^0.0.19",
+    "cesr": "^0.0.19-dev.f2105fc",
     "commander": "^14.0.0"
   },
   "devDependencies": {

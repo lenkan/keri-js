@@ -2,7 +2,8 @@ import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
 import { keri } from "../events/events.ts";
 import { ControllerEventStore } from "./event-store.ts";
-import { cesr, encodeIndexedSignature, encodeSignature, MatterCode } from "cesr/__unstable__";
+import { Message } from "cesr";
+import { cesr, IndexCode, MatterCode } from "cesr/__unstable__";
 import { randomBytes } from "node:crypto";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
 
@@ -25,15 +26,14 @@ beforeEach(() => {
 
 describe("Key value store", () => {
   test("Should list inserted event", async () => {
-    const event0 = keri.incept({ k: [randomKey()] });
+    const event = keri.incept({ k: [randomKey()] });
 
-    await store.save({ event: event0 });
-    const result = await store.list(event0.i);
+    const message = new Message(event);
+    await store.save(message);
+    const result = await store.list(event.i);
 
     assert.equal(result.length, 1);
-    assert.partialDeepStrictEqual(result[0], {
-      event: event0,
-    });
+    assert.partialDeepStrictEqual(result[0].payload, event);
   });
 
   test("Should list events for identifier", async () => {
@@ -43,38 +43,28 @@ describe("Key value store", () => {
     const event10 = keri.incept({ k: [randomKey()] });
     const event11 = keri.interact({ p: event10.d, i: event10.i, s: increment(event10.s) });
 
-    await store.save({ event: event00 });
-    await store.save({ event: event10 });
-    await store.save({ event: event01 });
-    await store.save({ event: event11 });
+    await store.save(new Message(event00));
+    await store.save(new Message(event10));
+    await store.save(new Message(event01));
+    await store.save(new Message(event11));
 
     const result0 = await store.list(event00.i);
     assert.equal(result0.length, 2);
-    assert.partialDeepStrictEqual(result0[0], {
-      event: event00,
-    });
-
-    assert.partialDeepStrictEqual(result0[1], {
-      event: event01,
-    });
+    assert.partialDeepStrictEqual(result0[0].payload, event00);
+    assert.partialDeepStrictEqual(result0[1].payload, event01);
 
     const result1 = await store.list(event10.i);
     assert.equal(result1.length, 2);
-    assert.partialDeepStrictEqual(result1[0], {
-      event: event10,
-    });
-
-    assert.partialDeepStrictEqual(result1[1], {
-      event: event11,
-    });
+    assert.partialDeepStrictEqual(result1[0].payload, event10);
+    assert.partialDeepStrictEqual(result1[1].payload, event11);
   });
 
   test("Should return state for identifier", async () => {
     const event0 = keri.incept({ k: [randomKey()] });
     const event1 = keri.interact({ p: event0.d, i: event0.i, s: increment(event0.s) });
 
-    await store.save({ event: event0 });
-    await store.save({ event: event1 });
+    await store.save(new Message(event0));
+    await store.save(new Message(event1));
 
     const result0 = await store.state(event0.i);
     assert.equal(result0.s, "1");
@@ -96,59 +86,53 @@ describe("Key value store", () => {
 
   test("Should return signature for event", async () => {
     const event = keri.incept({ k: [randomKey(), randomKey(), randomKey()] });
-    const signature0 = encodeIndexedSignature("ed25519", randomBytes(64), 0);
-    const signature1 = encodeIndexedSignature("ed25519", randomBytes(64), 2);
+    const signature0 = cesr.encodeIndexer({ code: IndexCode.Ed25519_Sig, raw: randomBytes(64), index: 0 });
+    const signature1 = cesr.encodeIndexer({ code: IndexCode.Ed25519_Sig, raw: randomBytes(64), index: 2 });
+    const message = new Message(event, { ControllerIdxSigs: [signature0, signature1] });
 
-    await store.save({
-      event,
-      signatures: [signature0, signature1],
-    });
+    await store.save(message);
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
-    assert.equal(events[0].signatures.length, 2);
-    assert.equal(events[0].signatures[0], signature0);
-    assert.equal(events[0].signatures[1], signature1);
+    assert.equal(events[0].attachments.ControllerIdxSigs.length, 2);
+    assert.equal(events[0].attachments.ControllerIdxSigs[0], signature0);
+    assert.equal(events[0].attachments.ControllerIdxSigs[1], signature1);
   });
 
   test("Should return receipts for event", async () => {
     const event = keri.incept({ k: [randomKey(), randomKey(), randomKey()] });
-    const signature0 = encodeSignature("ed25519", randomBytes(64));
-    const signature1 = encodeSignature("ed25519", randomBytes(64));
+    const signature0 = cesr.encodeMatter({ code: MatterCode.Ed25519_Sig, raw: randomBytes(64) });
+    const signature1 = cesr.encodeMatter({ code: MatterCode.Ed25519_Sig, raw: randomBytes(64) });
 
-    await store.save({ event });
-
-    await store.save({
-      event: keri.receipt({
-        d: event.d,
-        i: event.i,
-        s: event.s,
+    await store.save(
+      new Message(event, {
+        WitnessIdxSigs: [signature0, signature1],
       }),
-      receipts: [
-        {
-          backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-          signature: signature0,
-        },
-        {
-          backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-          signature: signature1,
-        },
-      ],
-    });
+    );
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
-    assert.equal(events[0].receipts.length, 2);
-    assert.deepEqual(events[0].receipts[0], {
-      backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-      signature: signature0,
+    assert.equal(events[0].attachments.WitnessIdxSigs.length, 2);
+    assert.deepEqual(events[0].attachments.WitnessIdxSigs[0], signature0);
+    assert.deepEqual(events[0].attachments.WitnessIdxSigs[1], signature1);
+  });
+
+  test("Should return first seen replays for event", async () => {
+    const event = keri.incept({ k: [randomKey(), randomKey(), randomKey()] });
+
+    const message = new Message(event);
+    await store.save(message);
+
+    const events = await store.list(event.i);
+
+    assert.equal(events.length, 1);
+    assert.equal(events[0].attachments.FirstSeenReplayCouples.length, 1);
+    assert.partialDeepStrictEqual(events[0].attachments.FirstSeenReplayCouples[0], {
+      fnu: event.s,
     });
-    assert.deepEqual(events[0].receipts[1], {
-      backer: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
-      signature: signature1,
-    });
+    assert.ok(events[0].attachments.FirstSeenReplayCouples[0].dt instanceof Date);
   });
 
   test("Can insert and read seal", async () => {
@@ -160,16 +144,26 @@ describe("Key value store", () => {
       s: "3",
     };
 
-    await store.save({
-      event,
-      seal,
+    const message = new Message(event, {
+      SealSourceCouples: [
+        {
+          digest: seal.d,
+          snu: seal.s,
+        },
+      ],
     });
+    await store.save(message);
 
     const events = await store.list(event.i);
 
     assert.equal(events.length, 1);
-    assert.deepEqual(events[0].event, event);
-    assert.deepEqual(events[0].seal, seal);
+    assert.deepEqual(events[0].payload, event);
+    assert.deepEqual(events[0].attachments.SealSourceCouples, [
+      {
+        digest: seal.d,
+        snu: seal.s,
+      },
+    ]);
   });
 
   test("Should return end role for identifier", async () => {
@@ -183,7 +177,9 @@ describe("Key value store", () => {
       },
     });
 
-    await store.save({ event });
+    const message = new Message(event);
+
+    await store.save(message);
 
     const endrole = await store.endrole(cid, "mailbox");
 
@@ -206,7 +202,8 @@ describe("Key value store", () => {
       },
     });
 
-    await store.save({ event });
+    const message = new Message(event);
+    await store.save(message);
 
     const location = await store.location(eid);
 
@@ -215,5 +212,24 @@ describe("Key value store", () => {
       url: "http://localhost:5642",
       eid: eid,
     });
+  });
+
+  test("Should store credentials", async () => {
+    const credential = keri.credential({
+      i: "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
+      ri: "EYJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
+      s: "EYJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2",
+      a: {
+        name: "Alice",
+      },
+    });
+
+    const message = new Message(credential);
+
+    await store.save(message);
+
+    const stored = await store.get(credential.d);
+    assert.ok(stored);
+    assert.deepStrictEqual(stored.payload, credential);
   });
 });

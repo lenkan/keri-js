@@ -1,7 +1,6 @@
 import {
   cesr,
   CountCode_10,
-  encodeAttachmentsV1,
   encodeBase64Int,
   encodeCounter,
   encodeString,
@@ -38,7 +37,7 @@ export function serializeSignatures(sigs: string[], seal?: KeyEventSeal): string
   return result.join("");
 }
 
-export function serializeWitnessSignatures(receipts: KeyEventReceipt[], backers: string[]): string {
+export function serializeWitnessSignatures(receipts: KeyEventReceipt[], backers: string[]): string[] {
   const result: string[] = [];
 
   if (receipts.length > 0) {
@@ -61,7 +60,7 @@ export function serializeWitnessSignatures(receipts: KeyEventReceipt[], backers:
     }
   }
 
-  return result.join("");
+  return result;
 }
 
 export function serializeReceipts(receipts: KeyEventReceipt[]): string {
@@ -91,7 +90,7 @@ export function serializePathedGroup(path: string[], attachments: string[]) {
 
 export function serializeAttachments(attachments: string[]): string {
   const result = attachments.join("");
-  return `${encodeAttachmentsV1(result.length / 4)}${result}`;
+  return `${encodeCounter({ code: CountCode_10.AttachmentGroup, count: result.length / 4 })}${result}`;
 }
 
 export function serializeEventSeal(seal: KeyEventSeal) {
