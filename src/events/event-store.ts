@@ -1,3 +1,4 @@
+import { Message } from "cesr";
 import {
   formatDate,
   type KeyEvent,
@@ -6,19 +7,6 @@ import {
   type InteractEvent,
   type Threshold,
 } from "./events.ts";
-
-export interface KeyEventMessageInput<T extends KeyEvent = KeyEvent> {
-  event: T;
-  seal?: KeyEventSeal;
-  signatures?: string[];
-  receipts?: KeyEventReceipt[];
-}
-
-export interface KeyEventMessage<T extends KeyEvent = KeyEvent> extends KeyEventMessageInput<T> {
-  timestamp: Date;
-  signatures: string[];
-  receipts: KeyEventReceipt[];
-}
 
 export interface LocationRecord {
   url: string;
@@ -61,39 +49,47 @@ export class ControllerEventStore {
     this.#db = db;
   }
 
-  async save(event: KeyEventMessageInput) {
-    switch (event.event.t) {
+  async save(event: Message<KeyEvent>) {
+    switch (event.body.t) {
       case "icp":
       case "ixn":
       case "iss":
       case "vcp":
       case "rot": {
-        if (!event.event.s) {
-          throw new Error(`Event sequence number (s) is required for key event ${event.event.t}(${event.event.d})`);
+        if (!event.body.s) {
+          throw new Error(`Event sequence number (s) is required for key event ${event.body.t}(${event.body.d})`);
         }
 
-        const sn = event.event.s.padStart(24, "0");
+        const sn = event.body.s.padStart(24, "0");
         await this.#db.set(
-          `key_event.${event.event.d}`,
+          `key_event.${event.body.d}`,
           JSON.stringify({
-            event: event.event,
+            event: event.body,
             timestamp: new Date().toISOString(),
-            seal: event.seal || null,
-            sigs: event.signatures || [],
+            attachments: {
+              ControllerIdxSigs: event.attachments.ControllerIdxSigs || [],
+              WitnessIdxSigs: event.attachments.WitnessIdxSigs || [],
+              NonTransReceiptCouples: event.attachments.NonTransReceiptCouples || [],
+              SealSourceCouples: event.attachments.SealSourceCouples || [],
+              SealSourceTriples: event.attachments.SealSourceTriples || [],
+            },
           }),
         );
 
-        await this.#db.set(`key_event_log.${event.event.i}.${sn}`, event.event.d);
+        await this.#db.set(`key_event_log.${event.body.i}.${sn}`, event.body.d);
         break;
       }
       case "rct": {
-        await this.#db.set(`key_event_receipts.${event.event.d}`, JSON.stringify(event.receipts));
+        await this.#db.set(
+          `key_event_receipts.${event.body.d}`,
+          JSON.stringify(event.attachments.NonTransReceiptCouples || []),
+        );
         break;
       }
       case "rpy":
-        switch (event.event.r) {
+        switch (event.body.r) {
           case "/end/role/add": {
-            const record = event.event.a;
+            const record = event.body.a;
             if (
               record &&
               typeof record === "object" &&
@@ -119,7 +115,7 @@ export class ControllerEventStore {
             break;
           }
           case "/loc/scheme": {
-            const record = event.event.a;
+            const record = event.body.a;
             if (
               record &&
               typeof record === "object" &&
@@ -145,33 +141,36 @@ export class ControllerEventStore {
         }
     }
 
-    if (event.event.v.startsWith("ACDC")) {
+    if (event.body.v.startsWith("ACDC")) {
       await this.#db.set(
-        `key_event.${event.event.d}`,
+        `key_event.${event.body.d}`,
         JSON.stringify({
-          event: event.event,
+          event: event.body,
           timestamp: new Date().toISOString(),
-          seal: event.seal || null,
+          attachments: {
+            SealSourceCouples: event.attachments.SealSourceCouples || [],
+            SealSourceTriples: event.attachments.SealSourceTriples || [],
+          },
         }),
       );
     }
   }
 
-  async *iter(said: string, from = 0): AsyncIterable<KeyEventMessage> {
+  async *iter(said: string, from = 0): AsyncIterable<Message<KeyEvent>> {
     for (let start = from; start < Number.MAX_SAFE_INTEGER; start++) {
       const digest = await this.#db.get(`key_event_log.${said}.${start.toString(16).padStart(24, "0")}`);
 
       if (digest) {
         const result = await this.get(digest);
-        assertKeyEvent(result?.event);
-        yield result;
+        assertKeyEvent(result?.body);
+        yield result as Message<KeyEvent>;
       } else {
         return;
       }
     }
   }
 
-  async get(said: string): Promise<KeyEventMessage | null> {
+  async get(said: string): Promise<Message<KeyEvent> | null> {
     const item = JSON.parse((await this.#db.get(`key_event.${said}`)) ?? JSON.stringify(null));
     if (!item) {
       return null;
@@ -179,15 +178,17 @@ export class ControllerEventStore {
 
     assertKeyEvent(item.event);
 
-    const receipts = JSON.parse((await this.#db.get(`key_event_receipts.${said}`)) ?? "[]");
-
-    return {
-      event: item.event,
-      signatures: item.sigs as string[],
-      receipts: receipts as unknown as KeyEventReceipt[],
-      timestamp: new Date(Date.parse(item.timestamp)),
-      seal: item.seal,
-    };
+    return new Message(item.event, {
+      ...item.attachments,
+      FirstSeenReplayCouples: ["icp", "ixn", "rot"].includes(item.event.t)
+        ? [
+            {
+              fnu: item.event.s,
+              dt: new Date(item.timestamp),
+            },
+          ]
+        : [],
+    });
   }
 
   async state(said: string): Promise<KeyState> {
@@ -200,8 +201,8 @@ export class ControllerEventStore {
     return state;
   }
 
-  async list(said: string, from = 0): Promise<KeyEventMessage[]> {
-    const messages: KeyEventMessage[] = [];
+  async list(said: string, from = 0): Promise<Message<KeyEvent>[]> {
+    const messages: Message<KeyEvent>[] = [];
 
     for await (const message of this.iter(said, from)) {
       messages.push(message);
@@ -349,7 +350,7 @@ function merge(a: KeyState, b: Partial<KeyState>): KeyState {
 }
 
 export async function resolveKeyState(
-  event: Iterable<KeyEventMessage> | AsyncIterable<KeyEventMessage>,
+  event: Iterable<Message<KeyEvent>> | AsyncIterable<Message<KeyEvent>>,
 ): Promise<KeyState> {
   let state: KeyState = INITIAL_STATE;
 
@@ -380,15 +381,15 @@ const INITIAL_STATE: KeyState = {
   di: "",
 };
 
-function reduce(state: KeyState, message: KeyEventMessage): KeyState {
-  if (!message.event.v.startsWith("KERI")) {
+function reduce(state: KeyState, message: Message<KeyEvent>): KeyState {
+  if (!message.body.v.startsWith("KERI")) {
     return state;
   }
 
-  switch (message.event.t) {
+  switch (message.body.t) {
     case "icp":
     case "dip": {
-      const icp = message.event as InceptEvent | DelegatedInceptEvent;
+      const icp = message.body as InceptEvent | DelegatedInceptEvent;
 
       return {
         vn: [1, 0],
@@ -417,7 +418,7 @@ function reduce(state: KeyState, message: KeyEventMessage): KeyState {
     }
     case "ixn": {
       assertDefined(state);
-      const ixn = message.event as InteractEvent;
+      const ixn = message.body as InteractEvent;
 
       if (!state.d) {
         throw new Error("state.d is undefined");
@@ -432,6 +433,6 @@ function reduce(state: KeyState, message: KeyEventMessage): KeyState {
       });
     }
     default:
-      throw new Error(`Unsupported event type: ${message.event.t}`);
+      throw new Error(`Unsupported event type: ${message.body.t}`);
   }
 }

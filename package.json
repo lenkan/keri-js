@@ -6,9 +6,13 @@
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types",
     "test:integration": "npm test -- 'test_integration/**/*.ts'",
-    "test:scripts": "node --no-warnings --experimental-strip-types scripts/run-scripts.ts",
+    "test:scripts": "node --no-warnings scripts/run-scripts.ts",
+    "test:example": "./test_examples.sh",
     "lint": "eslint",
-    "clean": "node --experimental-strip-types --no-warnings scripts/clean.ts"
+    "check": "tsc --noEmit",
+    "clean": "node scripts/clean.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "bin": {
     "keri": "dist/cli/main.js"
@@ -24,6 +28,18 @@
   "author": "Daniel Lenksjö",
   "license": "Apache-2.0",
   "description": "KERI for JavaScript",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24",
+      "onFail": "warn"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11",
+      "onFail": "warn"
+    }
+  },
   "engines": {
     "node": ">=22"
   },
@@ -32,7 +48,7 @@
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.0",
     "@noble/secp256k1": "^3.0.0",
-    "cesr": "^0.0.19",
+    "cesr": "^0.0.20",
     "commander": "^14.0.0"
   },
   "devDependencies": {
