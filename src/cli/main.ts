@@ -15,7 +15,7 @@ function getStringArray(options: unknown, key: string): string[] {
     return [];
   }
 
-  const value = options[key];
+  const value = (options as Record<string, unknown>)[key];
   const result: string[] = [];
 
   if (typeof value === "string") {
@@ -32,7 +32,7 @@ function getOptionalString(options: unknown, key: string): string | undefined {
     throw new Error(`Options is not an object`);
   }
 
-  const value = options[key];
+  const value = (options as Record<string, unknown>)[key];
 
   if (value !== undefined && typeof value !== "string") {
     throw new Error(`Expected "${key}" to be a string, got "${typeof value}"`);

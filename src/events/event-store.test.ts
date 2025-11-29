@@ -2,8 +2,7 @@ import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
 import { keri } from "../events/events.ts";
 import { ControllerEventStore } from "./event-store.ts";
-import { Message } from "cesr";
-import { cesr, IndexCode, MatterCode } from "cesr/__unstable__";
+import { cesr, Message } from "cesr";
 import { randomBytes } from "node:crypto";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
 
@@ -11,7 +10,7 @@ let db: SqliteStorage;
 let store: ControllerEventStore;
 
 function randomKey() {
-  return cesr.encodeMatter({ code: MatterCode.Ed25519, raw: randomBytes(32) });
+  return cesr.crypto.ed25519(randomBytes(32)).text();
 }
 
 function increment(s: string): string {
@@ -86,8 +85,8 @@ describe("Key value store", () => {
 
   test("Should return signature for event", async () => {
     const event = keri.incept({ k: [randomKey(), randomKey(), randomKey()] });
-    const signature0 = cesr.encodeIndexer({ code: IndexCode.Ed25519_Sig, raw: randomBytes(64), index: 0 });
-    const signature1 = cesr.encodeIndexer({ code: IndexCode.Ed25519_Sig, raw: randomBytes(64), index: 2 });
+    const signature0 = cesr.crypto.ed25519_sig(randomBytes(64), 0).text();
+    const signature1 = cesr.crypto.ed25519_sig(randomBytes(64), 2).text();
     const message = new Message(event, { ControllerIdxSigs: [signature0, signature1] });
 
     await store.save(message);
@@ -102,8 +101,8 @@ describe("Key value store", () => {
 
   test("Should return receipts for event", async () => {
     const event = keri.incept({ k: [randomKey(), randomKey(), randomKey()] });
-    const signature0 = cesr.encodeMatter({ code: MatterCode.Ed25519_Sig, raw: randomBytes(64) });
-    const signature1 = cesr.encodeMatter({ code: MatterCode.Ed25519_Sig, raw: randomBytes(64) });
+    const signature0 = cesr.crypto.ed25519_sig(randomBytes(64), 0).text();
+    const signature1 = cesr.crypto.ed25519_sig(randomBytes(64), 1).text();
 
     await store.save(
       new Message(event, {

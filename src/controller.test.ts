@@ -16,6 +16,18 @@ let keyManager: KeyManager;
 const recipient = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
 const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
 
+function getHeaderValue(headers: HeadersInit, key: string): string | undefined {
+  const h = new Headers(headers);
+
+  for (const [k, v] of h) {
+    if (k.toLowerCase() === key.toLowerCase()) {
+      return v;
+    }
+  }
+
+  return undefined;
+}
+
 beforeEach(async () => {
   storage = new SqliteStorage();
   keyManager = new KeyManager({
@@ -96,25 +108,29 @@ describe("When identifier is created", () => {
     });
 
     const headers = fetch.mock.calls[0].arguments[1]?.headers ?? {};
-    const attachments = Attachments.parse(new TextEncoder().encode(headers["CESR-ATTACHMENT"]));
+    const attachments = Attachments.parse(new TextEncoder().encode(getHeaderValue(headers, "CESR-ATTACHMENT")));
 
     assert(attachments);
-    assert.deepStrictEqual(attachments.frames(), [
-      "-FAB",
-      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-      "0AAAAAAAAAAAAAAAAAAAAAAA",
-      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-      "-AAB",
-      "AADHI3wDprYdXv0YHImildstc0yg0Wm-0BBMEzFdpAejiTiGh14wzgX4Z0vVtzAHykFT9bZzt9heArbAU24HXNoI",
-      "-LA3",
-      "5AACAA-e-evt",
-      "-FAB",
-      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-      "0AAAAAAAAAAAAAAAAAAAAAAA",
-      "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
-      "-AAB",
-      "AABn3K1qm3CF57lKqa6AQ4QuVM4w2dy1xLjQy0nqllMcRBaj1h20Ibd0yFHKxGb4tJfJKxguO89sTEwrlQUNcT4C",
-    ]);
+    assert.deepStrictEqual(
+      attachments.frames().map((frame) => frame.text()),
+      [
+        "-VBs",
+        "-FAB",
+        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+        "0AAAAAAAAAAAAAAAAAAAAAAA",
+        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+        "-AAB",
+        "AADHI3wDprYdXv0YHImildstc0yg0Wm-0BBMEzFdpAejiTiGh14wzgX4Z0vVtzAHykFT9bZzt9heArbAU24HXNoI",
+        "-LA3",
+        "5AACAA-e-evt",
+        "-FAB",
+        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+        "0AAAAAAAAAAAAAAAAAAAAAAA",
+        "EK0jhXxTQQgBKKcDLpmPhU5Mt5kK6tJXRjNl3fsVrUqU",
+        "-AAB",
+        "AABn3K1qm3CF57lKqa6AQ4QuVM4w2dy1xLjQy0nqllMcRBaj1h20Ibd0yFHKxGb4tJfJKxguO89sTEwrlQUNcT4C",
+      ],
+    );
   });
 
   test("Forward grant message to recipient", async () => {
@@ -148,6 +164,7 @@ describe("When identifier is created", () => {
     const headers = request?.headers ?? {};
     const body = JSON.parse(request?.body as string);
     const expected = [
+      "-VDQ",
       "-FAB",
       state.i,
       "0AAAAAAAAAAAAAAAAAAAAAAA",
@@ -183,14 +200,20 @@ describe("When identifier is created", () => {
       "0AAAAAAAAAAAAAAAAAAAAAAC",
     ];
 
-    const attachments = Attachments.parse(new TextEncoder().encode(headers["CESR-ATTACHMENT"]));
+    const attachments = Attachments.parse(new TextEncoder().encode(getHeaderValue(headers, "CESR-ATTACHMENT")));
 
     assert.partialDeepStrictEqual(body, {
       d: "EDp3UvrqHr1MTcJjP59zFF-L0w-QUShdXbwX8xHgaF3x",
       t: "exn",
     });
     assert(attachments);
-    assert.deepStrictEqual(attachments.frames().slice(0, -1), expected);
+    assert.deepStrictEqual(
+      attachments
+        .frames()
+        .map((frame) => frame.text())
+        .slice(0, -1),
+      expected,
+    );
   });
 
   test("Create credential", async () => {

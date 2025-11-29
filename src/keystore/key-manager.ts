@@ -1,16 +1,9 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { blake3 } from "@noble/hashes/blake3.js";
-import {
-  cesr,
-  decodeBase64Url,
-  encodeBase64Url,
-  encodeIndexer,
-  encodeMatter,
-  IndexCode,
-  MatterCode,
-} from "cesr/__unstable__";
 import type { Encrypter } from "./encrypt.ts";
 import { type KeyValueStorage } from "../events/event-store.ts";
+import { cesr, Matter } from "cesr";
+import { decodeBase64Url, encodeBase64Url } from "cesr/__unstable__";
 
 export interface Key {
   /**
@@ -30,15 +23,11 @@ export interface KeyManagerOptions {
 }
 
 function createDigest(key: Uint8Array): string {
-  const encoded = encodeMatter({
-    code: MatterCode.Ed25519,
-    raw: ed25519.getPublicKey(key),
-  });
+  const encoded = cesr.crypto.ed25519(ed25519.getPublicKey(key)).text();
 
-  const next = encodeMatter({
-    code: MatterCode.Blake3_256,
-    raw: blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(encoded)).digest(),
-  });
+  const next = cesr.crypto
+    .blake3_256(blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(encoded)).digest())
+    .text();
 
   return next;
 }
@@ -65,10 +54,7 @@ export class KeyManager {
   }
 
   async import(key0: Uint8Array, key1: Uint8Array): Promise<Key> {
-    const current = encodeMatter({
-      code: MatterCode.Ed25519,
-      raw: ed25519.getPublicKey(key0),
-    });
+    const current = cesr.crypto.ed25519(ed25519.getPublicKey(key0)).text();
 
     const next = createDigest(key1);
 
@@ -95,10 +81,7 @@ export class KeyManager {
     const [, key0] = await this.load(publicKey);
     const key1 = ed25519.utils.randomSecretKey();
 
-    const current = encodeMatter({
-      code: MatterCode.Ed25519,
-      raw: ed25519.getPublicKey(key0),
-    });
+    const current = cesr.crypto.ed25519(ed25519.getPublicKey(key0)).text();
 
     const next = createDigest(key1);
 
@@ -112,29 +95,22 @@ export class KeyManager {
     const signature = ed25519.sign(message, key);
 
     if (index !== undefined) {
-      return encodeIndexer({
-        code: IndexCode.Ed25519_Sig,
-        raw: signature,
-        index,
-      });
+      return cesr.crypto.ed25519_sig(signature, index).text();
     }
 
-    return encodeMatter({
-      code: MatterCode.Ed25519_Sig,
-      raw: signature,
-    });
+    return cesr.crypto.ed25519_sig(signature).text();
   }
 }
 
 export function verify(publicKey: string, message: Uint8Array, signature: string): boolean {
-  const key = cesr.decodeMatter(publicKey);
-  const sig = cesr.decodeMatter(signature);
+  const key = Matter.parse(publicKey);
+  const sig = Matter.parse(signature);
 
   switch (key.code) {
-    case MatterCode.Ed25519:
-    case MatterCode.Ed25519N:
+    case Matter.Code.Ed25519:
+    case Matter.Code.Ed25519N:
       switch (sig.code) {
-        case MatterCode.Ed25519_Sig:
+        case Matter.Code.Ed25519_Sig:
           return ed25519.verify(sig.raw, message, key.raw);
         default:
           throw new Error(`Unsupported signature code: ${sig.code}`);
