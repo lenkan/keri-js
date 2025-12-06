@@ -31,7 +31,7 @@ export class Client {
       body: JSON.stringify(message.body),
       headers: {
         "Content-Type": "application/cesr+json",
-        "CESR-ATTACHMENT": message.attachments.toString(),
+        "CESR-ATTACHMENT": message.attachments.text(),
       },
     });
 
@@ -60,7 +60,7 @@ export class Client {
       body: JSON.stringify(message.body),
       headers: {
         "Content-Type": "application/cesr+json",
-        "CESR-ATTACHMENT": message.attachments.toString(),
+        "CESR-ATTACHMENT": message.attachments.text(),
         "CESR-DESTINATION": this.#location.eid,
       },
     });

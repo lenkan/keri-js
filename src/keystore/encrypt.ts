@@ -13,7 +13,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array) {
   const key = await crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      salt: Uint8Array.from(salt),
       iterations: 100000,
       hash: "SHA-256",
     },
@@ -37,7 +37,7 @@ export class PassphraseEncrypter implements Encrypter {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(16));
     const key = await deriveKey(this.#passphrase, salt);
-    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, Uint8Array.from(data));
 
     const result = new Uint8Array(salt.byteLength + iv.byteLength + encrypted.byteLength);
     result.set(salt, 0);

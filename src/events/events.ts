@@ -1,6 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { Message, VersionString } from "cesr";
-import { cesr, MatterCode } from "cesr/__unstable__";
+import { cesr, Matter, Message, VersionString } from "cesr";
 
 export type KeyEvent<T = Record<string, unknown>> = {
   v: string;
@@ -270,19 +269,18 @@ export function formatDate(date: Date) {
 }
 
 export function randomNonce() {
-  return cesr.encodeMatter({ code: MatterCode.Salt_128, raw: crypto.getRandomValues(new Uint8Array(16)) });
+  return Matter.from(Matter.Code.Salt_128, crypto.getRandomValues(new Uint8Array(16))).text();
 }
 
 function calculateSaid(event: Record<string, unknown>): string {
-  const digest = cesr.encodeMatter({
-    code: MatterCode.Blake3_256,
-    raw: blake3
+  const digest = cesr.crypto.blake3_256(
+    blake3
       .create({ dkLen: 32 })
       .update(new TextEncoder().encode(JSON.stringify(event)))
       .digest(),
-  });
+  );
 
-  return digest;
+  return digest.text();
 }
 
 export function saidify<T extends Record<string, unknown>>(event: T, labels?: string[]): T {
@@ -300,11 +298,11 @@ export function saidify<T extends Record<string, unknown>>(event: T, labels?: st
 }
 
 function isTransferable(key: string) {
-  const raw = cesr.decodeMatter(key);
+  const raw = Matter.parse(key);
   switch (raw.code) {
-    case MatterCode.ECDSA_256k1N:
-    case MatterCode.Ed25519N:
-    case MatterCode.Ed448N:
+    case Matter.Code.ECDSA_256k1N:
+    case Matter.Code.Ed25519N:
+    case Matter.Code.Ed448N:
       return false;
     default:
       return true;

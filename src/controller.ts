@@ -1,4 +1,3 @@
-import { Attachments, decodeMatter, encodeIndexer, IndexCode, MatterCode, Message, parse } from "cesr/__unstable__";
 import {
   ControllerEventStore,
   type KeyValueStorage,
@@ -18,6 +17,7 @@ import {
   type ReceiptEvent,
 } from "./events/events.ts";
 import { Client } from "./client.ts";
+import { Attachments, cesr, Matter, Message, parse } from "cesr";
 
 export interface ControllerDeps {
   keyManager: KeyManager;
@@ -293,14 +293,17 @@ export class Controller {
         const witnessIndex = state.b.indexOf(receiptCouple.prefix);
 
         if (witnessIndex !== -1) {
-          const signature = decodeMatter(receiptCouple.sig);
-          wigs.add(
-            encodeIndexer({
-              code: getIndexedCode(signature.code),
-              raw: signature.raw,
-              index: witnessIndex,
-            }),
-          );
+          const signature = Matter.parse(receiptCouple.sig);
+          switch (signature.code) {
+            case Matter.Code.Ed25519_Sig:
+              wigs.add(cesr.crypto.ed25519_sig(signature.raw, witnessIndex).text());
+              break;
+            case Matter.Code.Ed448_Sig:
+              wigs.add(cesr.crypto.ed448_sig(signature.raw, witnessIndex).text());
+              break;
+            default:
+              throw new Error(`Unsupported signature type: ${signature.code}`);
+          }
         }
       }
       await this.#store.save(response);
@@ -484,7 +487,6 @@ export class Controller {
 
     const grantsigs = await this.sign(grant, state.k);
     const message = new Message(grant, {
-      grouped: false,
       TransIdxSigGroups: [
         {
           snu: seal.s,
@@ -497,7 +499,6 @@ export class Controller {
         {
           path: "-e-acdc",
           attachments: {
-            grouped: false,
             SealSourceTriples: [
               {
                 prefix: iss.body.i,
@@ -509,8 +510,8 @@ export class Controller {
         },
         {
           path: "-e-iss",
+          grouped: true,
           attachments: {
-            grouped: true,
             SealSourceCouples: [
               {
                 digest: anchor.body.d,
@@ -521,8 +522,8 @@ export class Controller {
         },
         {
           path: "-e-anc",
+          grouped: true,
           attachments: {
-            grouped: true,
             ControllerIdxSigs: anchor.attachments.ControllerIdxSigs,
             WitnessIdxSigs: anchor.attachments.WitnessIdxSigs,
             FirstSeenReplayCouples: anchor.attachments.FirstSeenReplayCouples,
@@ -550,7 +551,6 @@ export class Controller {
 
       const sigs = await this.sign(args.message.body, args.sender.k);
       const message = new Message(args.message.body, {
-        grouped: false,
         ControllerIdxSigs: sigs,
       });
 
@@ -576,7 +576,6 @@ export class Controller {
     const evtatc = hasAttachments
       ? args.message.attachments
       : new Attachments({
-          grouped: false,
           TransIdxSigGroups: [
             {
               digest: args.sender.ee.d,
@@ -588,7 +587,6 @@ export class Controller {
         });
 
     const atc = new Attachments({
-      grouped: false,
       TransIdxSigGroups: [
         {
           ControllerIdxSigs: fwdsigs,
@@ -615,15 +613,5 @@ export class Controller {
     const payload = encoder.encode(JSON.stringify(event));
     const sigs = await Promise.all(keys.map((key, idx) => this.#keyManager.sign(key, payload, idx)));
     return sigs;
-  }
-}
-export function getIndexedCode(code: string): string {
-  switch (code) {
-    case MatterCode.Ed25519_Sig:
-      return IndexCode.Ed25519_Sig;
-    case MatterCode.Ed448_Sig:
-      return IndexCode.Ed448_Sig;
-    default:
-      throw new Error(`Unsupported indexed signature type: ${code}`);
   }
 }

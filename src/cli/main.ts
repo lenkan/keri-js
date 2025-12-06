@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import { program } from "commander";
+import process from "node:process";
 import { Controller } from "../controller.ts";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
 import { KeyManager } from "../keystore/key-manager.ts";
@@ -15,7 +16,7 @@ function getStringArray(options: unknown, key: string): string[] {
     return [];
   }
 
-  const value = options[key];
+  const value = (options as Record<string, unknown>)[key];
   const result: string[] = [];
 
   if (typeof value === "string") {
@@ -32,7 +33,7 @@ function getOptionalString(options: unknown, key: string): string | undefined {
     throw new Error(`Options is not an object`);
   }
 
-  const value = options[key];
+  const value = (options as Record<string, unknown>)[key];
 
   if (value !== undefined && typeof value !== "string") {
     throw new Error(`Expected "${key}" to be a string, got "${typeof value}"`);

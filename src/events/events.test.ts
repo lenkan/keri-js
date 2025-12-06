@@ -1,11 +1,12 @@
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { cesr, MatterCode } from "cesr/__unstable__";
 import { formatDate, keri, type KeyEvent, saidify, type InceptEvent } from "./events.ts";
 import { privateKey00, privateKey11 } from "../../fixtures/keys.ts";
 import { type Key, KeyManager } from "../keystore/key-manager.ts";
 import { MapStore } from "../main.ts";
+import { cesr, Matter } from "cesr";
+import { Buffer } from "node:buffer";
 
 describe("Incept event", () => {
   describe("Input validation", () => {
@@ -63,7 +64,7 @@ describe("Incept event", () => {
 
   describe("Non-Transferable single sig AID", () => {
     const privateKey = Buffer.from("3c794df9d5e8546f1b800c8f7b27075313422859da43c923e4423e8b634c7c00", "hex");
-    const publicKey = cesr.encodeMatter({ code: MatterCode.Ed25519N, raw: ed25519.getPublicKey(privateKey) });
+    const publicKey = cesr.crypto.ed25519N(ed25519.getPublicKey(privateKey)).text();
     let event: InceptEvent;
 
     beforeEach(() => {
@@ -127,9 +128,9 @@ describe("Registry", () => {
       ii: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",
     });
 
-    assert.partialDeepStrictEqual(cesr.decodeMatter(event.n), {
-      code: MatterCode.Salt_128,
-    });
+    const salt = Matter.parse(event.n);
+
+    assert.strictEqual(salt.code, Matter.Code.Salt_128);
   });
 
   test("Should create issuance event", () => {
