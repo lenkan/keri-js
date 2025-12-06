@@ -6,6 +6,7 @@ import { privateKey00, privateKey11 } from "../../fixtures/keys.ts";
 import { type Key, KeyManager } from "../keystore/key-manager.ts";
 import { MapStore } from "../main.ts";
 import { cesr, Matter } from "cesr";
+import { Buffer } from "node:buffer";
 
 describe("Incept event", () => {
   describe("Input validation", () => {

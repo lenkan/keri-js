@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import { program } from "commander";
+import process from "node:process";
 import { Controller } from "../controller.ts";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
 import { KeyManager } from "../keystore/key-manager.ts";

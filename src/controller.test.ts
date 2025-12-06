@@ -16,18 +16,6 @@ let keyManager: KeyManager;
 const recipient = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
 const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
 
-function getHeaderValue(headers: HeadersInit, key: string): string | undefined {
-  const h = new Headers(headers);
-
-  for (const [k, v] of h) {
-    if (k.toLowerCase() === key.toLowerCase()) {
-      return v;
-    }
-  }
-
-  return undefined;
-}
-
 beforeEach(async () => {
   storage = new SqliteStorage();
   keyManager = new KeyManager({
@@ -107,8 +95,8 @@ describe("When identifier is created", () => {
       message: new Message(exn),
     });
 
-    const headers = fetch.mock.calls[0].arguments[1]?.headers ?? {};
-    const attachments = Attachments.parse(new TextEncoder().encode(getHeaderValue(headers, "CESR-ATTACHMENT")));
+    const headers = new Headers(fetch.mock.calls[0].arguments[1]?.headers ?? {});
+    const attachments = Attachments.parse(new TextEncoder().encode(headers.get("CESR-ATTACHMENT") ?? ""));
 
     assert(attachments);
     assert.deepStrictEqual(
@@ -161,7 +149,7 @@ describe("When identifier is created", () => {
     await controller.grant({ credential, timestamp: formatDate(timestamp) });
 
     const [, request] = fetch.mock.calls[0].arguments;
-    const headers = request?.headers ?? {};
+    const headers = new Headers(request?.headers ?? {});
     const body = JSON.parse(request?.body as string);
     const expected = [
       "-VDQ",
@@ -200,7 +188,7 @@ describe("When identifier is created", () => {
       "0AAAAAAAAAAAAAAAAAAAAAAC",
     ];
 
-    const attachments = Attachments.parse(new TextEncoder().encode(getHeaderValue(headers, "CESR-ATTACHMENT")));
+    const attachments = Attachments.parse(new TextEncoder().encode(headers.get("CESR-ATTACHMENT") ?? ""));
 
     assert.partialDeepStrictEqual(body, {
       d: "EDp3UvrqHr1MTcJjP59zFF-L0w-QUShdXbwX8xHgaF3x",
