@@ -101,7 +101,6 @@ program
     });
 
     const controller = new Controller({ storage, keyManager: keystore });
-    const client = await controller.getClient(receiver);
     const message = new Message(
       keri.exchange({
         i: sender,
@@ -112,7 +111,7 @@ program
       }),
     );
 
-    await controller.forward(client, {
+    await controller.forward({
       sender: await controller.state(sender),
       topic,
       recipient: receiver,

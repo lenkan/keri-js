@@ -88,10 +88,7 @@ export class Controller {
       bt: args.toad ? args.toad.toString(16) : undefined,
     });
 
-    const sigs = await this.sign(
-      event,
-      keys.map((key) => key.current),
-    );
+    const sigs = await this.sign(event, event.k);
 
     await this.#store.save(new Message(event, { ControllerIdxSigs: sigs }));
     const wigs = await this.submit(event, sigs);
@@ -103,7 +100,43 @@ export class Controller {
       }),
     );
 
+    for (const wit of args.wits ?? []) {
+      await this.addMailbox(event.i, wit);
+    }
+
     return await this.#store.state(event.i);
+  }
+
+  async addMailbox(aid: string, eid: string): Promise<void> {
+    const state = await this.state(aid);
+
+    const rpy = keri.reply({
+      r: "/end/role/add",
+      a: {
+        eid,
+        cid: state.i,
+        role: "mailbox",
+      },
+    });
+
+    const sigs = await this.sign(rpy, state.k);
+
+    await this.#store.save(new Message(rpy, { ControllerIdxSigs: sigs }));
+
+    for (const wit of state.b) {
+      const client = await this.getClient(wit);
+      const message = new Message(rpy, {
+        TransIdxSigGroups: [
+          {
+            snu: state.s,
+            digest: state.d,
+            prefix: state.i,
+            ControllerIdxSigs: sigs,
+          },
+        ],
+      });
+      await client.sendMessage(message);
+    }
   }
 
   async interact(args: InteractArgs): Promise<InteractEvent> {
@@ -236,7 +269,6 @@ export class Controller {
   }
 
   async getClient(cid: string): Promise<Client> {
-    // const
     const mailbox = await this.#store.endrole(cid, "mailbox");
     const agent = await this.#store.endrole(cid, "agent");
     const controller = await this.#store.endrole(cid, "controller");
@@ -375,7 +407,7 @@ export class Controller {
             source.body.i &&
             typeof source.body.i === "string"
           ) {
-            await this.forward(client, {
+            await this.forward({
               message: source,
               recipient: recipient,
               sender: await this.state(source.body.i),
@@ -393,7 +425,7 @@ export class Controller {
 
     // Introduce sender to recipient
     for (const message of await this.#store.list(state.i)) {
-      await this.forward(client, {
+      await this.forward({
         message: message,
         recipient: recipient,
         sender: state,
@@ -407,7 +439,7 @@ export class Controller {
         throw new Error("No seal found for registry");
       }
 
-      await this.forward(client, {
+      await this.forward({
         message: message,
         recipient,
         sender: state,
@@ -421,7 +453,7 @@ export class Controller {
         throw new Error("No seal found for issuance");
       }
 
-      await this.forward(client, {
+      await this.forward({
         message: message,
         recipient,
         sender: state,
@@ -442,8 +474,6 @@ export class Controller {
     if (!recipient) {
       throw new Error(`No recipient specified and the credential has no issuee`);
     }
-
-    const client = await this.getClient(recipient);
 
     const seal: KeyEventSeal = {
       i: state.i,
@@ -532,7 +562,7 @@ export class Controller {
       ],
     });
 
-    await this.forward(client, {
+    await this.forward({
       message,
       recipient,
       sender: state,
@@ -541,9 +571,9 @@ export class Controller {
     });
   }
 
-  async forward(client: Client, args: ForwardArgs): Promise<void> {
+  async forward(args: ForwardArgs): Promise<void> {
+    const client = await this.getClient(args.recipient);
     if (client.role !== "mailbox" && client.role !== "witness") {
-      // throw new Error("Can only forward to mailbox or witness endpoints");
       if (args.message.attachments.frames().length > 1) {
         await client.sendMessage(args.message);
         return;
