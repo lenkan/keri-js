@@ -77,8 +77,6 @@ describe("When identifier is created", () => {
   });
 
   test("Forward exchange event", async () => {
-    const client = await controller.getClient(recipient);
-
     const timestamp = formatDate(new Date(Date.parse("2023-10-01T00:00:00Z")));
 
     const exn = keri.exchange({
@@ -87,7 +85,7 @@ describe("When identifier is created", () => {
       r: "/challenge/response",
     });
 
-    await controller.forward(client, {
+    await controller.forward({
       sender: await controller.state(state.i),
       topic: "challenge",
       recipient: recipient,
