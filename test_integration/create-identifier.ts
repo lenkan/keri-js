@@ -1,6 +1,6 @@
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
-import { Controller, keri, KeyManager, Message, PassphraseEncrypter } from "../src/main.ts";
+import { Controller, keri, KeyManager, Message } from "../src/main.ts";
 import { SqliteStorage } from "../src/db/storage-sqlite.ts";
 import { Client } from "../src/client.ts";
 
@@ -35,7 +35,7 @@ let keystore: KeyManager;
 beforeEach(() => {
   storage = new SqliteStorage();
   keystore = new KeyManager({
-    encrypter: new PassphraseEncrypter("password"),
+    passphrase: "password",
     storage,
   });
   controller = new Controller({ storage, keyManager: keystore });

@@ -5,7 +5,7 @@ import {
   type KeyState,
   type LocationRecord,
 } from "./events/event-store.ts";
-import type { Key, KeyManager } from "./keystore/key-manager.ts";
+import { createDigest, type KeyManager } from "./keystore/key-manager.ts";
 import {
   keri,
   type KeyEvent,
@@ -39,7 +39,8 @@ export interface ForwardArgs {
 }
 
 export interface InceptArgs {
-  keys?: Key[];
+  keys?: string[];
+  next?: string[];
   wits?: string[];
   toad?: number;
 }
@@ -80,10 +81,11 @@ export class Controller {
 
   async createIdentifier(args: InceptArgs = {}): Promise<KeyState> {
     const keys = args.keys ?? [await this.#keyManager.incept()];
+    const next = args.next ?? [await this.#keyManager.incept()];
 
     const event = keri.incept({
-      k: keys.map((key) => key.current),
-      n: keys.map((key) => key.next),
+      k: keys.map((key) => key),
+      n: next.map((key) => createDigest(key)),
       b: args.wits,
       bt: args.toad ? args.toad.toString(16) : undefined,
     });
