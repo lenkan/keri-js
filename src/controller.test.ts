@@ -2,11 +2,10 @@ import { beforeEach, test, mock, describe } from "node:test";
 import assert from "node:assert";
 import { Attachments, Message } from "cesr";
 import { formatDate, keri } from "./events/events.ts";
-import { type Key, KeyManager } from "./keystore/key-manager.ts";
+import { KeyManager } from "./keystore/key-manager.ts";
 import { Controller } from "./controller.ts";
 import { SqliteStorage } from "./db/storage-sqlite.ts";
 import { privateKey00, privateKey11 } from "../fixtures/keys.ts";
-import { PassphraseEncrypter } from "./keystore/encrypt.ts";
 import { type KeyState } from "./events/event-store.ts";
 
 let storage: SqliteStorage;
@@ -19,7 +18,7 @@ const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
 beforeEach(async () => {
   storage = new SqliteStorage();
   keyManager = new KeyManager({
-    encrypter: new PassphraseEncrypter("password"),
+    passphrase: "password",
     storage,
   });
   controller = new Controller({ storage, keyManager });
@@ -54,7 +53,8 @@ beforeEach(async () => {
 });
 
 describe("When identifier is created", () => {
-  let key: Key;
+  let key: string;
+  let nextKey: string;
   let state: KeyState;
   const fetch = mock.method(globalThis, "fetch", () => {
     return Response.json({});
@@ -62,8 +62,10 @@ describe("When identifier is created", () => {
 
   beforeEach(async () => {
     fetch.mock.resetCalls();
-    key = await keyManager.import(privateKey00, privateKey11);
-    state = await controller.createIdentifier({ keys: [key] });
+    key = await keyManager.import(privateKey00);
+    nextKey = await keyManager.import(privateKey11);
+
+    state = await controller.createIdentifier({ keys: [key], next: [nextKey] });
   });
 
   test("Should include inception event in event list", async () => {

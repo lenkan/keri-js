@@ -5,7 +5,6 @@ import { Controller } from "../controller.ts";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
 import { KeyManager } from "../keystore/key-manager.ts";
 import { keri, type CredentialEvent } from "../events/events.ts";
-import { PassphraseEncrypter } from "../keystore/encrypt.ts";
 import { Message } from "cesr";
 
 const storage = new SqliteStorage({ filename: ".keri/db.sqlite" });
@@ -55,7 +54,7 @@ function getString(options: unknown, key: string): string {
 program.command("resolve <oobi>").action(async (oobi) => {
   const controller = new Controller({
     storage,
-    keyManager: new KeyManager({ storage, encrypter: new PassphraseEncrypter("") }),
+    keyManager: new KeyManager({ storage }),
   });
 
   await controller.resolve(oobi);
@@ -63,14 +62,13 @@ program.command("resolve <oobi>").action(async (oobi) => {
 
 program
   .command("incept")
-  .requiredOption("--passcode <passcode>")
+  .option("--passcode <passcode>")
   .option("--wit <wit...>")
   .action(async (options) => {
-    const passcode = getString(options, "passcode");
+    const passcode = getOptionalString(options, "passcode");
     const wits = getStringArray(options, "wit");
 
-    const encrypter = new PassphraseEncrypter(passcode);
-    const keystore = new KeyManager({ encrypter, storage });
+    const keystore = new KeyManager({ storage, passphrase: passcode });
     const controller = new Controller({ storage, keyManager: keystore });
 
     const event = await controller.createIdentifier({ wits });
@@ -85,10 +83,10 @@ program
   .requiredOption("--route <route>")
   .requiredOption("--topic <topic>")
   .requiredOption("--receiver <receiver aid>")
-  .requiredOption("--passcode <passcode>")
+  .option("--passcode <passcode>")
   .requiredOption("--data <data>")
   .action(async (options) => {
-    const passcode = getString(options, "passcode");
+    const passcode = getOptionalString(options, "passcode");
     const sender = getString(options, "sender");
     const receiver = getString(options, "receiver");
     const route = getString(options, "route");
@@ -97,7 +95,7 @@ program
 
     const keystore = new KeyManager({
       storage,
-      encrypter: new PassphraseEncrypter(passcode),
+      passphrase: passcode,
     });
 
     const controller = new Controller({ storage, keyManager: keystore });
@@ -123,14 +121,14 @@ program
   .command("create-registry")
   .description("Creates a new credential registry")
   .requiredOption("--owner <owner aid>")
-  .requiredOption("--passcode <passcode>")
+  .option("--passcode <passcode>")
   .action(async (options) => {
-    const passcode = getString(options, "passcode");
+    const passcode = getOptionalString(options, "passcode");
     const owner = getString(options, "owner");
 
     const keystore = new KeyManager({
       storage,
-      encrypter: new PassphraseEncrypter(passcode),
+      passphrase: passcode,
     });
 
     const controller = new Controller({ storage, keyManager: keystore });
@@ -149,9 +147,9 @@ program
   .requiredOption("--rules <rules>")
   .option("--salt <salt>")
   .option("--edges <edges>")
-  .requiredOption("--passcode <passcode>")
+  .option("--passcode <passcode>")
   .action(async (options) => {
-    const passcode = getString(options, "passcode");
+    const passcode = getOptionalString(options, "passcode");
     const registryId = getString(options, "registry");
     const receiver = getString(options, "receiver");
     const schemaId = getString(options, "schema");
@@ -162,7 +160,7 @@ program
 
     const keystore = new KeyManager({
       storage,
-      encrypter: new PassphraseEncrypter(passcode),
+      passphrase: passcode,
     });
 
     const controller = new Controller({ storage, keyManager: keystore });
@@ -188,14 +186,14 @@ program
 program
   .command("ipex-grant")
   .requiredOption("--said <aid>")
-  .requiredOption("--passcode <passcode>")
+  .option("--passcode <passcode>")
   .action(async (options) => {
-    const passcode = getString(options, "passcode");
+    const passcode = getOptionalString(options, "passcode");
     const said = getString(options, "said");
 
     const keystore = new KeyManager({
       storage,
-      encrypter: new PassphraseEncrypter(passcode),
+      passphrase: passcode,
     });
 
     const controller = new Controller({
