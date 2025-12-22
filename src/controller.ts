@@ -328,16 +328,7 @@ export class Controller {
 
         if (witnessIndex !== -1) {
           const signature = Matter.parse(receiptCouple.sig);
-          switch (signature.code) {
-            case Matter.Code.Ed25519_Sig:
-              wigs.add(cesr.crypto.ed25519_sig(signature.raw, witnessIndex).text());
-              break;
-            case Matter.Code.Ed448_Sig:
-              wigs.add(cesr.crypto.ed448_sig(signature.raw, witnessIndex).text());
-              break;
-            default:
-              throw new Error(`Unsupported signature type: ${signature.code}`);
-          }
+          wigs.add(cesr.index(signature, witnessIndex).text());
         }
       }
       await this.#store.save(response);
@@ -643,7 +634,13 @@ export class Controller {
   async sign(event: Record<string, unknown>, keys: string[]): Promise<string[]> {
     const encoder = new TextEncoder();
     const payload = encoder.encode(JSON.stringify(event));
-    const sigs = await Promise.all(keys.map((key, idx) => this.#keyManager.sign(key, payload, idx)));
+    const sigs = await Promise.all(
+      keys.map(async (key, idx) => {
+        const sig = await this.#keyManager.sign(key, payload);
+        return cesr.index(Matter.parse(sig), idx).text();
+      }),
+    );
+
     return sigs;
   }
 }

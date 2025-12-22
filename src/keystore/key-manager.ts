@@ -10,7 +10,11 @@ export interface KeyManagerOptions {
   storage: KeyValueStorage;
 }
 
-export class KeyManager {
+export interface Signer {
+  sign(publicKey: string, message: Uint8Array): Promise<string>;
+}
+
+export class KeyManager implements Signer {
   storage: KeyValueStorage;
   encrypter: Encrypter;
 
@@ -43,13 +47,9 @@ export class KeyManager {
     return await this.import(key);
   }
 
-  async sign(publicKey: string, message: Uint8Array, index?: number): Promise<string> {
+  async sign(publicKey: string, message: Uint8Array): Promise<string> {
     const key = await this.load(publicKey);
     const signature = ed25519.sign(message, key);
-
-    if (index !== undefined) {
-      return cesr.crypto.ed25519_sig(signature, index).text();
-    }
 
     return cesr.crypto.ed25519_sig(signature).text();
   }
