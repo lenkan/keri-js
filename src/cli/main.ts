@@ -3,7 +3,7 @@ import { program } from "commander";
 import process from "node:process";
 import { Controller } from "../controller.ts";
 import { SqliteStorage } from "../db/storage-sqlite.ts";
-import { KeyManager } from "../keystore/key-manager.ts";
+import { PassphraseKeyManager } from "../keystore/key-manager.ts";
 import { keri, type CredentialEvent } from "../events/events.ts";
 import { Message } from "cesr";
 
@@ -54,7 +54,7 @@ function getString(options: unknown, key: string): string {
 program.command("resolve <oobi>").action(async (oobi) => {
   const controller = new Controller({
     storage,
-    keyManager: new KeyManager({ storage }),
+    keychain: new PassphraseKeyManager({ storage }),
   });
 
   await controller.resolve(oobi);
@@ -68,10 +68,14 @@ program
     const passcode = getOptionalString(options, "passcode");
     const wits = getStringArray(options, "wit");
 
-    const keystore = new KeyManager({ storage, passphrase: passcode });
-    const controller = new Controller({ storage, keyManager: keystore });
+    const keystore = new PassphraseKeyManager({ storage, passphrase: passcode });
+    const controller = new Controller({ storage, keychain: keystore });
 
-    const event = await controller.createIdentifier({ wits });
+    const event = await controller.createIdentifier({
+      wits,
+      keys: [await keystore.incept()],
+      next: [await keystore.incept()],
+    });
 
     console.log(event.i);
   });
@@ -93,12 +97,12 @@ program
     const topic = getString(options, "topic");
     const data = JSON.parse(getString(options, "data"));
 
-    const keystore = new KeyManager({
+    const keystore = new PassphraseKeyManager({
       storage,
       passphrase: passcode,
     });
 
-    const controller = new Controller({ storage, keyManager: keystore });
+    const controller = new Controller({ storage, keychain: keystore });
     const message = new Message(
       keri.exchange({
         i: sender,
@@ -126,12 +130,12 @@ program
     const passcode = getOptionalString(options, "passcode");
     const owner = getString(options, "owner");
 
-    const keystore = new KeyManager({
+    const keystore = new PassphraseKeyManager({
       storage,
       passphrase: passcode,
     });
 
-    const controller = new Controller({ storage, keyManager: keystore });
+    const controller = new Controller({ storage, keychain: keystore });
 
     const registry = await controller.createRegistry({ owner });
     console.log(registry.i);
@@ -158,12 +162,12 @@ program
     const rules = JSON.parse(getString(options, "rules"));
     const edges = JSON.parse(getOptionalString(options, "edges") ?? "null");
 
-    const keystore = new KeyManager({
+    const keystore = new PassphraseKeyManager({
       storage,
       passphrase: passcode,
     });
 
-    const controller = new Controller({ storage, keyManager: keystore });
+    const controller = new Controller({ storage, keychain: keystore });
 
     const acdc = await controller.createCredential({
       holder: receiver,
@@ -191,14 +195,14 @@ program
     const passcode = getOptionalString(options, "passcode");
     const said = getString(options, "said");
 
-    const keystore = new KeyManager({
+    const keystore = new PassphraseKeyManager({
       storage,
       passphrase: passcode,
     });
 
     const controller = new Controller({
       storage,
-      keyManager: keystore,
+      keychain: keystore,
     });
 
     const acdc = (await controller.store.get(said))?.body as unknown as CredentialEvent;

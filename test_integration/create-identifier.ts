@@ -1,6 +1,6 @@
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
-import { Controller, keri, KeyManager, Message } from "../src/main.ts";
+import { Controller, keri, PassphraseKeyManager, Message } from "../src/main.ts";
 import { SqliteStorage } from "../src/db/storage-sqlite.ts";
 import { Client } from "../src/client.ts";
 
@@ -30,22 +30,30 @@ interface Witness {
 
 let storage: SqliteStorage;
 let controller: Controller;
-let keystore: KeyManager;
+let keystore: PassphraseKeyManager;
+let key0: string;
+let key1: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   storage = new SqliteStorage();
-  keystore = new KeyManager({
+  keystore = new PassphraseKeyManager({
     passphrase: "password",
     storage,
   });
-  controller = new Controller({ storage, keyManager: keystore });
-
+  controller = new Controller({ storage, keychain: keystore });
   storage.init();
+
+  key0 = await keystore.incept();
+  key1 = await keystore.incept();
 });
 
 describe("Create identifier", () => {
   test("Create identifier", async () => {
-    const state = await controller.createIdentifier();
+    const state = await controller.createIdentifier({
+      keys: [key0],
+      next: [key1],
+    });
+
     const events = await controller.listEvents(state.i);
 
     assert.equal(events.length, 1);
@@ -57,7 +65,11 @@ describe("Create identifier", () => {
 
   test("Create identifier with single witness", async () => {
     await controller.resolve(wan.oobi);
-    const state = await controller.createIdentifier({ wits: [wan.aid] });
+    const state = await controller.createIdentifier({
+      wits: [wan.aid],
+      keys: [key0],
+      next: [key1],
+    });
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
@@ -74,7 +86,12 @@ describe("Create identifier", () => {
     await controller.resolve(wan.oobi);
     await controller.resolve(wil.oobi);
 
-    const state = await controller.createIdentifier({ wits: [wan.aid, wil.aid], toad: 2 });
+    const state = await controller.createIdentifier({
+      keys: [key0],
+      next: [key1],
+      wits: [wan.aid, wil.aid],
+      toad: 2,
+    });
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
@@ -95,7 +112,12 @@ describe("Create identifier", () => {
     await controller.resolve(wil.oobi);
     await controller.resolve(wes.oobi);
 
-    const state = await controller.createIdentifier({ wits: [wan.aid, wil.aid, wes.aid], toad: 3 });
+    const state = await controller.createIdentifier({
+      keys: [key0],
+      next: [key1],
+      wits: [wan.aid, wil.aid, wes.aid],
+      toad: 3,
+    });
 
     const events = await controller.listEvents(state.i);
     assert.equal(events.length, 1);
@@ -118,8 +140,16 @@ describe("Create identifier", () => {
 describe("Query witness", () => {
   test("Send and receive challenge phrase", async () => {
     await controller.resolve(wan.oobi);
-    const state0 = await controller.createIdentifier({ wits: [wan.aid] });
-    const state1 = await controller.createIdentifier({ wits: [wan.aid] });
+    const state0 = await controller.createIdentifier({
+      keys: [await keystore.incept()],
+      next: [await keystore.incept()],
+      wits: [wan.aid],
+    });
+    const state1 = await controller.createIdentifier({
+      keys: [await keystore.incept()],
+      next: [await keystore.incept()],
+      wits: [wan.aid],
+    });
 
     await controller.resolve(`${wan.url}/oobi/${state0.i}/mailbox`);
     await controller.resolve(`${wan.url}/oobi/${state1.i}/mailbox`);

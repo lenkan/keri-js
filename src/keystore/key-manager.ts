@@ -4,17 +4,14 @@ import { PassphraseEncrypter, type Encrypter } from "./encrypt.ts";
 import { type KeyValueStorage } from "../events/event-store.ts";
 import { cesr, Matter } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/__unstable__";
+import type { Keychain } from "../controller.ts";
 
 export interface KeyManagerOptions {
   passphrase?: string;
   storage: KeyValueStorage;
 }
 
-export interface Signer {
-  sign(publicKey: string, message: Uint8Array): Promise<string>;
-}
-
-export class KeyManager implements Signer {
+export class PassphraseKeyManager implements Keychain {
   storage: KeyValueStorage;
   encrypter: Encrypter;
 

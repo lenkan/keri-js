@@ -5,7 +5,7 @@ import {
   type KeyState,
   type LocationRecord,
 } from "./events/event-store.ts";
-import { createDigest, type KeyManager } from "./keystore/key-manager.ts";
+import { createDigest } from "./keystore/key-manager.ts";
 import {
   keri,
   type KeyEvent,
@@ -20,7 +20,7 @@ import { Client } from "./client.ts";
 import { Attachments, cesr, Matter, Message, parse } from "cesr";
 
 export interface ControllerDeps {
-  keyManager: KeyManager;
+  keychain: Keychain;
   storage: KeyValueStorage;
 }
 
@@ -39,10 +39,16 @@ export interface ForwardArgs {
 }
 
 export interface InceptArgs {
-  keys?: string[];
+  keys: string[];
   next?: string[];
   wits?: string[];
   toad?: number;
+}
+
+export interface ReplyArgs {
+  aid: string;
+  route: string;
+  data: Record<string, unknown>;
 }
 
 export interface InteractArgs {
@@ -66,8 +72,12 @@ export interface CreateCredentialArgs {
   timestamp?: Date;
 }
 
+export interface Keychain {
+  sign(publicKey: string, message: Uint8Array): Promise<string>;
+}
+
 export class Controller {
-  #keyManager: KeyManager;
+  #keychain: Keychain;
   #store: ControllerEventStore;
 
   get store() {
@@ -76,16 +86,13 @@ export class Controller {
 
   constructor(deps: ControllerDeps) {
     this.#store = new ControllerEventStore(deps.storage);
-    this.#keyManager = deps.keyManager;
+    this.#keychain = deps.keychain;
   }
 
-  async createIdentifier(args: InceptArgs = {}): Promise<KeyState> {
-    const keys = args.keys ?? [await this.#keyManager.incept()];
-    const next = args.next ?? [await this.#keyManager.incept()];
-
+  async createIdentifier(args: InceptArgs): Promise<KeyState> {
     const event = keri.incept({
-      k: keys.map((key) => key),
-      n: next.map((key) => createDigest(key)),
+      k: args.keys.map((key) => key),
+      n: args.next?.map((key) => createDigest(key)),
       b: args.wits,
       bt: args.toad ? args.toad.toString(16) : undefined,
     });
@@ -103,40 +110,45 @@ export class Controller {
     );
 
     for (const wit of args.wits ?? []) {
-      await this.addMailbox(event.i, wit);
+      await this.reply({
+        aid: event.i,
+        route: "/end/role/add",
+        data: {
+          eid: wit,
+          cid: event.i,
+          role: "mailbox",
+        },
+      });
     }
 
     return await this.#store.state(event.i);
   }
 
-  async addMailbox(aid: string, eid: string): Promise<void> {
-    const state = await this.state(aid);
+  async reply(args: ReplyArgs): Promise<void> {
+    const state = await this.state(args.aid);
 
     const rpy = keri.reply({
-      r: "/end/role/add",
-      a: {
-        eid,
-        cid: state.i,
-        role: "mailbox",
-      },
+      r: args.route,
+      a: args.data,
     });
 
     const sigs = await this.sign(rpy, state.k);
 
-    await this.#store.save(new Message(rpy, { ControllerIdxSigs: sigs }));
+    const message = new Message(rpy, {
+      TransIdxSigGroups: [
+        {
+          snu: state.s,
+          digest: state.d,
+          prefix: state.i,
+          ControllerIdxSigs: sigs,
+        },
+      ],
+    });
+
+    await this.#store.save(message);
 
     for (const wit of state.b) {
       const client = await this.getClient(wit);
-      const message = new Message(rpy, {
-        TransIdxSigGroups: [
-          {
-            snu: state.s,
-            digest: state.d,
-            prefix: state.i,
-            ControllerIdxSigs: sigs,
-          },
-        ],
-      });
       await client.sendMessage(message);
     }
   }
@@ -636,7 +648,7 @@ export class Controller {
     const payload = encoder.encode(JSON.stringify(event));
     const sigs = await Promise.all(
       keys.map(async (key, idx) => {
-        const sig = await this.#keyManager.sign(key, payload);
+        const sig = await this.#keychain.sign(key, payload);
         return cesr.index(Matter.parse(sig), idx).text();
       }),
     );

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import { setTimeout } from "node:timers/promises";
-import { KeyManager, verify } from "./key-manager.ts";
+import { PassphraseKeyManager, verify } from "./key-manager.ts";
 import { Matter } from "../main.ts";
 
 const map = new Map<string, string>();
 
-const keystore = new KeyManager({
+const keystore = new PassphraseKeyManager({
   passphrase: "password",
   storage: {
     async get(key) {

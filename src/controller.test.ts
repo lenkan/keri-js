@@ -2,7 +2,7 @@ import { beforeEach, test, mock, describe } from "node:test";
 import assert from "node:assert";
 import { Attachments, Message } from "cesr";
 import { formatDate, keri } from "./events/events.ts";
-import { KeyManager } from "./keystore/key-manager.ts";
+import { PassphraseKeyManager } from "./keystore/key-manager.ts";
 import { Controller } from "./controller.ts";
 import { SqliteStorage } from "./db/storage-sqlite.ts";
 import { privateKey00, privateKey11 } from "../fixtures/keys.ts";
@@ -10,18 +10,18 @@ import { type KeyState } from "./events/event-store.ts";
 
 let storage: SqliteStorage;
 let controller: Controller;
-let keyManager: KeyManager;
+let keyManager: PassphraseKeyManager;
 
 const recipient = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
 const mailbox = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
 
 beforeEach(async () => {
   storage = new SqliteStorage();
-  keyManager = new KeyManager({
+  keyManager = new PassphraseKeyManager({
     passphrase: "password",
     storage,
   });
-  controller = new Controller({ storage, keyManager });
+  controller = new Controller({ storage, keychain: keyManager });
 
   storage.init();
 
@@ -234,8 +234,14 @@ describe("When identifier is created", () => {
 });
 
 test("Create chained credential", async () => {
-  const holder = await controller.createIdentifier();
-  const issuer = await controller.createIdentifier();
+  const holder = await controller.createIdentifier({
+    keys: [await keyManager.incept()],
+    next: [await keyManager.incept()],
+  });
+  const issuer = await controller.createIdentifier({
+    keys: [await keyManager.incept()],
+    next: [await keyManager.incept()],
+  });
   const registry = await controller.createRegistry({ owner: issuer.i });
   const LEI0 = "123123123123123";
   const LEI1 = "123123123123124";

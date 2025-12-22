@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { formatDate, keri, type KeyEvent, saidify, type InceptEvent } from "./events.ts";
 import { privateKey00, privateKey11 } from "../../fixtures/keys.ts";
-import { KeyManager } from "../keystore/key-manager.ts";
+import { PassphraseKeyManager } from "../keystore/key-manager.ts";
 import { MapStore } from "../main.ts";
 import { cesr, Matter } from "cesr";
 import { Buffer } from "node:buffer";
@@ -18,7 +18,7 @@ describe("Incept event", () => {
   });
 
   describe("Transferable single sig AID", () => {
-    const keyManager = new KeyManager({
+    const keyManager = new PassphraseKeyManager({
       storage: new MapStore(),
       passphrase: "password",
     });
@@ -33,7 +33,7 @@ describe("Incept event", () => {
         kt: "1",
         k: [key0],
         nt: "1",
-        n: [KeyManager.createDigest(key1)],
+        n: [PassphraseKeyManager.createDigest(key1)],
         bt: "1",
         b: ["BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM"],
       });
