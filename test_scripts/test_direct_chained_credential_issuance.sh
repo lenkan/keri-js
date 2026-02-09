@@ -14,9 +14,9 @@ keripy() {
 }
 
 keripy init --name "$name" --nopasscode
-keripy oobi resolve --name "$name" --oobi "https://dev-portal.vlei.dev/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
-keripy oobi resolve --name "$name" --oobi "https://dev-portal.vlei.dev/oobi/ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
-keripy oobi resolve --name "$name" --oobi "https://dev-portal.vlei.dev/oobi/EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
+keripy oobi resolve --name "$name" --oobi "https://weboftrust.github.io/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
+keripy oobi resolve --name "$name" --oobi "https://weboftrust.github.io/oobi/ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
+keripy oobi resolve --name "$name" --oobi "https://weboftrust.github.io/oobi/EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
 keripy oobi resolve --name "$name" --oobi-alias wan --oobi "http://localhost:5642/oobi"
 
 keripy incept \

@@ -14,7 +14,7 @@ keripy() {
 }
 
 keripy init --name "$name" --nopasscode
-keripy oobi resolve --name "$name" --oobi "https://dev-portal.vlei.dev/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
+keripy oobi resolve --name "$name" --oobi "https://weboftrust.github.io/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
 keripy oobi resolve --name "$name" --oobi-alias wil --oobi "http://localhost:5643/oobi"
 
 keripy incept \
