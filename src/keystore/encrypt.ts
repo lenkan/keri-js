@@ -48,7 +48,14 @@ async function decrypt(ciphertext: Uint8Array, passphrase: string): Promise<Uint
   const iv = ciphertext.slice(16, 32);
   const encrypted = ciphertext.slice(32);
 
-  return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted));
+  try {
+    const result = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+    return new Uint8Array(result);
+  } catch (err) {
+    throw new Error("Could not decrypt data", {
+      cause: err,
+    });
+  }
 }
 
 export class PassphraseEncrypter implements Encrypter {

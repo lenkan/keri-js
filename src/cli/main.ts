@@ -81,6 +81,25 @@ program
   });
 
 program
+  .command("interact")
+  .option("--passcode <passcode>")
+  .requiredOption("--anchor <anchor data>")
+  .requiredOption("--aid <aid>")
+  .action(async (options) => {
+    const passcode = getOptionalString(options, "passcode");
+
+    const keystore = new PassphraseKeyManager({ storage, passphrase: passcode });
+    const controller = new Controller({ storage, keychain: keystore });
+
+    const event = await controller.interact({
+      aid: getString(options, "aid"),
+      data: JSON.parse(getString(options, "anchor")),
+    });
+
+    console.log(event.d);
+  });
+
+program
   .command("send")
   .description("Sends a signed exchange message to the specified recipient")
   .requiredOption("--sender <sender aid>")
@@ -219,4 +238,9 @@ program
     });
   });
 
-program.parse(process.argv);
+try {
+  await program.parseAsync(process.argv);
+} catch (err) {
+  console.error("Error:", err instanceof Error ? err.message : err);
+  process.exit(1);
+}

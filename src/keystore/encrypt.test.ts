@@ -15,4 +15,17 @@ describe("Passphrase encrypter", () => {
 
     assert.equal(decoder.decode(result2), "hello world!");
   });
+
+  test("should throw error on wrong password", async () => {
+    const encoder = new TextEncoder();
+    const enc = new PassphraseEncrypter("password");
+
+    const result = await enc.encrypt(encoder.encode("hello world!"));
+    const enc2 = new PassphraseEncrypter("wrong password");
+
+    await assert.rejects(() => enc2.decrypt(result), {
+      name: "Error",
+      message: "Could not decrypt data",
+    });
+  });
 });
