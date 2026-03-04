@@ -4,22 +4,23 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --test-reporter=spec --no-warnings --experimental-strip-types",
-    "test:integration": "npm test -- 'test_integration/**/*.ts'",
-    "test:scripts": "node --no-warnings scripts/run-scripts.ts",
-    "test:example": "./test_examples.sh",
+    "test": "node --test --no-warnings 'src/**/*.test.ts'",
+    "test:integration": "node --test --no-warnings 'test_integration/**/*.test.ts'",
+    "test:interop": "node --no-warnings scripts/run-scripts.ts",
     "lint": "eslint",
     "check": "tsc --noEmit",
     "clean": "node scripts/clean.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "bin": {
-    "keri": "dist/cli/main.js"
+  "imports": {
+    "#keri": "./src/main.ts",
+    "#keri/core": "./src/core/main.ts",
+    "#keri/sqlite-storage": "./src/storage/sqlite/storage-sqlite.ts"
   },
   "exports": {
     ".": "./dist/main.js",
-    "./storage-sqlite": "./dist/db/storage-sqlite.js"
+    "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js"
   },
   "files": [
     "dist"
@@ -48,12 +49,10 @@
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.0",
     "@noble/secp256k1": "^3.0.0",
-    "cesr": "^0.0.23-dev.66c3786",
-    "commander": "^14.0.0"
+    "cesr": "^0.0.23-dev.66c3786"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
-    "@hono/node-server": "^1.19.3",
     "@types/node": "^22.15.30",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^9.1.0",
