@@ -189,6 +189,35 @@ describe("Key value store", () => {
     });
   });
 
+  test("Should remove end role after cut", async () => {
+    const cid = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
+    const eid = "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2";
+
+    await store.save(
+      new Message(
+        keri.reply({
+          r: "/end/role/add",
+          a: { eid, role: "mailbox", cid },
+        }),
+      ),
+    );
+
+    const before = await store.endrole(cid, "mailbox");
+    assert.deepStrictEqual(before, { cid, eid, role: "mailbox" });
+
+    await store.save(
+      new Message(
+        keri.reply({
+          r: "/end/role/cut",
+          a: { eid, role: "mailbox", cid },
+        }),
+      ),
+    );
+
+    const after = await store.endrole(cid, "mailbox");
+    assert.strictEqual(after, null);
+  });
+
   test("Should return location for identifier", async () => {
     const eid = "BHJ73vhhuZBd4U-QtQ7FuYrlQx6cF_Fxpv-OSEqghRo2";
 

@@ -42,6 +42,28 @@ function assertKeyEvent(event: unknown): asserts event is KeyEvent {
   }
 }
 
+function parseEndRoleBase(a: unknown): { cid: string; role: string } {
+  if (
+    a &&
+    typeof a === "object" &&
+    "cid" in a &&
+    typeof a.cid === "string" &&
+    "role" in a &&
+    typeof a.role === "string"
+  ) {
+    return { cid: a.cid, role: a.role };
+  }
+  throw new Error("Invalid end role record");
+}
+
+function parseEndRoleAdd(a: unknown): EndRoleRecord {
+  const base = parseEndRoleBase(a);
+  if (a && typeof a === "object" && "eid" in a && typeof a.eid === "string") {
+    return { ...base, eid: a.eid };
+  }
+  throw new Error("Invalid end role add record");
+}
+
 export class ControllerEventStore {
   #db: KeyValueStorage;
 
@@ -89,29 +111,16 @@ export class ControllerEventStore {
       case "rpy":
         switch (event.body.r) {
           case "/end/role/add": {
-            const record = event.body.a;
-            if (
-              record &&
-              typeof record === "object" &&
-              "eid" in record &&
-              typeof record.eid === "string" &&
-              "cid" in record &&
-              typeof record.cid === "string" &&
-              "role" in record &&
-              typeof record.role === "string"
-            ) {
-              await this.#db.set(
-                `end_role.${record.cid}.${record.role}`,
-                JSON.stringify({
-                  cid: record.cid,
-                  role: record.role,
-                  eid: record.eid,
-                }),
-              );
-            } else {
-              throw new Error("Damn");
-            }
-
+            const record = parseEndRoleAdd(event.body.a);
+            await this.#db.set(
+              `end_role.${record.cid}.${record.role}`,
+              JSON.stringify({ cid: record.cid, role: record.role, eid: record.eid }),
+            );
+            break;
+          }
+          case "/end/role/cut": {
+            const record = parseEndRoleBase(event.body.a);
+            await this.#db.set(`end_role.${record.cid}.${record.role}`, JSON.stringify(null));
             break;
           }
           case "/loc/scheme": {
