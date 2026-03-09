@@ -18,7 +18,7 @@ await (async function () {
   }
 })();
 
-for await (const file of glob("test_scripts/test_*.sh")) {
+for await (const file of glob("test_interop/test_*.ts")) {
   console.log(`Running test script: ${file}`);
-  execSync(file, { stdio: "inherit" });
+  execSync(`node --no-warnings ${file}`, { stdio: "inherit" });
 }
