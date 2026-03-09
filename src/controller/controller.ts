@@ -325,19 +325,14 @@ export class Controller {
     });
 
     const sigs = await this.sign(rpy.raw, state.signingKeys);
-
-    const message = new Message(rpy.body, {
-      TransIdxSigGroups: [
-        {
-          snu: state.lastEstablishment.s,
-          digest: state.lastEstablishment.d,
-          prefix: state.identifier,
-          ControllerIdxSigs: sigs,
-        },
-      ],
+    rpy.attachments.TransIdxSigGroups.push({
+      snu: state.lastEstablishment.s,
+      digest: state.lastEstablishment.d,
+      prefix: state.identifier,
+      ControllerIdxSigs: sigs,
     });
 
-    await this.processMessage(new Message(rpy.body));
+    await this.processMessage(rpy);
 
     for (const wit of state.backers) {
       const endpoint = this.resolveEndpoint(wit, "controller");
@@ -346,7 +341,7 @@ export class Controller {
         url: endpoint.url,
       });
 
-      await client.sendMessage(message);
+      await client.sendMessage(rpy);
     }
   }
 
@@ -360,18 +355,14 @@ export class Controller {
     const state = log.state;
 
     const hasAttachments = args.message.attachments.frames().length > 1;
-    const evtatc = hasAttachments
-      ? args.message.attachments
-      : new Attachments({
-          TransIdxSigGroups: [
-            {
-              digest: state.lastEstablishment.d,
-              snu: state.lastEstablishment.s,
-              prefix: args.sender,
-              ControllerIdxSigs: await this.sign(args.message.raw, state.signingKeys),
-            },
-          ],
-        });
+    if (!hasAttachments) {
+      args.message.attachments.TransIdxSigGroups.push({
+        snu: state.lastEstablishment.s,
+        digest: state.lastEstablishment.d,
+        prefix: args.sender,
+        ControllerIdxSigs: await this.sign(args.message.raw, state.signingKeys),
+      });
+    }
 
     const fwd = keri.exchange({
       sender: args.sender,
@@ -381,27 +372,27 @@ export class Controller {
       query: { pre: args.recipient, topic: args.topic },
       anchor: {},
       embeds: {
-        evt: new Message(args.message.body, evtatc),
+        evt: args.message,
       },
     });
 
     const fwdsigs = await this.sign(fwd.raw, state.signingKeys);
-
-    const atc = new Attachments({
+    fwd.attachments = {
       TransIdxSigGroups: [
         {
+          prefix: args.sender,
           ControllerIdxSigs: fwdsigs,
           snu: state.lastEstablishment.s,
           digest: state.lastEstablishment.d,
-          prefix: args.sender,
         },
       ],
-      PathedMaterialCouples: fwd.attachments.PathedMaterialCouples.map((couple) => ({ ...couple, grouped: false })),
-    });
+      PathedMaterialCouples: fwd.attachments.PathedMaterialCouples.map((couple) => ({
+        ...couple,
+        grouped: false,
+      })),
+    };
 
-    const message = new Message(fwd.body, atc);
-
-    await client.sendMessage(message);
+    await client.sendMessage(fwd);
   }
 
   async createRegistry(owner: string): Promise<RegistryInceptEvent> {
@@ -497,6 +488,7 @@ export class Controller {
     });
 
     const seal = { digest: anchor.event.d, snu: anchor.event.s };
+    iss.attachments.SealSourceCouples.push(seal);
 
     const state = log.state;
     for (const wit of state.backers) {
@@ -505,10 +497,11 @@ export class Controller {
         id: wit,
         url: endpoint.url,
       });
-      await client.sendMessage(new Message(iss.body, { SealSourceCouples: [seal] }));
+
+      await client.sendMessage(iss);
     }
 
-    await this.processMessage(new Message(iss.body, { SealSourceCouples: [seal] }));
+    await this.processMessage(iss);
   }
 
   private getIssueEvent(credentialSaid: string): Message<IssueEvent> {
@@ -690,21 +683,16 @@ export class Controller {
       },
     });
 
-    const grantsigs = await this.sign(Message.encode(grant.body), state.signingKeys);
-    const message = new Message(grant.body, {
-      TransIdxSigGroups: [
-        {
-          snu: state.lastEstablishment.s,
-          digest: state.lastEstablishment.d,
-          prefix: state.identifier,
-          ControllerIdxSigs: grantsigs,
-        },
-      ],
-      PathedMaterialCouples: grant.attachments.PathedMaterialCouples,
+    const grantsigs = await this.sign(grant.raw, state.signingKeys);
+    grant.attachments.TransIdxSigGroups.push({
+      snu: state.lastEstablishment.s,
+      digest: state.lastEstablishment.d,
+      prefix: state.identifier,
+      ControllerIdxSigs: grantsigs,
     });
 
     await this.forward({
-      message,
+      message: grant,
       recipient,
       sender: state.identifier,
       topic: "credential",
