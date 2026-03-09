@@ -124,6 +124,10 @@ export class Controller {
 
   private async generateKey(): Promise<string> {
     const key = keri.utils.generateKeyPair();
+    if (!key.privateKey || !key.publicKey || !key.publicKeyDigest) {
+      throw new Error("Failed to generate key pair");
+    }
+
     const encrypted = await this.#encrypter.encrypt(key.privateKey);
     this.#storage.saveKey(key.publicKey, key.publicKeyDigest, encodeBase64Url(encrypted));
     return key.publicKey;
