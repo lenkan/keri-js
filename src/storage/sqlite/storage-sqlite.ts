@@ -12,7 +12,7 @@ import {
   type ReplyEvent,
   type KeyEventBody,
   type CredentialBody,
-} from "#keri/core";
+} from "../../core/main.ts";
 import type { MessageBody } from "cesr";
 import type { ControllerStorage } from "../../controller/controller.ts";
 

@@ -22,7 +22,7 @@ import {
   type RevokeEvent,
   type KeyState,
   type ExchangeEvent,
-} from "#keri/core";
+} from "../core/main.ts";
 import { cesr, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/__unstable__";
 
