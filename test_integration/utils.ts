@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "../src/controller/controller.ts";
-import { SqliteControllerStorage } from "#keri/sqlite-storage";
+import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 export interface Witness {
   aid: string;
@@ -33,7 +33,7 @@ export async function resolveWitness(host: string): Promise<Witness> {
 
 export function createController() {
   const controller = new Controller({
-    storage: new SqliteControllerStorage(new DatabaseSync(":memory:")),
+    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
   });
 
   return controller;

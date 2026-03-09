@@ -5,7 +5,7 @@ import { Controller, type InceptResult } from "./controller.ts";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { keri, type LocationRecord, type EndRoleRecord } from "#keri/core";
 import { DatabaseSync } from "node:sqlite";
-import { SqliteControllerStorage } from "#keri/sqlite-storage";
+import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 const fetch = mock.method(globalThis, "fetch", () => {
   return Response.json({});
@@ -13,7 +13,7 @@ const fetch = mock.method(globalThis, "fetch", () => {
 
 function createController() {
   return new Controller({
-    storage: new SqliteControllerStorage(new DatabaseSync(":memory:")),
+    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
   });
 }
 
@@ -77,7 +77,9 @@ describe("rotate", () => {
   let icp: InceptResult;
 
   beforeEach(async () => {
-    controller = new Controller({ storage: new SqliteControllerStorage(new DatabaseSync(":memory:")) });
+    controller = new Controller({
+      storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
+    });
     icp = await controller.incept();
   });
 
@@ -447,7 +449,7 @@ describe("endpoint", () => {
   let controller: Controller;
 
   beforeEach(() => {
-    storage = new SqliteControllerStorage(new DatabaseSync(":memory:"));
+    storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
     controller = new Controller({ storage });
   });
 
