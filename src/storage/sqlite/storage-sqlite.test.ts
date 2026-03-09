@@ -2,7 +2,7 @@ import { describe, test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { keri, type KeyState, type KeyEvent, type InceptEvent, Message } from "#keri/core";
-import { SqliteControllerStorage } from "#keri/sqlite-storage";
+import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 function incept(): KeyEvent<InceptEvent> {
   const key0 = keri.utils.generateKeyPair();
@@ -16,7 +16,7 @@ describe("SqliteControllerStorage", () => {
 
   beforeEach(() => {
     db = new DatabaseSync(":memory:");
-    storage = new SqliteControllerStorage(db);
+    storage = new SqliteControllerStorage(new NodeSqliteDatabase(db));
   });
 
   afterEach(() => {

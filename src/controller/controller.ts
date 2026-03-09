@@ -22,7 +22,7 @@ import {
   type RevokeEvent,
   type KeyState,
   type ExchangeEvent,
-} from "#keri/core";
+} from "../core/main.ts";
 import { cesr, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/__unstable__";
 
@@ -124,6 +124,10 @@ export class Controller {
 
   private async generateKey(): Promise<string> {
     const key = keri.utils.generateKeyPair();
+    if (!key.privateKey || !key.publicKey || !key.publicKeyDigest) {
+      throw new Error("Failed to generate key pair");
+    }
+
     const encrypted = await this.#encrypter.encrypt(key.privateKey);
     this.#storage.saveKey(key.publicKey, key.publicKeyDigest, encodeBase64Url(encrypted));
     return key.publicKey;

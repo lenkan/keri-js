@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { Controller } from "../src/controller/controller.ts";
 import { resolveWitness, type Witness } from "./utils.ts";
 import { DatabaseSync } from "node:sqlite";
-import { SqliteControllerStorage } from "#keri/sqlite-storage";
+import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 let controller: Controller;
 let wan: Witness;
@@ -17,7 +17,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
-  const storage = new SqliteControllerStorage(new DatabaseSync(":memory:"));
+  const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
   controller = new Controller({ storage });
 });
 
