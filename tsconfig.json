@@ -8,7 +8,6 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
-    "strict": true,
-    "rootDir": "."
+    "strict": true
   }
 }

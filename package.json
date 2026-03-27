@@ -1,34 +1,21 @@
 {
-  "name": "keri",
-  "version": "0.0.8",
+  "name": "keri-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --no-warnings 'src/**/*.test.ts'",
-    "test:integration": "node --test --no-warnings 'test_integration/**/*.test.ts'",
-    "test:interop": "node --no-warnings scripts/run-scripts.ts",
-    "lint": "eslint",
-    "check": "tsc --noEmit",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
     "clean": "node scripts/clean.ts",
+    "test:interop": "npm run test:interop --workspace packages/keri",
+    "test:integration": "npm run test:integration --workspace packages/keri",
+    "lint": "eslint packages/",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "imports": {
-    "#keri": "./src/main.ts",
-    "#keri/core": "./src/core/main.ts",
-    "#keri/sqlite-storage": "./src/storage/sqlite/storage-sqlite.ts"
-  },
-  "exports": {
-    ".": "./dist/main.js",
-    "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "type": "module",
-  "author": "Daniel Lenksjö",
-  "license": "Apache-2.0",
-  "description": "KERI for JavaScript",
   "devEngines": {
     "runtime": {
       "name": "node",
@@ -41,23 +28,16 @@
       "onFail": "warn"
     }
   },
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "@noble/curves": "^2.0.0",
-    "@noble/ed25519": "^3.0.0",
-    "@noble/hashes": "^2.0.0",
-    "@noble/secp256k1": "^3.0.0",
-    "cesr": "^0.0.23-dev.66c3786"
-  },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/node": "^22.15.30",
+    "concurrently": "^9.2.1",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.15.0",
     "prettier": "^3.5.3",
+    "serve": "^14.2.5",
+    "typedoc": "^0.28.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.33.1"
   }
