@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { join } from "node:path";
-import { cwd } from "node:process";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const KLI = join(cwd(), ".venv/bin/kli");
+const KLI = join(dirname(fileURLToPath(import.meta.url)), "../../..", ".venv/bin/kli");
 
 export class KERIPy {
   readonly name: string;

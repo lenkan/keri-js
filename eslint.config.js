@@ -4,9 +4,9 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: ["node_modules", "dist", "examples", "docs"] },
+  { ignores: ["**/node_modules/**", "**/dist/**", "**/examples/**", "**/docs/**"] },
   {
-    files: ["**/*.{js,mjs,cjs,ts}"],
+    files: ["packages/**/*.{js,mjs,cjs,ts}"],
     extends: [
       // Base recommended rulesets
       pluginJs.configs.recommended,
@@ -27,7 +27,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/cli/**/*.ts", "scripts/**/*.ts"],
+    files: ["**/cli/**/*.ts", "**/scripts/**/*.ts"],
     rules: { "no-console": "off" },
   },
 );
