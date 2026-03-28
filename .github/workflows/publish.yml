@@ -12,17 +12,23 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
+
       - run: npm ci
+
       - name: Set version
         run: npm version "${GITHUB_REF_NAME#v}" --workspaces --no-git-tag-version
+
       - run: npm run build
+
       - name: Publish cesr
         run: npm publish --provenance --tag latest
         working-directory: packages/cesr
+
       - name: Publish keri
         run: npm publish --provenance --tag latest
         working-directory: packages/keri
