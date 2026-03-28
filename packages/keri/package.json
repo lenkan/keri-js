@@ -1,6 +1,6 @@
 {
   "name": "keri",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
