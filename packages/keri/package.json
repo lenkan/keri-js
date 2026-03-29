@@ -11,10 +11,10 @@
     "test": "node --conditions=source --test --no-warnings 'src/**/*.test.ts'",
     "test:integration": "node --conditions=source --test --no-warnings 'test_integration/**/*.test.ts'",
     "test:interop": "node --conditions=source --no-warnings scripts/run-scripts.ts",
-    "lint": "eslint",
+    "lint": "biome lint .",
     "check": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "imports": {
     "#keri": "./src/main.ts",

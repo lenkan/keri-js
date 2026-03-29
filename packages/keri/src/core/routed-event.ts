@@ -111,7 +111,7 @@ export function exchange(args: ExchangeEventInit) {
   for (const [key, message] of Object.entries(args.embeds ?? {})) {
     embeds[key] = message.body;
     attachments.PathedMaterialCouples.push({
-      path: "-" + ["e", key].join("-"),
+      path: `-${["e", key].join("-")}`,
       attachments: message.attachments,
       grouped: true,
     });

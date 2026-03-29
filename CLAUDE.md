@@ -17,8 +17,8 @@ All commands can be run from the root or scoped to a workspace with `--workspace
 npm run build           # Build all packages
 npm run test            # Run all unit tests
 npm run check           # TypeScript type-check (no emit)
-npm run lint            # ESLint
-npm run format          # Prettier formatting
+npm run lint            # Biome lint
+npm run format          # Biome formatting
 npm run format:check    # Check formatting without writing
 
 # Scoped examples
@@ -36,5 +36,5 @@ Tests use the native Node.js test runner (`--test`). There is no Jest/Vitest. Un
 - `strict: true` enabled workspace-wide
 - Tests and source run directly via `--conditions=source` (no pre-compilation needed for tests)
 - Build output goes to `dist/` in each package
-- ESLint uses the modern flat config (`eslint.config.js` at root)
+- Biome handles linting and formatting (`biome.json` at root)
 - Cryptography uses `@noble/*` libraries exclusively

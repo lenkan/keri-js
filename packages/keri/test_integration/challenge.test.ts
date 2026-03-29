@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { beforeEach, describe } from "node:test";
-import { type Controller } from "../src/controller/controller.ts";
+import type { Controller } from "../src/controller/controller.ts";
 import { createController, resolveWitness, type Witness } from "./utils.ts";
 import { keri } from "#keri";
 

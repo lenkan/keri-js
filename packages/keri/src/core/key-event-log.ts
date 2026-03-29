@@ -1,11 +1,5 @@
 import { Message, parse } from "cesr";
-import {
-  type KeyState,
-  type InceptEvent,
-  type InteractEvent,
-  type RotateEvent,
-  type KeyEventBody,
-} from "./key-event.ts";
+import type { KeyState, InceptEvent, InteractEvent, RotateEvent, KeyEventBody } from "./key-event.ts";
 import { verifyOrThrow } from "./verify.ts";
 
 export type { KeyState, InceptEvent, InteractEvent, RotateEvent };

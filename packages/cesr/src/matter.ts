@@ -3,15 +3,15 @@ import { MatterCode, MatterTableInit } from "./codes.ts";
 import { decodeBase64Int, decodeBase64Url, encodeBase64Url } from "./encoding-base64.ts";
 import { decodeUtf8, encodeUtf8 } from "./encoding-utf8.ts";
 import {
+  decodeText,
   encodeBinary,
   encodeText,
-  decodeText,
-  peekText,
-  resolveQuadletCount,
   type Frame,
-  type FrameSize,
-  type ReadResult,
   type FrameInit,
+  type FrameSize,
+  peekText,
+  type ReadResult,
+  resolveQuadletCount,
 } from "./frame.ts";
 
 const REGEX_BASE64_CHARACTER = /^[A-Za-z0-9\-_]+$/;
@@ -74,7 +74,7 @@ function encodeHexRaw(input: string, entry: FrameSize): Uint8Array {
 
   const raw = new Uint8Array(size);
 
-  let bigint = BigInt("0x" + input);
+  let bigint = BigInt(`0x${input}`);
   for (let i = 0; i < size; i++) {
     raw[size - i - 1] = Number(bigint % 256n);
     bigint = bigint / 256n;

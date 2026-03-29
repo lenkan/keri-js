@@ -1,20 +1,22 @@
 import { migrate } from "./schema.ts";
 import type { Database, Params, Row } from "./sqlite-database.ts";
+
 export { NodeSqliteDatabase } from "./node-sqlite.ts";
-export type { Database, Row, Params, SQLValue } from "./sqlite-database.ts";
-import {
-  Message,
-  Attachments,
-  type KeyEvent,
-  type RegistryInceptEvent,
-  type IssueEvent,
-  type RevokeEvent,
-  type ReplyEvent,
-  type KeyEventBody,
-  type CredentialBody,
-} from "../../core/main.ts";
+export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
+
 import type { MessageBody } from "cesr";
 import type { ControllerStorage } from "../../controller/controller.ts";
+import {
+  Attachments,
+  type CredentialBody,
+  type IssueEvent,
+  type KeyEvent,
+  type KeyEventBody,
+  Message,
+  type RegistryInceptEvent,
+  type ReplyEvent,
+  type RevokeEvent,
+} from "../../core/main.ts";
 
 function parseRow<T extends MessageBody>(result: Row): Message<T> {
   if (!("event_json" in result) || typeof result.event_json !== "string") {
@@ -187,7 +189,7 @@ export class SqliteControllerStorage implements ControllerStorage {
 
     const statement = [
       "SELECT event_json, attachments FROM event",
-      "WHERE " + conditions.join(" AND "),
+      `WHERE ${conditions.join(" AND ")}`,
       "ORDER BY sn ASC",
     ].join("\n");
 
