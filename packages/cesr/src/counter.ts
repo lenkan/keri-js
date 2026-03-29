@@ -1,15 +1,15 @@
 import { CountCode_10, CountCode_20 } from "./codes.ts";
+import { decodeUtf8 } from "./encoding-utf8.ts";
 import {
+  decodeText,
   encodeBinary,
   encodeText,
   type Frame,
-  decodeText,
-  peekText,
-  resolveQuadletCount,
   type FrameSize,
+  peekText,
   type ReadResult,
+  resolveQuadletCount,
 } from "./frame.ts";
-import { decodeUtf8 } from "./encoding-utf8.ts";
 
 export interface CounterInit {
   type: string;

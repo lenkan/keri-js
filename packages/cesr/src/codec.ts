@@ -1,5 +1,5 @@
-import { Matter } from "./matter.ts";
 import { Indexer } from "./indexer.ts";
+import { Matter } from "./matter.ts";
 
 function createRaw(code: string): (raw: Uint8Array) => Matter {
   return (raw: Uint8Array): Matter => {

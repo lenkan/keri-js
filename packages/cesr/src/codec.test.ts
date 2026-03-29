@@ -1,9 +1,9 @@
-import test, { describe } from "node:test";
-import { basename } from "node:path";
 import assert from "node:assert/strict";
+import { basename } from "node:path";
+import test, { describe } from "node:test";
+import { cesr } from "./codec.ts";
 import { Indexer } from "./indexer.ts";
 import { Matter } from "./matter.ts";
-import { cesr } from "./codec.ts";
 
 describe(basename(import.meta.url), () => {
   test("encode ed25519 signature", () => {

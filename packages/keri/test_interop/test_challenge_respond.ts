@@ -1,7 +1,7 @@
-import { resolveWitness, createController } from "../test_integration/utils.ts";
-import { KERIPy } from "./keripy.ts";
-import { keri } from "#keri";
 import assert from "node:assert";
+import { keri } from "#keri";
+import { createController, resolveWitness } from "../test_integration/utils.ts";
+import { KERIPy } from "./keripy.ts";
 
 const wan = await resolveWitness("http://localhost:5642");
 const wil = await resolveWitness("http://localhost:5643");

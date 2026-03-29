@@ -1,9 +1,9 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { describe, test } from "node:test";
+import { cesr } from "cesr";
 import { formatDate } from "./events.ts";
 import { exchange } from "./routed-event.ts";
-import { cesr } from "cesr";
-import { randomBytes } from "node:crypto";
 
 describe("exchange", () => {
   test("should create exchange event", () => {

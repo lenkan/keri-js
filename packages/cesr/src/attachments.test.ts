@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import assert from "node:assert";
 import { Attachments } from "./attachments.ts";
 import { Matter } from "./matter.ts";
 

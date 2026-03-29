@@ -1,7 +1,7 @@
-import test, { describe } from "node:test";
-import { basename } from "node:path";
-import { Genus } from "./genus.ts";
 import assert from "node:assert";
+import { basename } from "node:path";
+import test, { describe } from "node:test";
+import { Genus } from "./genus.ts";
 
 describe(basename(import.meta.url), () => {
   test("should encode genus with major and minor", () => {

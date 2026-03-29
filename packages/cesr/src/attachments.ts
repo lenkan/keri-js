@@ -1,9 +1,9 @@
-import { encodeUtf8 } from "./encoding-utf8.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
-import { Matter } from "./matter.ts";
 import { Counter } from "./counter.ts";
+import { encodeUtf8 } from "./encoding-utf8.ts";
 import type { Frame } from "./frame.ts";
 import { Indexer } from "./indexer.ts";
+import { Matter } from "./matter.ts";
 
 export interface NonTransReceiptCouple {
   prefix: string;

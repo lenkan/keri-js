@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import assert from "node:assert";
 import { concat, prepad, toArray } from "./array-utils.ts";
 
 describe(basename(import.meta.url), () => {

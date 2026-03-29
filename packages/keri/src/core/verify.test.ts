@@ -1,8 +1,8 @@
-import { describe, test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { verify, verifyOrThrow } from "./verify.ts";
-import { sign } from "./sign.ts";
+import { beforeEach, describe, test } from "node:test";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
+import { sign } from "./sign.ts";
+import { verify, verifyOrThrow } from "./verify.ts";
 
 describe("verify", () => {
   let keys: KeyPair[];

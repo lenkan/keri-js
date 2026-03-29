@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import assert from "node:assert";
 import { decodeBase64Int, decodeBase64Url, encodeBase64Int, encodeBase64Url } from "./encoding-base64.ts";
 
 describe(basename(import.meta.url), () => {

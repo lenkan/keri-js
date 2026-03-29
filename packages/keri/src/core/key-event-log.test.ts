@@ -1,8 +1,8 @@
-import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
+import { beforeEach, describe, test } from "node:test";
 import { Message } from "cesr";
-import { incept, interact, rotate, type KeyEvent } from "./key-event.ts";
+import { incept, interact, type KeyEvent, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { sign as _sign } from "./sign.ts";

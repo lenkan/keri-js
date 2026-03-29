@@ -1,15 +1,15 @@
-import { basename } from "node:path";
-import { describe, test } from "node:test";
 import assert from "node:assert";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { parse } from "./parse.ts";
-import { decodeUtf8, encodeUtf8 } from "./encoding-utf8.ts";
+import { basename } from "node:path";
+import { describe, test } from "node:test";
 import { concat } from "./array-utils.ts";
-import { Message } from "./message.ts";
-import { VersionString } from "./version-string.ts";
-import { Indexer } from "./indexer.ts";
+import { decodeUtf8, encodeUtf8 } from "./encoding-utf8.ts";
 import { Genus } from "./genus.ts";
+import { Indexer } from "./indexer.ts";
+import { Message } from "./message.ts";
+import { parse } from "./parse.ts";
+import { VersionString } from "./version-string.ts";
 
 const [sig0, sig1] = [
   Indexer.crypto.ed25519_sig(crypto.getRandomValues(new Uint8Array(64)), 0).text(),

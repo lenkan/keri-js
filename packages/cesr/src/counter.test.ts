@@ -1,8 +1,8 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
-import { Counter } from "./counter.ts";
-import assert from "node:assert";
 import { inspect } from "node:util";
+import { Counter } from "./counter.ts";
 
 describe(basename(import.meta.url), () => {
   test("should encode counter", () => {

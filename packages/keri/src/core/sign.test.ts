@@ -1,9 +1,9 @@
-import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
+import { Indexer, Matter } from "cesr";
 import { generateKeyPair } from "./keys.ts";
 import { sign } from "./sign.ts";
 import { verify } from "./verify.ts";
-import { Indexer, Matter } from "cesr";
 
 describe("sign", () => {
   const payload = new TextEncoder().encode("test message");

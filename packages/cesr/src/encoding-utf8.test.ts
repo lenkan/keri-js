@@ -1,7 +1,7 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import assert from "node:assert";
-import { encodeUtf8, decodeUtf8 } from "./encoding-utf8.ts";
+import { decodeUtf8, encodeUtf8 } from "./encoding-utf8.ts";
 
 describe(basename(import.meta.url), () => {
   describe("encodeUtf8", () => {

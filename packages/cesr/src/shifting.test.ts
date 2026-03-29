@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import assert from "node:assert";
 import { lshift } from "./shifting.ts";
 
 describe(basename(import.meta.url), () => {

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const KLI = join(dirname(fileURLToPath(import.meta.url)), "../../..", ".venv/bin/kli");

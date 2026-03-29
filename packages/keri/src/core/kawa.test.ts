@@ -1,12 +1,12 @@
-import test, { beforeEach, mock } from "node:test";
 import assert from "node:assert";
+import test, { beforeEach, mock } from "node:test";
 import { Message } from "cesr";
+import type { WitnessEndpoint } from "./kawa.ts";
 import { submitToWitnesses } from "./kawa.ts";
 import { incept } from "./key-event.ts";
 import { generateKeyPair } from "./keys.ts";
-import { sign } from "./sign.ts";
 import { receipt } from "./receipt-event.ts";
-import type { WitnessEndpoint } from "./kawa.ts";
+import { sign } from "./sign.ts";
 
 const fetchMock = mock.method(globalThis, "fetch", () => Response.json({}));
 

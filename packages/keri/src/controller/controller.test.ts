@@ -1,11 +1,11 @@
-import test, { beforeEach, describe, mock } from "node:test";
 import assert from "node:assert";
-import { Attachments, cesr } from "cesr";
-import { Controller, type InceptResult } from "./controller.ts";
-import { blake3 } from "@noble/hashes/blake3.js";
-import { keri, type LocationRecord, type EndRoleRecord } from "#keri/core";
 import { DatabaseSync } from "node:sqlite";
-import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
+import test, { beforeEach, describe, mock } from "node:test";
+import { blake3 } from "@noble/hashes/blake3.js";
+import { Attachments, cesr } from "cesr";
+import { type EndRoleRecord, keri, type LocationRecord } from "#keri/core";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/sqlite-storage";
+import { Controller, type InceptResult } from "./controller.ts";
 
 const fetch = mock.method(globalThis, "fetch", () => {
   return Response.json({});

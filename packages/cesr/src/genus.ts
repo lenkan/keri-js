@@ -1,5 +1,5 @@
 import { decodeBase64Int, encodeBase64Int } from "./encoding-base64.ts";
-import { encodeBinary, encodeText, type Frame, type FrameSize, decodeText, resolveQuadletCount } from "./frame.ts";
+import { decodeText, encodeBinary, encodeText, type Frame, type FrameSize, resolveQuadletCount } from "./frame.ts";
 
 export interface GenusInit {
   protocol: string;

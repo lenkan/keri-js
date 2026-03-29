@@ -1,5 +1,5 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import { issue } from "./credential-event.ts";
 
 describe("Credential events", () => {

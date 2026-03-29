@@ -1,5 +1,5 @@
-import { glob } from "node:fs/promises";
 import { execSync } from "node:child_process";
+import { glob } from "node:fs/promises";
 import { setTimeout } from "node:timers/promises";
 
 await (async () => {

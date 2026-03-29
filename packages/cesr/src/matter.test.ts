@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
-import { Matter } from "./matter.ts";
 import { inspect } from "node:util";
+import { Matter } from "./matter.ts";
 
 describe(basename(import.meta.url), () => {
   describe("encoding matter primitives", () => {

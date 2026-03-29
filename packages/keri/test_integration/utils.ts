@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/sqlite-storage";
 import { Controller } from "../src/controller/controller.ts";
-import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 export interface Witness {
   aid: string;

@@ -1,6 +1,6 @@
-import { before, describe, test } from "node:test";
 import assert from "node:assert";
-import { sign, keri, submitToWitnesses } from "#keri";
+import { before, describe, test } from "node:test";
+import { keri, sign, submitToWitnesses } from "#keri";
 import { resolveWitness, type Witness } from "./utils.ts";
 
 let wan: Witness;

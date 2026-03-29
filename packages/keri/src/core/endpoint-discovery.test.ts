@@ -1,8 +1,8 @@
-import test, { describe } from "node:test";
 import assert from "node:assert/strict";
+import test, { describe } from "node:test";
 import { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
-import { generateKeyPair } from "./keys.ts";
 import { incept } from "./key-event.ts";
+import { generateKeyPair } from "./keys.ts";
 import { reply } from "./routed-event.ts";
 
 function createAid() {

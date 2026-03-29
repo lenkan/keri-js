@@ -1,8 +1,8 @@
-import test, { describe } from "node:test";
-import { basename } from "node:path";
 import assert from "node:assert";
-import { Indexer } from "./indexer.ts";
+import { basename } from "node:path";
+import test, { describe } from "node:test";
 import { inspect } from "node:util";
+import { Indexer } from "./indexer.ts";
 import { Matter } from "./matter.ts";
 
 describe(basename(import.meta.url), () => {

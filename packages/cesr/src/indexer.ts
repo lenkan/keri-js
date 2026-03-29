@@ -1,15 +1,15 @@
 import { IndexCode, IndexTableInit } from "./codes.ts";
 import { decodeBase64Int, encodeBase64Int } from "./encoding-base64.ts";
 import {
+  decodeText,
   encodeBinary,
   encodeText,
-  decodeText,
-  peekText,
-  resolveQuadletCount,
   type Frame,
   type FrameInit,
   type FrameSize,
+  peekText,
   type ReadResult,
+  resolveQuadletCount,
 } from "./frame.ts";
 import { Matter } from "./matter.ts";
 

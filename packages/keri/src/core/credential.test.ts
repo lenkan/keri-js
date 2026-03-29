@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import test, { describe } from "node:test";
 import { createCredential } from "./credential.ts";
-import assert from "node:assert";
 
 describe("Credential event", () => {
   test("Should create credential event", () => {

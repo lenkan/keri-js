@@ -1,30 +1,30 @@
-import { PassphraseEncrypter, type Encrypter } from "./encrypt.ts";
-import {
-  keri,
-  sign,
-  KeyEventLog,
-  Message,
-  Attachments,
-  MailboxClient,
-  submitToWitnesses,
-  resolveEndRole,
-  resolveLocation,
-  type CredentialBody,
-  type Endpoint,
-  type InceptEvent,
-  type InteractEvent,
-  type RotateEvent,
-  type KeyEventBody,
-  type KeyEvent,
-  type RegistryInceptEvent,
-  type IssueEvent,
-  type ReplyEvent,
-  type RevokeEvent,
-  type KeyState,
-  type ExchangeEvent,
-} from "../core/main.ts";
 import { cesr, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/__unstable__";
+import {
+  Attachments,
+  type CredentialBody,
+  type Endpoint,
+  type ExchangeEvent,
+  type InceptEvent,
+  type InteractEvent,
+  type IssueEvent,
+  type KeyEvent,
+  type KeyEventBody,
+  KeyEventLog,
+  type KeyState,
+  keri,
+  MailboxClient,
+  Message,
+  type RegistryInceptEvent,
+  type ReplyEvent,
+  type RevokeEvent,
+  type RotateEvent,
+  resolveEndRole,
+  resolveLocation,
+  sign,
+  submitToWitnesses,
+} from "../core/main.ts";
+import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";
 
 export interface ControllerStorage {
   saveMessage(message: Message): void;

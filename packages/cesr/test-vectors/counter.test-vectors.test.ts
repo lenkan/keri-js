@@ -1,7 +1,7 @@
-import test, { describe } from "node:test";
 import assert from "node:assert";
-import path from "node:path";
 import { Buffer } from "node:buffer";
+import path from "node:path";
+import test, { describe } from "node:test";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
 import { Counter } from "../src/counter.ts";
 

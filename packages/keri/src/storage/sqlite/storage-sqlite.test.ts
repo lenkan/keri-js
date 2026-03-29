@@ -1,8 +1,8 @@
-import { describe, test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { keri, type KeyState, type KeyEvent, type InceptEvent, Message } from "#keri/core";
-import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
+import { afterEach, beforeEach, describe, test } from "node:test";
+import { type InceptEvent, type KeyEvent, type KeyState, keri, Message } from "#keri/core";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/sqlite-storage";
 
 function incept(): KeyEvent<InceptEvent> {
   const key0 = keri.utils.generateKeyPair();

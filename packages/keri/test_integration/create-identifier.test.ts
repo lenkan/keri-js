@@ -1,9 +1,9 @@
-import { before, beforeEach, describe, test } from "node:test";
 import assert from "node:assert";
+import { DatabaseSync } from "node:sqlite";
+import { before, beforeEach, describe, test } from "node:test";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/sqlite-storage";
 import { Controller } from "../src/controller/controller.ts";
 import { resolveWitness, type Witness } from "./utils.ts";
-import { DatabaseSync } from "node:sqlite";
-import { SqliteControllerStorage, NodeSqliteDatabase } from "#keri/sqlite-storage";
 
 let controller: Controller;
 let wan: Witness;

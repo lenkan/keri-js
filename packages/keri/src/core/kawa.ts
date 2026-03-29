@@ -1,8 +1,8 @@
 import { cesr, Indexer, Matter, Message, parse } from "cesr";
 import type { KeyEventBody } from "./key-event.ts";
 import { MailboxClient } from "./mailbox-client.ts";
-import { verifyOrThrow } from "./verify.ts";
 import type { ReceiptEvent } from "./receipt-event.ts";
+import { verifyOrThrow } from "./verify.ts";
 
 export interface WitnessEndpoint {
   aid: string;

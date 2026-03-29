@@ -1,7 +1,7 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
 import { GenericMapGroup } from "./generic-map.ts";
-import assert from "node:assert";
 
 describe(basename(import.meta.url), () => {
   test("should encode an empty message", () => {

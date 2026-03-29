@@ -1,6 +1,6 @@
 import { Message, VersionString } from "cesr";
-import { saidify } from "./said.ts";
 import { encodeEvent } from "./events.ts";
+import { saidify } from "./said.ts";
 
 export interface CredentialBodyInit {
   /**

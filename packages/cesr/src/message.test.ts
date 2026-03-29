@@ -1,12 +1,12 @@
-import test, { describe } from "node:test";
 import assert from "node:assert";
 import { basename } from "node:path";
-import { Message } from "./message.ts";
-import { VersionString } from "./version-string.ts";
+import test, { describe } from "node:test";
+import { inspect } from "node:util";
 import { Attachments } from "./attachments.ts";
 import { decodeUtf8, encodeUtf8 } from "./encoding-utf8.ts";
 import { Indexer } from "./indexer.ts";
-import { inspect } from "node:util";
+import { Message } from "./message.ts";
+import { VersionString } from "./version-string.ts";
 
 describe(basename(import.meta.url), () => {
   describe("creating messages", () => {
