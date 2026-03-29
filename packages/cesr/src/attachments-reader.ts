@@ -1,8 +1,8 @@
 import {
   Attachments,
-  type TransLastIdxSigGroup,
-  type TransIdxSigGroup,
   type PathedMaterialCouple,
+  type TransIdxSigGroup,
+  type TransLastIdxSigGroup,
 } from "./attachments.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { Counter } from "./counter.ts";
@@ -172,8 +172,7 @@ export class AttachmentsReader {
 
     const result = Counter.peek(reader.#buffer);
     const grouped =
-      (result.frame && result.frame.type) ===
-      (this.#version === 1 ? CountCode_10.AttachmentGroup : CountCode_20.AttachmentGroup);
+      result.frame?.type === (this.#version === 1 ? CountCode_10.AttachmentGroup : CountCode_20.AttachmentGroup);
 
     const pathAttachments = reader.readAttachments();
 

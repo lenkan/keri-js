@@ -13,7 +13,7 @@ import { digest } from "./digest.ts";
 export { sign } from "./sign.ts";
 export { Message, Attachments } from "cesr";
 
-export { type KeyEvent } from "./key-event.ts";
+export type { KeyEvent } from "./key-event.ts";
 export { KeyEventLog } from "./key-event-log.ts";
 export type { KeyState, InceptEvent, InteractEvent, RotateEvent, KeyEventBody } from "./key-event.ts";
 export type { KeyPair } from "./keys.ts";

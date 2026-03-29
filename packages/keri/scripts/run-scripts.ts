@@ -2,7 +2,7 @@ import { glob } from "node:fs/promises";
 import { execSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 
-await (async function () {
+await (async () => {
   while (true) {
     try {
       const response = await fetch("http://localhost:5642/oobi");

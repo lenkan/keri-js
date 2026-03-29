@@ -1,6 +1,6 @@
 import { concat } from "./array-utils.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
-import { type Attachments } from "./attachments.ts";
+import type { Attachments } from "./attachments.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { Counter } from "./counter.ts";
 import { encodeUtf8 } from "./encoding-utf8.ts";

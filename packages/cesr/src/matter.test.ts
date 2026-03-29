@@ -113,20 +113,20 @@ describe(basename(import.meta.url), () => {
     test("should encode/decode 0x00", () => {
       const matter = Matter.primitive.hex("0");
 
-      assert.strictEqual(matter.text(), "0A" + "A".repeat(22));
+      assert.strictEqual(matter.text(), `0A${"A".repeat(22)}`);
       assert.strictEqual(matter.as.hex(), "0");
     });
 
     test("should encode/decode single digit number", () => {
       const matter = Matter.primitive.hex("2");
-      assert.strictEqual(matter.text(), "0A" + "A".repeat(21) + "C");
+      assert.strictEqual(matter.text(), `0A${"A".repeat(21)}C`);
       assert.strictEqual(matter.text().length, 24);
       assert.strictEqual(matter.as.hex(), "2");
     });
 
     test("should encode/decode hex number", () => {
       const matter = Matter.primitive.hex("32");
-      assert.strictEqual(matter.text(), "0A" + "A".repeat(21) + "y");
+      assert.strictEqual(matter.text(), `0A${"A".repeat(21)}y`);
       assert.strictEqual(matter.text().length, 24);
       assert.strictEqual(matter.as.hex(), "32");
     });

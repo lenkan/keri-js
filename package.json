@@ -12,9 +12,9 @@
     "clean": "node scripts/clean.ts",
     "test:interop": "npm run test:interop --workspace packages/keri",
     "test:integration": "npm run test:integration --workspace packages/keri",
-    "lint": "eslint packages/",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "devEngines": {
     "runtime": {
@@ -29,16 +29,11 @@
     }
   },
   "devDependencies": {
-    "@eslint/js": "^9.28.0",
+    "@biomejs/biome": "^2.4.9",
     "@types/node": "^22.15.30",
     "concurrently": "^9.2.1",
-    "eslint": "^9.28.0",
-    "eslint-config-prettier": "^9.1.0",
-    "globals": "^15.15.0",
-    "prettier": "^3.5.3",
     "serve": "^14.2.5",
     "typedoc": "^0.28.14",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.33.1"
+    "typescript": "^5.8.3"
   }
 }

@@ -1,6 +1,6 @@
 import { Matter, Message } from "cesr";
 import { DUMMY_VERSION, encodeEvent } from "./events.ts";
-import { type Threshold } from "./threshold.ts";
+import type { Threshold } from "./threshold.ts";
 
 export interface KeyState {
   identifier: string;

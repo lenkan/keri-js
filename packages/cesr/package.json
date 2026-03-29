@@ -28,10 +28,10 @@
     "test": "node --test",
     "test:coverage": "node --experimental-test-coverage --test --test-reporter=lcov --test-reporter-destination=.coverage.lcov",
     "test:vector": "node --test 'test-vectors/**/*.test.ts'",
-    "lint": "eslint",
+    "lint": "biome lint .",
     "check": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "docs:build": "typedoc",
     "docs:serve": "concurrently \"serve docs\" \"typedoc --watch --preserveWatchOutput\""
   },
