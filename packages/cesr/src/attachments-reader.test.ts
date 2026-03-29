@@ -1,10 +1,10 @@
-import test, { describe } from "node:test";
 import assert from "node:assert";
 import { basename } from "node:path";
-import { encodeUtf8 } from "./encoding-utf8.ts";
+import test, { describe } from "node:test";
 import { concat } from "./array-utils.ts";
 import { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
+import { encodeUtf8 } from "./encoding-utf8.ts";
 
 const [sig0, sig1, sig2, sig3] = [
   "AABAMwd_6GLRwk6UYU2CQ_DKakLZ8Qz0KyaZllbOmlU8zAhx5iFCHVdyzgDpffiKDXzfHhOWHZzzcxrzpJDEwSs2",

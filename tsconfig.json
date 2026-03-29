@@ -1,5 +1,5 @@
 {
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["dist"],
   "compilerOptions": {
     "noEmit": true,
     "target": "esnext",
@@ -8,6 +8,6 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
-    "strict": true
+    "types": ["node"]
   }
 }
