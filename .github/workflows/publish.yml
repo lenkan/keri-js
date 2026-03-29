@@ -1,9 +1,12 @@
+schema: https://json.schemastore.org/github-workflow
 name: Publish
 
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
 
 jobs:
   publish:
@@ -20,15 +23,25 @@ jobs:
 
       - run: npm ci
 
-      - name: Set version
-        run: npm version "${GITHUB_REF_NAME#v}" --workspaces --no-git-tag-version
+      - name: Set publish variables
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dev.$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: npm version "${{ steps.vars.outputs.version }}" --workspaces --no-git-tag-version
 
       - run: npm run build
 
       - name: Publish cesr
-        run: npm publish --provenance --tag latest
+        run: npm publish --provenance --tag "${{ steps.vars.outputs.tag }}"
         working-directory: packages/cesr
 
       - name: Publish keri
-        run: npm publish --provenance --tag latest
+        run: npm publish --provenance --tag "${{ steps.vars.outputs.tag }}"
         working-directory: packages/keri
