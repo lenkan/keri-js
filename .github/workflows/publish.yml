@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
+          cache: "npm"
 
       - run: npm ci
 
@@ -33,14 +34,11 @@ jobs:
             echo "tag=dev" >> "$GITHUB_OUTPUT"
           fi
 
-      - run: npm version "${{ steps.vars.outputs.version }}" --workspaces --no-git-tag-version
+      - run: npm version "${{ steps.vars.outputs.version }}" --no-git-tag-version
 
       - run: npm run build
 
-      - name: Publish cesr
+      - name: Publish packages
         run: npm publish --provenance --tag "${{ steps.vars.outputs.tag }}"
-        working-directory: packages/cesr
-
-      - name: Publish keri
-        run: npm publish --provenance --tag "${{ steps.vars.outputs.tag }}"
-        working-directory: packages/keri
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

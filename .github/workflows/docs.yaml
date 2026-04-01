@@ -30,15 +30,15 @@ jobs:
         run: npm ci
 
       - name: Build documentation
-        run: npm run docs:build --workspace packages/cesr
+        run: npm run docs:build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: "./packages/cesr/docs"
+          path: "./api-docs"
 
   deploy:
     environment:
