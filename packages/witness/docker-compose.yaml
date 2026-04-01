@@ -1,0 +1,55 @@
+services:
+  dynamodb:
+    image: amazon/dynamodb-local
+    healthcheck:
+      test: curl -s http://localhost:8000
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -inMemory -sharedDb"
+
+  witness-1:
+    image: node:22-alpine
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    working_dir: /app
+    healthcheck:
+      test: wget -O - -q http://localhost:3001
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./:/app
+    command: node ./scripts/dev.ts
+    ports:
+      - "3001:3001"
+    environment:
+      DYNAMODB_ENDPOINT: http://admin:password@dynamodb:8000
+      DYNAMODB_TABLE_NAME: keri_witness_1
+      SALT: witness1
+      PORT: 3001
+
+  witness-2:
+    image: node:22-alpine
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    working_dir: /app
+    healthcheck:
+      test: wget -O - -q http://localhost:3002
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./:/app
+    command: node ./scripts/dev.ts
+    ports:
+      - "3002:3002"
+    environment:
+      DYNAMODB_ENDPOINT: http://admin:password@dynamodb:8000
+      DYNAMODB_TABLE_NAME: keri_witness_2
+      SALT: witness2
+      PORT: 3002

@@ -1,0 +1,30 @@
+{
+  "name": "witness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --env-file-if-exists .env --watch ./scripts/dev.ts",
+    "test": "node --conditions=source --test --no-warnings 'src/**/*.test.ts'",
+    "check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.901.0",
+    "@aws-sdk/util-dynamodb": "^3.902.0",
+    "@hono/node-server": "^1.19.5",
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0",
+    "@types/node": "^24.6.2",
+    "aws-cdk": "^2.1029.4",
+    "aws-cdk-lib": "^2.219.0",
+    "cesr": "*",
+    "constructs": "^10.0.0",
+    "esbuild": "^0.25.10",
+    "hono": "^4.9.9",
+    "keri": "*"
+  }
+}
