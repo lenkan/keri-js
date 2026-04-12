@@ -73,6 +73,9 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
 
+      - name: Run test witnesses
+        run: docker compose up --wait
+
       - name: Run interop tests
         run: npm run test:interop
 
