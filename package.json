@@ -9,7 +9,6 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "node --test --no-warnings 'src/**/*.test.ts'",
-    "test:integration": "node --test --no-warnings 'test_integration/**/*.test.ts'",
     "test:interop": "node --no-warnings scripts/run-scripts.ts",
     "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
     "lint": "biome check .",

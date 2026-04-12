@@ -1,6 +1,6 @@
 import assert from "node:assert";
-import { createController, resolveWitness } from "../test_integration/utils.ts";
 import { KERIPy } from "./keripy.ts";
+import { createController, resolveWitness } from "./utils.ts";
 
 const SCHEMA_SAID = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
 

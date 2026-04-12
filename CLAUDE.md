@@ -24,7 +24,6 @@ npm run check           # TypeScript type-check (no emit)
 npm run lint            # Biome lint
 npm run format          # Biome formatting (write)
 
-npm run test:integration  # Integration tests (requires running KERI witness)
 npm run test:interop      # Interop tests (requires KERIpy demo running)
 npm run test:vector       # Cross-impl test vectors (test_vectors/)
 ```
