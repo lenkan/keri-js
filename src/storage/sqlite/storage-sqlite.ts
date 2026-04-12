@@ -13,8 +13,8 @@ import {
   type KeyEvent,
   type KeyEventBody,
   Message,
-  type RegistryInceptEvent,
-  type ReplyEvent,
+  type RegistryInceptEventBody,
+  type ReplyEventBody,
   type RevokeEvent,
 } from "../../core/main.ts";
 
@@ -71,7 +71,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
       };
     }
     case "vcp": {
-      const body = message.body as unknown as RegistryInceptEvent;
+      const body = message.body as unknown as RegistryInceptEventBody;
       return {
         event_id: body.d,
         protocol: message.version.protocol,
@@ -168,7 +168,7 @@ export class SqliteControllerStorage implements ControllerStorage {
     this.#db.execute(statement, prepareRow(message));
   }
 
-  *getReplies(filter: { route?: string; eid?: string; cid?: string } = {}): Generator<Message<ReplyEvent>> {
+  *getReplies(filter: { route?: string; eid?: string; cid?: string } = {}): Generator<Message<ReplyEventBody>> {
     const conditions: string[] = ["type = 'rpy'"];
     const params: Record<string, string> = {};
 
@@ -225,7 +225,7 @@ export class SqliteControllerStorage implements ControllerStorage {
     }
   }
 
-  getRegistry(id: string): Message<RegistryInceptEvent> | null {
+  getRegistry(id: string): Message<RegistryInceptEventBody> | null {
     const statement = [
       "SELECT event_json, attachments",
       "FROM event",
@@ -237,7 +237,7 @@ export class SqliteControllerStorage implements ControllerStorage {
     return result ? parseRow(result) : null;
   }
 
-  *getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEvent>> {
+  *getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEventBody>> {
     const statement = [
       "SELECT event_json, attachments",
       "FROM event",
@@ -246,7 +246,7 @@ export class SqliteControllerStorage implements ControllerStorage {
     ].join("\n");
 
     for (const row of this.#db.iterate(statement, { owner })) {
-      yield parseRow<RegistryInceptEvent>(row);
+      yield parseRow<RegistryInceptEventBody>(row);
     }
   }
 

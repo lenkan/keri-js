@@ -46,7 +46,7 @@ export interface RotateArgs {
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type InceptEvent = {
+export type InceptEventBody = {
   v: string;
   t: "icp";
   d: string;
@@ -62,8 +62,7 @@ export type InceptEvent = {
   a: Record<string, unknown>[];
 };
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type InteractEvent = {
+export type InteractEventBody = {
   v: string;
   t: "ixn";
   d: string;
@@ -73,8 +72,7 @@ export type InteractEvent = {
   a: Record<string, unknown>[];
 };
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type RotateEvent = {
+export type RotateEventBody = {
   v: string;
   t: "rot";
   d: string;
@@ -104,7 +102,6 @@ function isTransferable(key: string) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type KeyEventBody = {
   v: string;
   t: string;
@@ -116,7 +113,7 @@ export type KeyEventBody = {
 
 export type KeyEvent<T extends KeyEventBody = KeyEventBody> = Message<T>;
 
-export function incept(args: InceptArgs) {
+export function incept(args: InceptArgs): KeyEvent<InceptEventBody> {
   const keys = args.signingKeys;
   if (keys.length === 0) {
     throw new Error("No keys provided in inception event");
@@ -137,7 +134,7 @@ export function incept(args: InceptArgs) {
     bt = (wits.length - 1).toString();
   }
 
-  const body = encodeEvent<InceptEvent>(
+  const body = encodeEvent<InceptEventBody>(
     {
       v: DUMMY_VERSION,
       t: "icp" as const,
@@ -159,8 +156,8 @@ export function incept(args: InceptArgs) {
   return new Message(body);
 }
 
-export function interact(state: KeyState, args: InteractArgs = {}): KeyEvent<InteractEvent> {
-  const body = encodeEvent<InteractEvent>(
+export function interact(state: KeyState, args: InteractArgs = {}): KeyEvent<InteractEventBody> {
+  const body = encodeEvent<InteractEventBody>(
     {
       v: DUMMY_VERSION,
       t: "ixn" as const,
@@ -176,13 +173,13 @@ export function interact(state: KeyState, args: InteractArgs = {}): KeyEvent<Int
   return new Message(body);
 }
 
-export function rotate(state: KeyState, args: RotateArgs): KeyEvent<RotateEvent> {
+export function rotate(state: KeyState, args: RotateArgs): KeyEvent<RotateEventBody> {
   const keyDigest = state.nextKeyDigests[0];
   if (!keyDigest) {
     throw new Error(`State for id ${state.identifier} does not contain pre-committed next key digest`);
   }
 
-  const body = encodeEvent<RotateEvent>(
+  const body = encodeEvent<RotateEventBody>(
     {
       v: DUMMY_VERSION,
       t: "rot" as const,

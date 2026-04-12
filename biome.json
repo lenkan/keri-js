@@ -20,6 +20,9 @@
       "recommended": true,
       "suspicious": {
         "noConsole": "error"
+      },
+      "style": {
+        "noInferrableTypes": "error"
       }
     }
   },

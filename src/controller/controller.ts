@@ -3,9 +3,9 @@ import {
   Attachments,
   type CredentialBody,
   type Endpoint,
-  type ExchangeEvent,
-  type InceptEvent,
-  type InteractEvent,
+  type ExchangeEventBody,
+  type InceptEventBody,
+  type InteractEventBody,
   type IssueEvent,
   type KeyEvent,
   type KeyEventBody,
@@ -14,10 +14,10 @@ import {
   keri,
   MailboxClient,
   Message,
-  type RegistryInceptEvent,
-  type ReplyEvent,
+  type RegistryInceptEventBody,
+  type ReplyEventBody,
   type RevokeEvent,
-  type RotateEvent,
+  type RotateEventBody,
   resolveEndRole,
   resolveLocation,
   sign,
@@ -37,11 +37,11 @@ export interface ControllerStorage {
   getPublicKeyByDigest(digest: string): string;
 
   // Event queries
-  getReplies(filter?: { route?: string; eid?: string; cid?: string }): Generator<Message<ReplyEvent>>;
+  getReplies(filter?: { route?: string; eid?: string; cid?: string }): Generator<Message<ReplyEventBody>>;
   getKeyEvents(prefix: string): Generator<KeyEvent>;
   getCredentialEvents(id: string): Generator<Message<IssueEvent | RevokeEvent>>;
-  getRegistry(id: string): Message<RegistryInceptEvent> | null;
-  getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEvent>>;
+  getRegistry(id: string): Message<RegistryInceptEventBody> | null;
+  getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEventBody>>;
   getCredential(id: string): CredentialBody | null;
   getCredentialsByRegistry(registryId: string): CredentialBody[];
 
@@ -78,17 +78,17 @@ export interface ControllerInceptArgs {
 
 export interface InceptResult {
   id: string;
-  event: InceptEvent;
+  event: InceptEventBody;
 }
 
 export interface AnchorResult {
   id: string;
-  event: InteractEvent;
+  event: InteractEventBody;
 }
 
 export interface RotateResult {
   id: string;
-  event: RotateEvent;
+  event: RotateEventBody;
 }
 
 export interface ControllerRotateArgs {
@@ -169,7 +169,7 @@ export class Controller {
           break;
         }
         case "rpy": {
-          await this.processMessage(new Message(message.body as ReplyEvent));
+          await this.processMessage(new Message(message.body as ReplyEventBody));
           break;
         }
       }
@@ -232,8 +232,8 @@ export class Controller {
     await this.commit(KeyEventLog.empty(), event);
 
     return {
-      id: (event.body as InceptEvent).i,
-      event: event.body as InceptEvent,
+      id: (event.body as InceptEventBody).i,
+      event: event.body as InceptEventBody,
     };
   }
 
@@ -276,8 +276,8 @@ export class Controller {
   }
 
   async commit(log: KeyEventLog, event: KeyEvent): Promise<void> {
-    const signingKeys = event.body.t === "icp" ? (event.body as InceptEvent).k : log.state.signingKeys;
-    const backers = event.body.t === "icp" ? ((event.body as InceptEvent).b ?? []) : (log.state.backers ?? []);
+    const signingKeys = event.body.t === "icp" ? (event.body as InceptEventBody).k : log.state.signingKeys;
+    const backers = event.body.t === "icp" ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
     const sigs = await this.sign(event.raw, signingKeys);
     event.attachments.ControllerIdxSigs.push(...sigs);
     const endpoints = await Promise.all(backers.map((wit) => this.resolveEndpoint(wit)));
@@ -293,8 +293,8 @@ export class Controller {
     await this.commit(log, event);
 
     return {
-      id: (event.body as InteractEvent).i,
-      event: event.body as InteractEvent,
+      id: (event.body as InteractEventBody).i,
+      event: event.body as InteractEventBody,
     };
   }
 
@@ -316,8 +316,8 @@ export class Controller {
     await this.commit(log, event);
 
     return {
-      id: (event.body as RotateEvent).i,
-      event: event.body as RotateEvent,
+      id: (event.body as RotateEventBody).i,
+      event: event.body as RotateEventBody,
     };
   }
 
@@ -405,7 +405,7 @@ export class Controller {
     await client.sendMessage(fwd);
   }
 
-  async createRegistry(owner: string): Promise<RegistryInceptEvent> {
+  async createRegistry(owner: string): Promise<RegistryInceptEventBody> {
     const log = await this.loadEventLog(owner);
 
     const vcp = keri.registry({
@@ -440,7 +440,7 @@ export class Controller {
     return vcp.body;
   }
 
-  async listRegistries(owner: string): Promise<RegistryInceptEvent[]> {
+  async listRegistries(owner: string): Promise<RegistryInceptEventBody[]> {
     return Array.from(this.#storage.getRegistriesByOwner(owner)).map((message) => message.body);
   }
 
@@ -753,7 +753,7 @@ export class Controller {
     const credentials: CredentialBody[] = [];
 
     for (const message of messages) {
-      const body = message.body as ExchangeEvent;
+      const body = message.body as ExchangeEventBody;
       if (body.t !== "exn" || body.r !== "/ipex/grant") {
         continue;
       }

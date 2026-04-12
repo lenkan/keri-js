@@ -9,8 +9,7 @@ export interface QueryEventInit {
   q: Record<string, unknown>;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type QueryEvent = {
+export type QueryEventBody = {
   v: string;
   t: "qry";
   d: string;
@@ -26,8 +25,7 @@ export interface ReplyEventInit {
   a: Record<string, unknown>;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type ReplyEvent = {
+export type ReplyEventBody = {
   v: string;
   t: "rpy";
   d: string;
@@ -36,7 +34,6 @@ export type ReplyEvent = {
   a: Record<string, unknown>;
 };
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type RoutedEventBody = {
   v: string;
   t: string;
@@ -47,8 +44,8 @@ export type RoutedEventBody = {
 
 export type RoutedEvent = Message<RoutedEventBody>;
 
-export function query(args: QueryEventInit) {
-  const body = encodeEvent<QueryEvent>({
+export function query(args: QueryEventInit): Message<QueryEventBody> {
+  const body = encodeEvent<QueryEventBody>({
     v: DUMMY_VERSION,
     t: "qry",
     d: "",
@@ -61,8 +58,8 @@ export function query(args: QueryEventInit) {
   return new Message(body);
 }
 
-export function reply(args: ReplyEventInit) {
-  const body = encodeEvent<ReplyEvent>({
+export function reply(args: ReplyEventInit): Message<ReplyEventBody> {
+  const body = encodeEvent<ReplyEventBody>({
     v: DUMMY_VERSION,
     t: "rpy",
     d: "",
@@ -90,7 +87,7 @@ export interface ExchangeEmbedding {
   [key: string]: string | Record<string, unknown>;
 }
 
-export interface ExchangeEvent extends Record<string, unknown> {
+export interface ExchangeEventBody extends Record<string, unknown> {
   v: string;
   t: "exn";
   d: string;
@@ -104,7 +101,7 @@ export interface ExchangeEvent extends Record<string, unknown> {
   e: Record<string, string | Record<string, unknown>>;
 }
 
-export function exchange(args: ExchangeEventInit) {
+export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
   const embeds: ExchangeEmbedding = { d: "" };
   const attachments = new Attachments();
 
@@ -117,7 +114,7 @@ export function exchange(args: ExchangeEventInit) {
     });
   }
 
-  const body = encodeEvent<ExchangeEvent>({
+  const body = encodeEvent<ExchangeEventBody>({
     v: DUMMY_VERSION,
     t: "exn",
     d: "",

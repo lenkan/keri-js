@@ -18,7 +18,7 @@ export type ReceiptEventBody = {
 
 export type ReceiptEvent = Message<ReceiptEventBody>;
 
-export function receipt(args: ReceiptEventInit): Message<ReceiptEventBody> {
+export function receipt(args: ReceiptEventInit): ReceiptEvent {
   const body = encodeEvent<ReceiptEventBody>(
     {
       v: DUMMY_VERSION,

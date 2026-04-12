@@ -6,8 +6,7 @@ export interface RegistryInceptEventInit {
   n?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type RegistryInceptEvent = {
+export type RegistryInceptEventBody = {
   v: string;
   t: "vcp";
   d: string;
@@ -20,7 +19,6 @@ export type RegistryInceptEvent = {
   n: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type RegistryEventBody = {
   v: string;
   t: string;
@@ -31,8 +29,8 @@ export type RegistryEventBody = {
 
 export type RegistryEvent = Message<RegistryEventBody>;
 
-export function incept(args: RegistryInceptEventInit) {
-  const body = encodeEvent<RegistryInceptEvent>(
+export function incept(args: RegistryInceptEventInit): Message<RegistryInceptEventBody> {
+  const body = encodeEvent<RegistryInceptEventBody>(
     {
       v: DUMMY_VERSION,
       t: "vcp",

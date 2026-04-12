@@ -154,7 +154,7 @@ export class VersionString {
     return `${protocol}${version}${format}${size}.`;
   }
 
-  static readonly KERI_LEGACY = new VersionString({
+  static readonly KERI_LEGACY: string = new VersionString({
     protocol: "KERI",
     major: 1,
     minor: 0,
@@ -162,7 +162,7 @@ export class VersionString {
     legacy: true,
   }).text;
 
-  static readonly KERI = new VersionString({
+  static readonly KERI: string = new VersionString({
     protocol: "KERI",
     major: 2,
     minor: 0,
@@ -170,7 +170,7 @@ export class VersionString {
     legacy: false,
   }).text;
 
-  static readonly ACDC_LEGACY = new VersionString({
+  static readonly ACDC_LEGACY: string = new VersionString({
     protocol: "ACDC",
     major: 1,
     minor: 0,
@@ -178,7 +178,7 @@ export class VersionString {
     legacy: true,
   }).text;
 
-  static readonly ACDC = new VersionString({
+  static readonly ACDC: string = new VersionString({
     protocol: "ACDC",
     major: 1,
     minor: 0,

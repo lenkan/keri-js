@@ -3,11 +3,11 @@ import { saidify } from "./said.ts";
 
 export const DUMMY_VERSION = VersionString.encode({ protocol: "KERI", legacy: true, kind: "JSON" });
 
-export function formatDate(date: Date) {
+export function formatDate(date: Date): string {
   return date.toISOString().replace("Z", "000+00:00");
 }
 
-export function randomNonce() {
+export function randomNonce(): string {
   return Matter.from(Matter.Code.Salt_128, crypto.getRandomValues(new Uint8Array(16))).text();
 }
 

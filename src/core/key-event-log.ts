@@ -1,8 +1,13 @@
 import { Message, parse } from "../cesr/__main__.ts";
-import type { InceptEvent, InteractEvent, KeyEventBody, KeyState, RotateEvent } from "./key-event.ts";
+import type { InceptEventBody, InteractEventBody, KeyEventBody, KeyState, RotateEventBody } from "./key-event.ts";
 import { verifyOrThrow } from "./verify.ts";
 
-export type { InceptEvent, InteractEvent, KeyState, RotateEvent };
+export type {
+  InceptEventBody as InceptEvent,
+  InteractEventBody as InteractEvent,
+  KeyState,
+  RotateEventBody as RotateEvent,
+};
 
 export class KeyEventLog {
   #events: Message<KeyEventBody>[];
@@ -61,7 +66,7 @@ export class KeyEventLog {
           throw new Error("State already initialized");
         }
 
-        const icp = body as InceptEvent;
+        const icp = body as InceptEventBody;
         if (!icp.k || !Array.isArray(icp.k) || icp.k.length === 0) {
           throw new Error("Inception event must have at least one key");
         }
@@ -135,7 +140,7 @@ function merge(a: KeyState, b: Partial<KeyState>): KeyState {
 function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
   switch (body.t) {
     case "icp": {
-      const icp = body as InceptEvent;
+      const icp = body as InceptEventBody;
       return {
         identifier: icp.i,
         signingThreshold: icp.kt,
@@ -151,12 +156,12 @@ function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
     }
     case "ixn": {
       assertDefined(state);
-      const ixn = body as InteractEvent;
+      const ixn = body as InteractEventBody;
       return merge(state, { lastEvent: { i: ixn.i, s: ixn.s, d: ixn.d } });
     }
     case "rot": {
       assertDefined(state);
-      const rot = body as RotateEvent;
+      const rot = body as RotateEventBody;
       return merge(state, {
         backers: state.backers.filter((b) => !rot.br.includes(b)).concat(rot.ba),
         backerThreshold: rot.bt,

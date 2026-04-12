@@ -34,34 +34,39 @@ export type {
   CredentialSubject,
 } from "./credential.ts";
 export { createCredential } from "./credential.ts";
-export type { IssueEvent, IssueEventInit, RevokeEvent, RevokeEventInit } from "./credential-event.ts";
+export type {
+  IssueEventBody as IssueEvent,
+  IssueEventInit,
+  RevokeEventBody as RevokeEvent,
+  RevokeEventInit,
+} from "./credential-event.ts";
 export type { Endpoint, EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
 export { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
 export type { WitnessEndpoint } from "./kawa.ts";
 export { submitToWitnesses } from "./kawa.ts";
 export type {
   InceptArgs,
-  InceptEvent,
+  InceptEventBody,
   InteractArgs,
-  InteractEvent,
+  InteractEventBody,
   KeyEvent,
   KeyEventBody,
   KeyState,
   RotateArgs,
-  RotateEvent,
+  RotateEventBody,
 } from "./key-event.ts";
 export { KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export type { MailboxClientOptions } from "./mailbox-client.ts";
 export { MailboxClient } from "./mailbox-client.ts";
 export type { ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
-export type { RegistryInceptEvent, RegistryInceptEventInit } from "./registry-event.ts";
+export type { RegistryInceptEventBody, RegistryInceptEventInit } from "./registry-event.ts";
 export type {
-  ExchangeEvent,
+  ExchangeEventBody,
   ExchangeEventInit,
-  QueryEvent,
+  QueryEventBody,
   QueryEventInit,
-  ReplyEvent,
+  ReplyEventBody,
   ReplyEventInit,
 } from "./routed-event.ts";
 export type { SignOptions } from "./sign.ts";

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
-import { type InceptEvent, type KeyEvent, type KeyState, keri, Message } from "../../core/main.ts";
+import { type InceptEventBody, type KeyEvent, type KeyState, keri, Message } from "../../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "./storage-sqlite.ts";
 
-function incept(): KeyEvent<InceptEvent> {
+function incept(): KeyEvent<InceptEventBody> {
   const key0 = keri.utils.generateKeyPair();
   const key1 = keri.utils.generateKeyPair();
   return keri.incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });

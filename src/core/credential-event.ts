@@ -14,8 +14,7 @@ export interface IssueEventInit {
   dt?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type IssueEvent = {
+export type IssueEventBody = {
   v: string;
   t: "iss";
   d: string;
@@ -51,8 +50,7 @@ export interface RevokeEventInit {
   dt?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type RevokeEvent = {
+export type RevokeEventBody = {
   v: string;
   t: "rev";
   d: string;
@@ -63,8 +61,8 @@ export type RevokeEvent = {
   dt: string;
 };
 
-export function issue(args: IssueEventInit) {
-  const body = encodeEvent<IssueEvent>(
+export function issue(args: IssueEventInit): Message<IssueEventBody> {
+  const body = encodeEvent<IssueEventBody>(
     {
       v: DUMMY_VERSION,
       t: "iss",
@@ -80,8 +78,8 @@ export function issue(args: IssueEventInit) {
   return new Message(body);
 }
 
-export function revoke(args: RevokeEventInit) {
-  const body = encodeEvent<RevokeEvent>(
+export function revoke(args: RevokeEventInit): Message<RevokeEventBody> {
+  const body = encodeEvent<RevokeEventBody>(
     {
       v: DUMMY_VERSION,
       t: "rev",

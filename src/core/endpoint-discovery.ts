@@ -1,5 +1,5 @@
 import type { Message } from "../cesr/__main__.ts";
-import type { ReplyEvent } from "./routed-event.ts";
+import type { ReplyEventBody } from "./routed-event.ts";
 
 export interface EndRoleRecord extends Record<string, unknown> {
   cid: string;
@@ -21,7 +21,7 @@ export interface Endpoint {
 }
 
 export function resolveEndRole(
-  replies: Iterable<Message<ReplyEvent>>,
+  replies: Iterable<Message<ReplyEventBody>>,
   cid: string,
   role: string,
 ): EndRoleRecord | null {
@@ -61,7 +61,7 @@ export function resolveEndRole(
   return selected;
 }
 
-export function resolveLocation(replies: Iterable<Message<ReplyEvent>>, eid: string): LocationRecord | null {
+export function resolveLocation(replies: Iterable<Message<ReplyEventBody>>, eid: string): LocationRecord | null {
   // TODO: Needs verify against a Key Event Log
   for (const message of replies) {
     if (message.body.t !== "rpy" || message.body.r !== "/loc/scheme") {

@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import type { Hono } from "hono";
 import { Attachments, Indexer, Matter } from "../cesr/__main__.ts";
-import { type InceptEvent, type KeyEvent, keri } from "../core/main.ts";
+import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
 import { createApp } from "./app.ts";
 import type { EventStorage, ListEventArgs } from "./event-storage.ts";
 import { parseKeyEvents } from "./parser.ts";
@@ -56,7 +56,7 @@ class TestContext {
     return this.app.fetch(input);
   }
 
-  async receipt(event: KeyEvent<InceptEvent>, sigs: string[]): Promise<Response> {
+  async receipt(event: KeyEvent<InceptEventBody>, sigs: string[]): Promise<Response> {
     const result = await this.fetch(
       request("/receipts", {
         method: "POST",

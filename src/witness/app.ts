@@ -30,7 +30,7 @@ function createResponse(events: readonly WitnessEvent[]): Response {
   });
 }
 
-export function createApp(options: WitnessOptions) {
+export function createApp(options: WitnessOptions): Hono {
   const { witness } = options;
   const app = new Hono();
 
