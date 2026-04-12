@@ -1,0 +1,5 @@
+{
+  "entryPoints": ["src/main.ts"],
+  "out": "api-docs",
+  "favicon": "./assets/favicon.png"
+}

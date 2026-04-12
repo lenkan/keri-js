@@ -1,7 +1,7 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/examples", "!**/docs"]
+    "includes": ["**", "!**/dist", "!**/.venv", "!**/examples", "!**/docs"]
   },
   "formatter": {
     "lineWidth": 120,
@@ -30,7 +30,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/cli/**/*.ts", "**/scripts/**/*.ts", "**/test_interop/**/*.ts"],
+      "includes": ["**/scripts/**/*.ts", "**/test_interop/**/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

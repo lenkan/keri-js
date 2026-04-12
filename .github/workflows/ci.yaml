@@ -25,12 +25,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Run format check
-        run: npm run format:check
 
       - name: Run linter
         run: npm run lint
@@ -41,14 +39,27 @@ jobs:
       - name: Run build
         run: npm run build
 
-      - name: Run tests
-        run: npm test
-
       - name: Run test witnesses
         run: docker compose up --wait
 
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run tests
+        run: node --test
+
+  interop:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Setup python 3.13
         uses: actions/setup-python@v4
@@ -62,29 +73,33 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
 
+      - name: Run test witnesses
+        run: docker compose up --wait
+
       - name: Run interop tests
         run: npm run test:interop
 
-  ci-deno:
+  deno:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Deno
+      - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: "2"
 
-      - name: Deno install
-        run: deno install
-        working-directory: packages/cesr
+      - name: Install dependencies
+        run: deno install --frozen
+ 
+      - name: Deno typecheck
+        run: deno check src
 
-      - name: Deno check
-        run: deno check
-        working-directory: packages/cesr
+      - name: Run test witnesses
+        run: docker compose up --wait
 
-      - name: Deno test
-        run: deno test --allow-read
-        working-directory: packages/cesr
+      - name: Run test in deno
+        run: deno test --allow-net --allow-read
+

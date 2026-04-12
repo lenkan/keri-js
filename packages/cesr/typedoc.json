@@ -1,4 +1,0 @@
-{
-  "entryPoints": ["src/__main__.ts"],
-  "favicon": "./assets/favicon.png"
-}
