@@ -11,6 +11,7 @@ export interface VerifyOptions {
 export type VerifyResult =
   | {
       ok: true;
+      error?: null;
     }
   | {
       ok: false;
