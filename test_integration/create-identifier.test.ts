@@ -1,28 +1,22 @@
 import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
-import { before, beforeEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 import { Controller } from "#keri/controller/controller.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite/storage-sqlite.ts";
 import { resolveWitness, type Witness } from "./utils.ts";
 
-let controller: Controller;
-let wan: Witness;
-let wil: Witness;
-let wes: Witness;
+const wan: Witness = await resolveWitness("http://localhost:5642");
+const wil: Witness = await resolveWitness("http://localhost:5643");
+const wes: Witness = await resolveWitness("http://localhost:5644");
 
-before(async () => {
-  wan = await resolveWitness("http://localhost:5642");
-  wil = await resolveWitness("http://localhost:5643");
-  wes = await resolveWitness("http://localhost:5644");
-});
-
-beforeEach(async () => {
+function createController() {
   const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
-  controller = new Controller({ storage });
-});
+  return new Controller({ storage });
+}
 
 describe("Create identifier", () => {
   test("Create identifier", async () => {
+    const controller = createController();
     const state = await controller.incept();
 
     const events = await controller.export(state.id);
@@ -35,6 +29,7 @@ describe("Create identifier", () => {
   });
 
   test("Create identifier with single witness", async () => {
+    const controller = createController();
     await controller.introduce(wan.oobi);
     const state = await controller.incept({
       wits: [wan.aid],
@@ -53,6 +48,7 @@ describe("Create identifier", () => {
   });
 
   test("Create identifier with two witnesses", async () => {
+    const controller = createController();
     await controller.introduce(wan.oobi);
     await controller.introduce(wil.oobi);
 
@@ -76,6 +72,7 @@ describe("Create identifier", () => {
   });
 
   test("Create identifier with three witnesses", async () => {
+    const controller = createController();
     await controller.introduce(wan.oobi);
     await controller.introduce(wil.oobi);
     await controller.introduce(wes.oobi);

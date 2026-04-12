@@ -62,6 +62,7 @@ export interface ControllerDeps {
   storage: ControllerStorage;
   encrypter?: Encrypter;
   passphrase?: string;
+  fetch?: typeof globalThis.fetch;
 }
 
 export interface ReplyArgs {
@@ -118,10 +119,12 @@ export interface IpexGrantArgs {
 export class Controller {
   #storage: ControllerStorage;
   #encrypter: Encrypter;
+  #fetch: typeof globalThis.fetch;
 
   constructor(deps: ControllerDeps) {
     this.#storage = deps.storage;
     this.#encrypter = deps.encrypter ?? new PassphraseEncrypter(deps.passphrase ?? "default-passphrase");
+    this.#fetch = deps.fetch ?? globalThis.fetch;
   }
 
   private async generateKey(): Promise<string> {
@@ -143,7 +146,7 @@ export class Controller {
   }
 
   async introduce(oobi: string): Promise<KeyState> {
-    const response = await fetch(oobi);
+    const response = await this.#fetch(oobi);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch oobi: ${response.status} ${response.statusText}`);
@@ -278,7 +281,7 @@ export class Controller {
     const sigs = await this.sign(event.raw, signingKeys);
     event.attachments.ControllerIdxSigs.push(...sigs);
     const endpoints = await Promise.all(backers.map((wit) => this.resolveEndpoint(wit)));
-    const wigs = await submitToWitnesses(event, endpoints);
+    const wigs = await submitToWitnesses(event, endpoints, this.#fetch);
     event.attachments.WitnessIdxSigs.push(...wigs);
     await this.processMessage(event);
   }
@@ -356,6 +359,7 @@ export class Controller {
     const client = new MailboxClient({
       id: endpoint.aid,
       url: endpoint.url,
+      fetch: this.#fetch,
     });
     const log = await this.loadEventLog(args.sender);
     const state = log.state;
@@ -425,6 +429,7 @@ export class Controller {
       const client = new MailboxClient({
         id: wit,
         url: endpoint.url,
+        fetch: this.#fetch,
       });
 
       await client.sendMessage(vcp);

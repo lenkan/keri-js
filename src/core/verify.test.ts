@@ -1,16 +1,20 @@
 import assert from "node:assert/strict";
-import { beforeEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { sign } from "./sign.ts";
 import { verify, verifyOrThrow } from "./verify.ts";
 
-describe("verify", () => {
-  let keys: KeyPair[];
-  const payload = new TextEncoder().encode("test message");
+function generateKeys(count: number): KeyPair[] {
+  const keys: KeyPair[] = [];
+  for (let i = 0; i < count; i++) {
+    keys.push(generateKeyPair());
+  }
+  return keys;
+}
 
-  beforeEach(() => {
-    keys = [generateKeyPair(), generateKeyPair(), generateKeyPair()];
-  });
+describe("verify", () => {
+  const payload = new TextEncoder().encode("test message");
+  const keys = generateKeys(3);
 
   test("returns ok for a single valid signature", () => {
     const sigs = [sign(payload, { key: keys[0].privateKey, index: 0 })];
@@ -26,7 +30,8 @@ describe("verify", () => {
   });
 
   test("returns error when no signatures are provided", () => {
-    const result = verify(payload, { threshold: "1", keys: [keys[0].publicKey], sigs: [] });
+    const key = generateKeyPair();
+    const result = verify(payload, { threshold: "1", keys: [key.publicKey], sigs: [] });
     assert.deepEqual(result, { ok: false, error: "Threshold not met: 0 weight provided, but 1 required" });
   });
 
@@ -68,12 +73,8 @@ describe("verify", () => {
 });
 
 describe("verifyOrThrow", () => {
-  let key: KeyPair;
+  const key = generateKeyPair();
   const payload = new TextEncoder().encode("test message");
-
-  beforeEach(() => {
-    key = generateKeyPair();
-  });
 
   test("does not throw for a valid signature", () => {
     const sigs = [sign(payload, { key: key.privateKey, index: 0 })];

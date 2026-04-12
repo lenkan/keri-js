@@ -65,3 +65,31 @@ jobs:
 
       - name: Run interop tests
         run: npm run test:interop
+
+  deno:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2"
+
+      - name: Install dependencies
+        run: deno install --frozen
+ 
+      - name: Deno typecheck
+        run: deno check src
+
+      - name: Run unit tests in deno
+        run: deno test --allow-read fixtures/ src
+
+      - name: Run test witnesses
+        run: docker compose up --wait
+
+      - name: Run integration tests in deno
+        run: deno test --allow-net test_integration/
+

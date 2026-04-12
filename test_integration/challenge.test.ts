@@ -1,21 +1,14 @@
 import assert from "node:assert";
-import test, { beforeEach, describe } from "node:test";
+import test, { describe } from "node:test";
 import { keri } from "#keri/main.ts";
-import type { Controller } from "../src/controller/controller.ts";
-import { createController, resolveWitness, type Witness } from "./utils.ts";
-
-let controller0: Controller;
-let controller1: Controller;
-let wan: Witness;
-
-beforeEach(async () => {
-  controller0 = createController();
-  controller1 = createController();
-  wan = await resolveWitness("http://localhost:5642");
-});
+import { createController, resolveWitness } from "./utils.ts";
 
 describe("Challenge", () => {
   test("Send and receive challenge phrase", async () => {
+    const wan = await resolveWitness("http://localhost:5642");
+    const controller0 = createController();
+    const controller1 = createController();
+
     await controller0.introduce(wan.oobi);
     await controller1.introduce(wan.oobi);
     const state0 = await controller0.incept({

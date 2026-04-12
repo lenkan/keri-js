@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import test, { beforeEach, mock } from "node:test";
+import test, { mock } from "node:test";
 import { Message } from "../cesr/__main__.ts";
 import type { WitnessEndpoint } from "./kawa.ts";
 import { submitToWitnesses } from "./kawa.ts";
@@ -7,12 +7,6 @@ import { incept } from "./key-event.ts";
 import { generateKeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
 import { sign } from "./sign.ts";
-
-const fetchMock = mock.method(globalThis, "fetch", () => Response.json({}));
-
-beforeEach(() => {
-  fetchMock.mock.resetCalls();
-});
 
 test("returns witness indexed signature for single witness", async () => {
   const sigKey = generateKeyPair();
@@ -34,14 +28,14 @@ test("returns witness indexed signature for single witness", async () => {
   });
 
   const serialized = JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
-  fetchMock.mock.mockImplementationOnce(() => new Response(serialized));
+  const fetchMock = mock.method(globalThis, "fetch", async () => new Response(serialized));
 
   const endpoint: WitnessEndpoint = {
     aid: witnessKey.publicKey,
     url: "http://witness.example",
   };
 
-  const wigs = await submitToWitnesses(event, [endpoint]);
+  const wigs = await submitToWitnesses(event, [endpoint], fetchMock);
 
   assert.strictEqual(
     fetchMock.mock.calls.length,
@@ -75,12 +69,12 @@ test("rejects receipt with invalid witness signature", async () => {
   });
 
   const serialized = JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
-  fetchMock.mock.mockImplementationOnce(() => new Response(serialized));
+  const fetchMock = mock.method(globalThis, "fetch", async () => new Response(serialized));
 
   const endpoint: WitnessEndpoint = {
     aid: witnessKey.publicKey,
     url: "http://witness.example",
   };
 
-  await assert.rejects(() => submitToWitnesses(event, [endpoint]), /Invalid signature for key at index 0/);
+  await assert.rejects(() => submitToWitnesses(event, [endpoint], fetchMock), /Invalid signature for key at index 0/);
 });

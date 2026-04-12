@@ -9,42 +9,52 @@ export interface WitnessEndpoint {
   url: string;
 }
 
-async function receipt(event: Message<KeyEventBody>, witnessUrl: string): Promise<ReceiptEvent> {
-  const url = new URL("/receipts", witnessUrl);
+class WitnessClient {
+  #url: string;
+  #fetch: typeof globalThis.fetch;
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`Invalid protocol: ${url}`);
+  constructor(url: string, fetch?: typeof globalThis.fetch) {
+    this.#url = url;
+    this.#fetch = fetch ?? globalThis.fetch;
   }
 
-  const fetchResponse = await fetch(url, {
-    method: "POST",
-    body: JSON.stringify(event.body),
-    headers: {
-      "Content-Type": "application/cesr+json",
-      "CESR-ATTACHMENT": event.attachments.text(),
-    },
-  });
+  async receipt(event: Message<KeyEventBody>): Promise<ReceiptEvent> {
+    const url = new URL("/receipts", this.#url);
 
-  if (!fetchResponse.ok || !fetchResponse.body) {
-    throw new Error(`Failed to submit event to witness: ${fetchResponse.status} ${fetchResponse.statusText}`);
-  }
-
-  for await (const incoming of parse(fetchResponse.body)) {
-    if (incoming.body.t === "rct" && incoming.body.d === event.body.d) {
-      for (const couple of incoming.attachments.NonTransReceiptCouples) {
-        const sig = Indexer.convert(Matter.parse(couple.sig), 0).text();
-        verifyOrThrow(event.raw, {
-          keys: [couple.prefix],
-          sigs: [sig],
-          threshold: "1",
-        });
-      }
-
-      return incoming as ReceiptEvent;
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error(`Invalid protocol: ${url}`);
     }
-  }
 
-  throw new Error(`No receipt returned from ${witnessUrl}`);
+    const fetchResponse = await this.#fetch(url, {
+      method: "POST",
+      body: JSON.stringify(event.body),
+      headers: {
+        "Content-Type": "application/cesr+json",
+        "CESR-ATTACHMENT": event.attachments.text(),
+      },
+    });
+
+    if (!fetchResponse.ok || !fetchResponse.body) {
+      throw new Error(`Failed to submit event to witness: ${fetchResponse.status} ${fetchResponse.statusText}`);
+    }
+
+    for await (const incoming of parse(fetchResponse.body)) {
+      if (incoming.body.t === "rct" && incoming.body.d === event.body.d) {
+        for (const couple of incoming.attachments.NonTransReceiptCouples) {
+          const sig = Indexer.convert(Matter.parse(couple.sig), 0).text();
+          verifyOrThrow(event.raw, {
+            keys: [couple.prefix],
+            sigs: [sig],
+            threshold: "1",
+          });
+        }
+
+        return incoming as ReceiptEvent;
+      }
+    }
+
+    throw new Error(`No receipt returned from ${this.#url}`);
+  }
 }
 
 /**
@@ -57,7 +67,11 @@ async function receipt(event: Message<KeyEventBody>, witnessUrl: string): Promis
  * @param endpoints Pre-resolved endpoints for each witness
  * @returns Indexed witness signatures (wigs)
  */
-export async function submitToWitnesses(event: Message<KeyEventBody>, endpoints: WitnessEndpoint[]): Promise<string[]> {
+export async function submitToWitnesses(
+  event: Message<KeyEventBody>,
+  endpoints: WitnessEndpoint[],
+  fetch?: typeof globalThis.fetch,
+): Promise<string[]> {
   // TODO: implement the spec's round-robin approach where receipts collected from
   // earlier witnesses are forwarded to later ones in the same pass, reducing total
   // network exchanges from N+(N×(N-1)) to at most 2×N.
@@ -66,7 +80,8 @@ export async function submitToWitnesses(event: Message<KeyEventBody>, endpoints:
   const wits = endpoints.map((e) => e.aid);
 
   for (const endpoint of endpoints) {
-    const response = await receipt(event, endpoint.url);
+    const client = new WitnessClient(endpoint.url, fetch);
+    const response = await client.receipt(event);
 
     if (response.attachments.NonTransReceiptCouples.length > 0) {
       const receiptCouple = response.attachments.NonTransReceiptCouples[0];
@@ -82,7 +97,7 @@ export async function submitToWitnesses(event: Message<KeyEventBody>, endpoints:
   }
 
   for (const endpoint of endpoints) {
-    const client = new MailboxClient({ id: endpoint.aid, url: endpoint.url });
+    const client = new MailboxClient({ id: endpoint.aid, url: endpoint.url, fetch });
 
     for (const [other, receipt] of Object.entries(receipts)) {
       if (other === endpoint.aid) {

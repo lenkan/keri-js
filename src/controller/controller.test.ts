@@ -1,20 +1,50 @@
 import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
-import test, { beforeEach, describe, mock } from "node:test";
+import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { Attachments, cesr } from "../cesr/__main__.ts";
 import { type EndRoleRecord, keri, type LocationRecord } from "../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
-import { Controller, type InceptResult } from "./controller.ts";
+import { Controller } from "./controller.ts";
 
-const fetch = mock.method(globalThis, "fetch", () => {
-  return Response.json({});
-});
+class TestController extends Controller {
+  fetch: test.Mock<typeof globalThis.fetch>;
+  storage: SqliteControllerStorage;
+
+  constructor() {
+    const mockFetch = mock.method(globalThis, "fetch", async () => Response.json({}));
+    const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+
+    super({
+      storage,
+      fetch: mockFetch,
+    });
+
+    this.storage = storage;
+    this.fetch = mockFetch;
+  }
+
+  saveEndRole(record: EndRoleRecord) {
+    this.storage.saveMessage(
+      keri.reply({
+        r: "/end/role/add",
+        a: record,
+      }),
+    );
+  }
+
+  saveLocation(record: LocationRecord) {
+    this.storage.saveMessage(
+      keri.reply({
+        r: "/loc/scheme",
+        a: record,
+      }),
+    );
+  }
+}
 
 function createController() {
-  return new Controller({
-    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-  });
+  return new TestController();
 }
 
 describe("incept", () => {
@@ -29,16 +59,10 @@ describe("incept", () => {
 });
 
 describe("interact", () => {
-  let controller: Controller;
-  let icp: InceptResult;
-
-  beforeEach(async () => {
-    controller = createController();
-    icp = await controller.incept();
-  });
-
   test("should create interaction event", async () => {
     const data = { test: "data" };
+    const controller = createController();
+    const icp = await controller.incept();
     const ixn = await controller.anchor(icp.id, { data });
 
     assert.strictEqual(ixn.event.t, "ixn");
@@ -51,6 +75,8 @@ describe("interact", () => {
     const data1 = { test: "data1" };
     const data2 = { test: "data2" };
 
+    const controller = createController();
+    const icp = await controller.incept();
     const ixn1 = await controller.anchor(icp.id, { data: data1 });
     const ixn2 = await controller.anchor(icp.id, { data: data2 });
 
@@ -66,6 +92,8 @@ describe("interact", () => {
   });
 
   test("should throw if state is not found", async () => {
+    const controller = createController();
+
     await assert.rejects(() => controller.anchor("nonexistent", { data: {} }), {
       message: "State for id nonexistent not found",
     });
@@ -73,17 +101,18 @@ describe("interact", () => {
 });
 
 describe("rotate", () => {
-  let controller: Controller;
-  let icp: InceptResult;
+  test("create rotation event", async () => {
+    const controller = createController();
+    const icp = await controller.incept();
+    const data = { test: "data" };
+    const rot = await controller.rotate(icp.id, { data });
 
-  beforeEach(async () => {
-    controller = new Controller({
-      storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    });
-    icp = await controller.incept();
+    assert.strictEqual(rot.event.t, "rot");
   });
 
   test("create rotation event", async () => {
+    const controller = createController();
+    const icp = await controller.incept();
     const data = { test: "data" };
     const rot = await controller.rotate(icp.id, { data });
 
@@ -94,6 +123,9 @@ describe("rotate", () => {
   });
 
   test("rotate after interaction", async () => {
+    const controller = createController();
+    const icp = await controller.incept();
+
     const ixn = await controller.anchor(icp.id, { data: { test: "data" } });
     const rot = await controller.rotate(icp.id, {});
 
@@ -103,6 +135,9 @@ describe("rotate", () => {
   });
 
   test("set key to pre-committed next key", async () => {
+    const controller = createController();
+    const icp = await controller.incept();
+
     const rot = await controller.rotate(icp.id, {});
 
     const keydigest = cesr.crypto
@@ -169,10 +204,6 @@ describe("credential", () => {
 });
 
 describe("forward", () => {
-  beforeEach(() => {
-    fetch.mock.resetCalls();
-  });
-
   test("Forward exchange event", async () => {
     const controller = createController();
     const timestamp = keri.utils.formatDate(new Date(Date.parse("2023-10-01T00:00:00Z")));
@@ -215,7 +246,7 @@ describe("forward", () => {
       message: exn,
     });
 
-    const headers = new Headers(fetch.mock.calls[0].arguments[1]?.headers ?? {});
+    const headers = new Headers(controller.fetch.mock.calls[0].arguments[1]?.headers ?? {});
     const attachments = Attachments.parse(new TextEncoder().encode(headers.get("CESR-ATTACHMENT") ?? ""));
 
     assert(attachments);
@@ -239,10 +270,6 @@ describe("forward", () => {
 });
 
 describe("grant", () => {
-  beforeEach(() => {
-    fetch.mock.resetCalls();
-  });
-
   test("should forward ipex grant message", async () => {
     const controller = createController();
 
@@ -282,7 +309,7 @@ describe("grant", () => {
     await controller.issueCredential(credential);
     await controller.grant({ credential });
 
-    const [, request] = fetch.mock.calls.at(-1)?.arguments ?? [];
+    const [, request] = controller.fetch.mock.calls.at(-1)?.arguments ?? [];
     const body = JSON.parse((request?.body as string) ?? "{}");
 
     assert.strictEqual(body.r, "/fwd");
@@ -445,38 +472,14 @@ describe("credential", () => {
 });
 
 describe("endpoint", () => {
-  let storage: SqliteControllerStorage;
-  let controller: Controller;
-
-  beforeEach(() => {
-    storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
-    controller = new Controller({ storage });
-  });
-
-  function saveEndRole(record: EndRoleRecord) {
-    storage.saveMessage(
-      keri.reply({
-        r: "/end/role/add",
-        a: record,
-      }),
-    );
-  }
-
-  function saveLocation(record: LocationRecord) {
-    storage.saveMessage(
-      keri.reply({
-        r: "/loc/scheme",
-        a: record,
-      }),
-    );
-  }
-
   test("resolves mailbox client", () => {
     const cid = "AID_CONTACT_1";
     const mailbox = "AID_MAILBOX_1";
 
-    saveEndRole({ cid, role: "mailbox", eid: mailbox });
-    saveLocation({ eid: mailbox, url: "http://localhost:5642", scheme: "http" });
+    const controller = createController();
+
+    controller.saveEndRole({ cid, role: "mailbox", eid: mailbox });
+    controller.saveLocation({ eid: mailbox, url: "http://localhost:5642", scheme: "http" });
 
     const endpoint = controller.resolveEndpoint(cid, "mailbox");
 
@@ -487,10 +490,11 @@ describe("endpoint", () => {
     const cid = "AID_CONTACT_3";
     const agent = "AID_AGENT_3";
     const controllerAid = "AID_CONTROLLER_3";
+    const controller = createController();
 
-    saveEndRole({ cid, role: "agent", eid: agent });
-    saveEndRole({ cid, role: "controller", eid: controllerAid });
-    saveLocation({ eid: agent, url: "http://localhost:5643", scheme: "http" });
+    controller.saveEndRole({ cid, role: "agent", eid: agent });
+    controller.saveEndRole({ cid, role: "controller", eid: controllerAid });
+    controller.saveLocation({ eid: agent, url: "http://localhost:5643", scheme: "http" });
 
     assert.throws(() => controller.resolveEndpoint(cid), {
       message: `No valid location found for aid ${cid}`,
@@ -498,6 +502,7 @@ describe("endpoint", () => {
   });
 
   test("throws when no end role is found", () => {
+    const controller = createController();
     assert.throws(() => controller.resolveEndpoint("UNKNOWN_AID"), {
       message: "Could not find end role 'controller' for aid 'UNKNOWN_AID'",
     });

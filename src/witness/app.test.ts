@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { before, beforeEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import type { Hono } from "hono";
 import { Attachments, Indexer, Matter } from "../cesr/__main__.ts";
@@ -37,46 +37,65 @@ class MemoryEventStorage implements EventStorage {
   }
 }
 
-let app: Hono;
-let witness: Witness;
+class TestContext {
+  app: Hono;
+  witness: Witness;
 
-beforeEach(async () => {
-  witness = createWitness({
-    privateKey: ed25519.utils.randomSecretKey(createSeed("witness", "salt")),
-    url: "http://localhost:5631",
-  });
+  constructor() {
+    this.witness = createWitness({
+      privateKey: ed25519.utils.randomSecretKey(createSeed("witness", "salt")),
+      url: "http://localhost:5631",
+    });
+    this.app = createApp({
+      witness: this.witness,
+      storage: new MemoryEventStorage(),
+    });
+  }
 
-  app = createApp({
-    witness,
-    storage: new MemoryEventStorage(),
-  });
-});
+  async fetch(input: Request): Promise<Response> {
+    return this.app.fetch(input);
+  }
+
+  async receipt(event: KeyEvent<InceptEvent>, sigs: string[]): Promise<Response> {
+    const result = await this.fetch(
+      request("/receipts", {
+        method: "POST",
+        body: new TextDecoder().decode(event.raw),
+        headers: {
+          "Content-Type": "application/json",
+          "CESR-ATTACHMENT": new Attachments({ ControllerIdxSigs: sigs }).text(),
+        },
+      }),
+    );
+
+    return result;
+  }
+}
 
 describe("Witness oobi request", () => {
-  let response: Response;
-
-  beforeEach(async () => {
-    response = await app.fetch(request("/oobi", { method: "GET" }));
-  });
-
   test("Should reply status 200", async () => {
+    const context = new TestContext();
+    const response = await context.fetch(request("/oobi", { method: "GET" }));
     assert.strictEqual(response.status, 200);
-  });
-
-  test("Should reply with correct content type", async () => {
     assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
+
+    assert(response.body);
   });
 
-  test("Should reply with witness inception event", async () => {
+  test("Should reply with incept event", async () => {
+    const context = new TestContext();
+    const response = await context.fetch(request("/oobi", { method: "GET" }));
     assert(response.body);
     const messages = await collect(parseKeyEvents(response.body));
 
     assert(messages.length > 0);
     assert.strictEqual(messages[0].message.body.t, "icp");
-    assert.strictEqual(messages[0].message.body.i, witness.aid);
+    assert.strictEqual(messages[0].message.body.i, context.witness.aid);
   });
 
   test("Should reply with location record", async () => {
+    const context = new TestContext();
+    const response = await context.fetch(request("/oobi", { method: "GET" }));
     assert(response.body);
     const messages = await collect(parseKeyEvents(response.body));
 
@@ -88,6 +107,8 @@ describe("Witness oobi request", () => {
   });
 
   test("Should reply with end role", async () => {
+    const context = new TestContext();
+    const response = await context.fetch(request("/oobi", { method: "GET" }));
     assert(response.body);
     const messages = await collect(parseKeyEvents(response.body));
 
@@ -98,47 +119,32 @@ describe("Witness oobi request", () => {
 });
 
 describe("Witness receipt request", () => {
-  let privateKey0: Uint8Array;
-  let icp: KeyEvent<InceptEvent>;
-  let response: Response;
-  let sigs: string[];
+  const privateKey0 = ed25519.utils.randomSecretKey(createSeed("0", "salt"));
+  const privateKey1 = ed25519.utils.randomSecretKey(createSeed("1", "salt"));
 
-  before(async () => {
-    privateKey0 = ed25519.utils.randomSecretKey(createSeed("0", "salt"));
-    const privateKey1 = ed25519.utils.randomSecretKey(createSeed("1", "salt"));
+  const pubKey0 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey0) }).text();
+  const pubKey1 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey1) }).text();
 
-    const pubKey0 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey0) }).text();
-    const pubKey1 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey1) }).text();
-
-    icp = keri.incept({
-      signingKeys: [pubKey0],
-      nextKeys: [pubKey1],
-    });
-
-    sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0).text()];
+  const icp = keri.incept({
+    signingKeys: [pubKey0],
+    nextKeys: [pubKey1],
   });
 
-  beforeEach(async () => {
-    response = await app.fetch(
-      request("/receipts", {
-        method: "POST",
-        body: new TextDecoder().decode(icp.raw),
-        headers: {
-          "Content-Type": "application/json",
-          "CESR-ATTACHMENT": new Attachments({ ControllerIdxSigs: sigs }).text(),
-        },
-      }),
-    );
-
-    assert.strictEqual(response.status, 200);
-  });
+  const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0).text()];
 
   test("Should reply with valid http response", async () => {
+    const context = new TestContext();
+
+    const response = await context.receipt(icp, sigs);
+
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
   });
 
   test("Should reply with valid witness receipt", async () => {
+    const context = new TestContext();
+    const response = await context.receipt(icp, sigs);
+
     assert(response.body);
     const messages = await collect(parseKeyEvents(response.body));
 
@@ -156,7 +162,9 @@ describe("Witness receipt request", () => {
   });
 
   test("Should respond on oobi request for the new identifier", async () => {
-    const oobiResponse = await app.fetch(request(`/oobi/${icp.body.i}`, { method: "GET" }));
+    const context = new TestContext();
+    await context.receipt(icp, sigs);
+    const oobiResponse = await context.fetch(request(`/oobi/${icp.body.i}`, { method: "GET" }));
     assert.strictEqual(oobiResponse.status, 200);
     assert.strictEqual(oobiResponse.headers.get("Content-Type"), "application/json+cesr");
 

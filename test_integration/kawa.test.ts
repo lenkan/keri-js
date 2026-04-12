@@ -1,17 +1,11 @@
 import assert from "node:assert";
-import { before, describe, test } from "node:test";
+import { describe, test } from "node:test";
 import { keri, sign, submitToWitnesses } from "#keri/main.ts";
 import { resolveWitness, type Witness } from "./utils.ts";
 
-let wan: Witness;
-let wil: Witness;
-let wes: Witness;
-
-before(async () => {
-  wan = await resolveWitness("http://localhost:5642");
-  wil = await resolveWitness("http://localhost:5643");
-  wes = await resolveWitness("http://localhost:5644");
-});
+const wan: Witness = await resolveWitness("http://localhost:5642");
+const wil: Witness = await resolveWitness("http://localhost:5643");
+const wes: Witness = await resolveWitness("http://localhost:5644");
 
 describe("Keri Algorithm for Witness Agreement (KAWA)", () => {
   test("single witness returns one wig", async () => {

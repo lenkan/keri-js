@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
-import { beforeEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 import { Message } from "../cesr/__main__.ts";
 import { incept, interact, type KeyEvent, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
@@ -18,20 +18,18 @@ function inceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
 }
 
 describe("KeyEventLog", () => {
-  let key0: KeyPair;
-  let key1: KeyPair;
-
-  beforeEach(() => {
-    key0 = generateKeyPair();
-    key1 = generateKeyPair();
-  });
-
   test("append icp creates log at sequence 0", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+
     const log = inceptLog(key0, key1);
     assert.equal(log.state.lastEvent.s, "0");
   });
 
   test("append icp throws on missing signatures", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+
     const event = incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
     assert.throws(() => KeyEventLog.empty().append(new Message(event.body)), {
       message: "Threshold not met: 0 weight provided, but 1 required",
@@ -39,6 +37,9 @@ describe("KeyEventLog", () => {
   });
 
   test("append ixn advances sequence", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+
     const log = inceptLog(key0, key1);
     const event = interact(log.state, { data: { test: "data" } });
     const sigs = sign(event, [key0]);
@@ -47,6 +48,9 @@ describe("KeyEventLog", () => {
   });
 
   test("append rot advances sequence and updates keys", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+
     const log = inceptLog(key0, key1);
     const event = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
     const sigs = sign(event, [key0]);

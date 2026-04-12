@@ -10,15 +10,23 @@ export interface MailboxClientOptions {
    * The URL of the mailbox server to send messages to.
    */
   url: string;
+
+  /**
+   * Optional fetch implementation to use for sending messages.
+   * Defaults to the global `fetch` function.
+   */
+  fetch?: typeof globalThis.fetch;
 }
 
 export class MailboxClient {
   readonly url: string;
   readonly id: string;
+  readonly #fetch: typeof globalThis.fetch;
 
   constructor(options: MailboxClientOptions) {
     this.url = options.url;
     this.id = options.id;
+    this.#fetch = options.fetch ?? globalThis.fetch;
   }
 
   async sendMessage(message: Message, signal?: AbortSignal): Promise<Message[]> {
@@ -31,7 +39,7 @@ export class MailboxClient {
       "CESR-DESTINATION": this.id,
     };
 
-    const response = await fetch(url, {
+    const response = await this.#fetch(url, {
       method: "POST",
       body,
       headers,
