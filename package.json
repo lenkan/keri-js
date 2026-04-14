@@ -23,7 +23,7 @@
     ".": "./dist/main.js",
     "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",
     "./witness": "./dist/witness/main.js",
-    "./witness/local": "./dist/witness/local.js"
+    "./witness/serve-node": "./dist/witness/serve-node.js"
   },
   "files": [
     "dist"
@@ -43,12 +43,10 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.5",
     "@noble/curves": "^2.0.0",
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.0",
-    "@noble/secp256k1": "^3.0.0",
-    "hono": "^4.9.9"
+    "@noble/secp256k1": "^3.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",

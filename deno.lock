@@ -2,14 +2,12 @@
   "version": "5",
   "specifiers": {
     "npm:@biomejs/biome@^2.4.9": "2.4.11",
-    "npm:@hono/node-server@^1.19.5": "1.19.13_hono@4.12.12",
     "npm:@noble/curves@2": "2.0.1",
     "npm:@noble/ed25519@3": "3.1.0",
     "npm:@noble/hashes@2": "2.0.1",
     "npm:@noble/secp256k1@3": "3.1.0",
     "npm:@types/node@^22.15.30": "22.19.17",
     "npm:concurrently@^9.2.1": "9.2.1",
-    "npm:hono@^4.9.9": "4.12.12",
     "npm:serve@^14.2.5": "14.2.6",
     "npm:typedoc@~0.28.14": "0.28.19_typescript@6.0.2",
     "npm:typescript@^6.0.2": "6.0.2"
@@ -77,12 +75,6 @@
         "@shikijs/themes",
         "@shikijs/types",
         "@shikijs/vscode-textmate"
-      ]
-    },
-    "@hono/node-server@1.19.13_hono@4.12.12": {
-      "integrity": "sha512-TsQLe4i2gvoTtrHje625ngThGBySOgSK3Xo2XRYOdqGN1teR8+I7vchQC46uLJi8OF62YTYA3AhSpumtkhsaKQ==",
-      "dependencies": [
-        "hono"
       ]
     },
     "@noble/curves@2.0.1": {
@@ -367,9 +359,6 @@
     },
     "has-flag@4.0.0": {
       "integrity": "sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ=="
-    },
-    "hono@4.12.12": {
-      "integrity": "sha512-p1JfQMKaceuCbpJKAPKVqyqviZdS0eUxH9v82oWo1kb9xjQ5wA6iP3FNVAPDFlz5/p7d45lO+BpSk1tuSZMF4Q=="
     },
     "human-signals@2.1.0": {
       "integrity": "sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw=="
@@ -721,14 +710,12 @@
     "packageJson": {
       "dependencies": [
         "npm:@biomejs/biome@^2.4.9",
-        "npm:@hono/node-server@^1.19.5",
         "npm:@noble/curves@2",
         "npm:@noble/ed25519@3",
         "npm:@noble/hashes@2",
         "npm:@noble/secp256k1@3",
         "npm:@types/node@^22.15.30",
         "npm:concurrently@^9.2.1",
-        "npm:hono@^4.9.9",
         "npm:serve@^14.2.5",
         "npm:typedoc@~0.28.14",
         "npm:typescript@^6.0.2"

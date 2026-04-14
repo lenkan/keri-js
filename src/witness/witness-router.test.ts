@@ -2,14 +2,13 @@ import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import type { Hono } from "hono";
 import { Attachments, Indexer, Matter, Message } from "../cesr/__main__.ts";
 import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
-import { createApp } from "./app.ts";
 import { parseKeyEvents } from "./parser.ts";
 import { createSeed } from "./seed.ts";
 import { Witness, WitnessError } from "./witness.ts";
+import { createRouter } from "./witness-router.ts";
 
 function request(path: string, init: RequestInit = {}): Request {
   return new Request(`http://localhost${path}`, init);
@@ -33,16 +32,16 @@ function makeWitness(): Witness {
 }
 
 class TestContext {
-  app: Hono;
+  app: (request: Request) => Promise<Response>;
   witness: Witness;
 
   constructor() {
     this.witness = makeWitness();
-    this.app = createApp({ witness: this.witness });
+    this.app = createRouter(this.witness);
   }
 
   async fetch(input: Request): Promise<Response> {
-    return this.app.fetch(input);
+    return this.app(input);
   }
 
   async receipt(event: KeyEvent<InceptEventBody>, sigs: string[]): Promise<Response> {
