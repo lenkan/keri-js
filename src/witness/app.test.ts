@@ -1,14 +1,15 @@
 import assert from "node:assert";
+import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import type { Hono } from "hono";
-import { Attachments, Indexer, Matter } from "../cesr/__main__.ts";
+import { Attachments, Indexer, Matter, Message } from "../cesr/__main__.ts";
 import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
 import { createApp } from "./app.ts";
-import type { EventStorage, ListEventArgs } from "./event-storage.ts";
 import { parseKeyEvents } from "./parser.ts";
 import { createSeed } from "./seed.ts";
-import { createWitness, type Witness, type WitnessEvent } from "./witness.ts";
+import { Witness, WitnessError } from "./witness.ts";
 
 function request(path: string, init: RequestInit = {}): Request {
   return new Request(`http://localhost${path}`, init);
@@ -22,19 +23,13 @@ async function collect<T>(iter: AsyncIterable<T>): Promise<T[]> {
   return result;
 }
 
-class MemoryEventStorage implements EventStorage {
-  private readonly events = new Map<string, WitnessEvent[]>();
-
-  async saveEvent(event: WitnessEvent): Promise<void> {
-    const key = (event.message.body as { i?: string }).i ?? "";
-    const existing = this.events.get(key) ?? [];
-    existing.push(event);
-    this.events.set(key, existing);
-  }
-
-  async listEvents(args: ListEventArgs): Promise<WitnessEvent[]> {
-    return this.events.get(args.i) ?? [];
-  }
+function makeWitness(): Witness {
+  const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+  return new Witness({
+    privateKey: ed25519.utils.randomSecretKey(createSeed("witness", "salt")),
+    url: "http://localhost:5631",
+    storage,
+  });
 }
 
 class TestContext {
@@ -42,14 +37,8 @@ class TestContext {
   witness: Witness;
 
   constructor() {
-    this.witness = createWitness({
-      privateKey: ed25519.utils.randomSecretKey(createSeed("witness", "salt")),
-      url: "http://localhost:5631",
-    });
-    this.app = createApp({
-      witness: this.witness,
-      storage: new MemoryEventStorage(),
-    });
+    this.witness = makeWitness();
+    this.app = createApp({ witness: this.witness });
   }
 
   async fetch(input: Request): Promise<Response> {
@@ -71,6 +60,70 @@ class TestContext {
     return result;
   }
 }
+
+// --- Shared test fixtures ---
+
+const privateKey0 = ed25519.utils.randomSecretKey(createSeed("0", "salt"));
+const privateKey1 = ed25519.utils.randomSecretKey(createSeed("1", "salt"));
+
+const pubKey0 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey0) }).text();
+const pubKey1 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey1) }).text();
+
+const icp = keri.incept({
+  signingKeys: [pubKey0],
+  nextKeys: [pubKey1],
+});
+
+const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0).text()];
+
+// --- Witness unit tests ---
+
+describe("Witness", () => {
+  test("receive() returns a valid RCT message", () => {
+    const witness = makeWitness();
+    const msg = new Message(icp.body, { ControllerIdxSigs: sigs });
+
+    const receipt = witness.receive(msg);
+
+    assert.strictEqual(receipt.body.t, "rct");
+    assert.strictEqual(receipt.body.d, icp.body.d);
+
+    const couples = receipt.attachments.NonTransReceiptCouples;
+    assert.strictEqual(couples.length, 1);
+    assert.strictEqual(couples[0].prefix, witness.aid);
+
+    const sigMatter = Matter.parse(couples[0].sig);
+    const keyMatter = Matter.parse(couples[0].prefix);
+    assert(ed25519.verify(sigMatter.raw, msg.raw, keyMatter.raw));
+  });
+
+  test("receive() stores the event so getKeyEvents returns it", () => {
+    const witness = makeWitness();
+    const msg = new Message(icp.body, { ControllerIdxSigs: sigs });
+
+    witness.receive(msg);
+
+    const stored = Array.from(witness.getKeyEvents(icp.body.i));
+    assert.strictEqual(stored.length, 1);
+    assert.strictEqual(stored[0].body.t, "icp");
+    assert.strictEqual((stored[0].body as InceptEventBody).i, icp.body.i);
+  });
+
+  test("receive() throws WitnessError when controller signatures are missing", () => {
+    const witness = makeWitness();
+    const msg = new Message(icp.body, { ControllerIdxSigs: [] });
+
+    assert.throws(() => witness.receive(msg), WitnessError);
+  });
+
+  test("getKeyEvents() returns empty for unknown AID", () => {
+    const witness = makeWitness();
+    const stored = Array.from(witness.getKeyEvents("unknown-aid"));
+    assert.strictEqual(stored.length, 0);
+  });
+});
+
+// --- HTTP layer tests ---
 
 describe("Witness oobi request", () => {
   test("Should reply status 200", async () => {
@@ -119,19 +172,6 @@ describe("Witness oobi request", () => {
 });
 
 describe("Witness receipt request", () => {
-  const privateKey0 = ed25519.utils.randomSecretKey(createSeed("0", "salt"));
-  const privateKey1 = ed25519.utils.randomSecretKey(createSeed("1", "salt"));
-
-  const pubKey0 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey0) }).text();
-  const pubKey1 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey1) }).text();
-
-  const icp = keri.incept({
-    signingKeys: [pubKey0],
-    nextKeys: [pubKey1],
-  });
-
-  const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0).text()];
-
   test("Should reply with valid http response", async () => {
     const context = new TestContext();
 

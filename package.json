@@ -19,9 +19,6 @@
     "docs:build": "typedoc",
     "docs:serve": "concurrently \"serve docs\" \"typedoc --watch --preserveWatchOutput\""
   },
-  "imports": {
-    "#keri/*": "./src/*"
-  },
   "exports": {
     ".": "./dist/main.js",
     "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",

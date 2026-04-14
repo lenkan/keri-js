@@ -1,15 +1,16 @@
 import { Hono } from "hono";
-import { Attachments, Message } from "../cesr/__main__.ts";
+import { Attachments } from "../cesr/__main__.ts";
 import type { KeyEventBody } from "../core/main.ts";
-import type { EventStorage } from "./event-storage.ts";
 import { parseKeyEvents } from "./parser.ts";
-import type { Witness, WitnessEvent } from "./witness.ts";
+import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 export interface WitnessOptions {
   witness: Witness;
-  storage: EventStorage;
   logger?: (message: string, context: Record<string, unknown>) => void;
 }
+
+/** @deprecated Use WitnessOptions */
+export type AppOptions = WitnessOptions;
 
 function createResponse(events: readonly WitnessEvent[]): Response {
   const body = events
@@ -57,8 +58,8 @@ export function createApp(options: WitnessOptions): Hono {
   });
 
   app.get("/oobi", () => {
-    const response = createResponse(options.witness.events);
-    response.headers.set("Keri-Aid", options.witness.aid);
+    const response = createResponse(witness.events);
+    response.headers.set("Keri-Aid", witness.aid);
     return response;
   });
 
@@ -66,9 +67,12 @@ export function createApp(options: WitnessOptions): Hono {
     return createResponse(witness.events);
   });
 
-  app.get("/oobi/:aid/:role?/:eid?", async (c) => {
+  app.get("/oobi/:aid/:role?/:eid?", (c) => {
     const aid = c.req.param("aid");
-    const events = await options.storage.listEvents({ i: aid });
+    const events = Array.from(witness.getKeyEvents(aid)).map((event) => ({
+      message: event,
+      timestamp: event.attachments.FirstSeenReplayCouples[0]?.dt ?? new Date(0),
+    }));
 
     if (events.length === 0) {
       return c.notFound();
@@ -84,31 +88,18 @@ export function createApp(options: WitnessOptions): Hono {
     }
 
     const bodyText = await c.req.text();
-
     const receipts: WitnessEvent[] = [];
 
     for await (const witnessEvent of parseKeyEvents(bodyText + atc)) {
-      const body = witnessEvent.message.body as KeyEventBody;
-
-      if (typeof body.i !== "string" || typeof body.d !== "string" || typeof body.s !== "string") {
-        return Response.json({ error: "Bad Request" }, { status: 400 });
+      try {
+        const receipt = witness.receive(witnessEvent.message as Parameters<Witness["receive"]>[0]);
+        receipts.push({ message: receipt, timestamp: new Date() });
+      } catch (err) {
+        if (err instanceof WitnessError) {
+          return Response.json({ error: "Bad Request" }, { status: 400 });
+        }
+        throw err;
       }
-
-      if (witnessEvent.message.attachments.ControllerIdxSigs.length === 0) {
-        return Response.json({ error: "Bad Request" }, { status: 400 });
-      }
-
-      const receipt = witness.endorse(witnessEvent.message as Message<KeyEventBody>);
-      receipts.push({ message: receipt, timestamp: new Date() });
-
-      const storedMessage = new Message(witnessEvent.message.body, {
-        ControllerIdxSigs: witnessEvent.message.attachments.ControllerIdxSigs,
-        NonTransReceiptCouples: [
-          ...witnessEvent.message.attachments.NonTransReceiptCouples,
-          ...receipt.attachments.NonTransReceiptCouples,
-        ],
-      });
-      await options.storage.saveEvent({ message: storedMessage, timestamp: witnessEvent.timestamp });
     }
 
     return createResponse(receipts);

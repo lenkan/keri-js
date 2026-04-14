@@ -2,8 +2,8 @@ import assert from "node:assert";
 import { Buffer } from "node:buffer";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { Indexer } from "#keri/cesr/indexer.ts";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
+import { Indexer } from "../src/cesr/indexer.ts";
 
 describe(path.parse(import.meta.url).base, () => {
   for (const entry of vectors.filter((v) => v.type === "indexer")) {

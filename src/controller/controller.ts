@@ -16,7 +16,6 @@ import {
   Message,
   type RegistryInceptEventBody,
   type ReplyEventBody,
-  type RevokeEvent,
   type RotateEventBody,
   resolveEndRole,
   resolveLocation,
@@ -24,31 +23,19 @@ import {
   submitToWitnesses,
 } from "../core/main.ts";
 import { decodeBase64Url, encodeBase64Url } from "../encoding/base64.ts";
+import type { CredentialStorage } from "../storage/credential-storage.ts";
+import type { KeyEventStorage } from "../storage/key-event-storage.ts";
+import type { MailboxStorage } from "../storage/mailbox-storage.ts";
+import type { PrivateKeyStorage } from "../storage/private-key-storage.ts";
 import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";
 
+export type { CredentialStorage } from "../storage/credential-storage.ts";
+export type { KeyEventStorage } from "../storage/key-event-storage.ts";
+export type { MailboxStorage } from "../storage/mailbox-storage.ts";
+export type { PrivateKeyStorage } from "../storage/private-key-storage.ts";
 export type { Encrypter } from "./encrypt.ts";
 
-export interface ControllerStorage {
-  saveMessage(message: Message): void;
-
-  // Key storage
-  saveKey(publicKey: string, digest: string, encryptedPrivKey: string): void;
-  getKey(publicKey: string): string;
-  getPublicKeyByDigest(digest: string): string;
-
-  // Event queries
-  getReplies(filter?: { route?: string; eid?: string; cid?: string }): Generator<Message<ReplyEventBody>>;
-  getKeyEvents(prefix: string): Generator<KeyEvent>;
-  getCredentialEvents(id: string): Generator<Message<IssueEvent | RevokeEvent>>;
-  getRegistry(id: string): Message<RegistryInceptEventBody> | null;
-  getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEventBody>>;
-  getCredential(id: string): CredentialBody | null;
-  getCredentialsByRegistry(registryId: string): CredentialBody[];
-
-  // Mailbox cursor
-  getMailboxOffset(prefix: string, topic: string): number;
-  saveMailboxOffset(prefix: string, topic: string, offset: number): void;
-}
+export type ControllerStorage = KeyEventStorage & PrivateKeyStorage & CredentialStorage & MailboxStorage;
 
 export interface ForwardArgs {
   sender: string;
@@ -139,7 +126,7 @@ export class Controller {
   }
 
   private async signWithKey(publicKey: string, raw: Uint8Array): Promise<string> {
-    const encoded = this.#storage.getKey(publicKey);
+    const encoded = this.#storage.getEncryptedPrivateKey(publicKey);
     const encrypted = decodeBase64Url(encoded);
     const privateKey = await this.#encrypter.decrypt(encrypted);
     return sign(raw, { key: privateKey });

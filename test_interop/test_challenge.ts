@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { keri } from "#keri/main.ts";
+import { keri } from "../src/main.ts";
 import { createController, resolveWitness } from "./utils.ts";
 
 const wan = await resolveWitness("http://localhost:5642");
