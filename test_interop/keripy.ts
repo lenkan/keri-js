@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,39 +13,47 @@ export class KERIPy {
     this.name = `test_${randomBytes(4).toString("hex")}`;
   }
 
-  private run(args: string[]): string {
+  private run(args: string[]): Promise<string> {
     console.error(`kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`);
-    const result = spawnSync(KLI, [...args], { encoding: "utf8", timeout: 20000 });
-    if (result.status !== 0) {
-      throw new Error(`kli ${args[0]} failed:\n${result.stderr ?? result.stdout}`);
-    }
-    const output = result.stdout.trim();
-    console.error(output);
-    return output;
+    return new Promise((resolve, reject) => {
+      const child = spawn(KLI, args, { timeout: 20000 });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+      child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
+      child.on("close", (code) => {
+        if (code !== 0) {
+          reject(new Error(`kli ${args[0]} failed:\n${stderr || stdout}`));
+        } else {
+          const output = stdout.trim();
+          console.error(output);
+          resolve(output);
+        }
+      });
+    });
   }
 
   cleanup(): void {
     // Not implemented
   }
 
-  init(): void {
-    const args = ["init", "--name", this.name, "--nopasscode"];
-    this.run(args);
+  async init(): Promise<void> {
+    await this.run(["init", "--name", this.name, "--nopasscode"]);
   }
 
   oobi = {
-    resolve: (oobi: string, alias?: string) => {
+    resolve: async (oobi: string, alias?: string): Promise<void> => {
       const args = ["oobi", "resolve", "--name", this.name];
       if (alias) {
         args.push("--oobi-alias", alias);
       }
       args.push("--oobi", oobi);
-      this.run(args);
+      await this.run(args);
     },
   };
 
-  incept(opts: { wits?: string[]; toad?: number } = {}): void {
-    const args = [
+  async incept(opts: { wits?: string[]; toad?: number; receiptEndpoint?: boolean } = {}): Promise<void> {
+    const args: string[] = [
       "incept",
       "--name",
       this.name,
@@ -61,22 +69,27 @@ export class KERIPy {
       "1",
       "--transferable",
     ];
+
+    if (opts.receiptEndpoint) {
+      args.push("--receipt-endpoint");
+    }
+
     if (opts.toad !== undefined) {
       args.push("--toad", String(opts.toad));
     }
     for (const wit of opts.wits ?? []) {
       args.push("--wits", wit);
     }
-    this.run(args);
+    await this.run(args);
   }
 
-  aid(): string {
+  async aid(): Promise<string> {
     return this.run(["aid", "--name", this.name, "--alias", this.name]);
   }
 
   ends = {
-    add: (opts: { eid: string; role?: string }) => {
-      this.run([
+    add: async (opts: { eid: string; role?: string }): Promise<void> => {
+      await this.run([
         "ends",
         "add",
         "--name",
@@ -92,8 +105,8 @@ export class KERIPy {
   };
 
   registry = {
-    incept: (opts: { registryName: string }) => {
-      this.run([
+    incept: async (opts: { registryName: string }): Promise<void> => {
+      await this.run([
         "vc",
         "registry",
         "incept",
@@ -107,17 +120,17 @@ export class KERIPy {
     },
   };
 
-  query(opts: { prefix: string }): void {
-    this.run(["query", "--name", this.name, "--alias", this.name, "--prefix", opts.prefix]);
+  async query(opts: { prefix: string }): Promise<void> {
+    await this.run(["query", "--name", this.name, "--alias", this.name, "--prefix", opts.prefix]);
   }
 
   challenge = {
-    generate: (): string[] => {
-      const output = this.run(["challenge", "generate", "--out", "json"]);
+    generate: async (): Promise<string[]> => {
+      const output = await this.run(["challenge", "generate", "--out", "json"]);
       return JSON.parse(output) as string[];
     },
-    verify: (opts: { words: string[]; signer: string }) => {
-      this.run([
+    verify: async (opts: { words: string[]; signer: string }): Promise<void> => {
+      await this.run([
         "challenge",
         "verify",
         "--name",
@@ -133,7 +146,7 @@ export class KERIPy {
   };
 
   ipex = {
-    list: (opts: { type?: string; poll?: boolean; said?: boolean } = {}): string[] => {
+    list: async (opts: { type?: string; poll?: boolean; said?: boolean } = {}): Promise<string[]> => {
       const args = ["ipex", "list", "--name", this.name];
       if (opts.type) {
         args.push("--type", opts.type);
@@ -144,18 +157,18 @@ export class KERIPy {
       if (opts.said) {
         args.push("--said");
       }
-      const output = this.run(args);
+      const output = await this.run(args);
       return output.split("\n").filter((line) => line.trim().length > 0);
     },
-    admit: (said: string) => {
+    admit: async (said: string): Promise<void> => {
       try {
-        this.run(["ipex", "admit", "--name", this.name, "--alias", this.name, "--said", said]);
+        await this.run(["ipex", "admit", "--name", this.name, "--alias", this.name, "--said", said]);
       } catch {
         // kli ipex admit may exit non-zero but still succeed
       }
     },
-    grant: (opts: { said: string; recipient: string }) => {
-      this.run([
+    grant: async (opts: { said: string; recipient: string }): Promise<void> => {
+      await this.run([
         "ipex",
         "grant",
         "--name",
@@ -171,7 +184,7 @@ export class KERIPy {
   };
 
   vc = {
-    list: (opts: { said?: boolean; issued?: boolean } = {}) => {
+    list: async (opts: { said?: boolean; issued?: boolean } = {}): Promise<string> => {
       const args = ["vc", "list", "--name", this.name, "--alias", this.name];
       if (opts.said) {
         args.push("--said");
@@ -181,8 +194,8 @@ export class KERIPy {
       }
       return this.run(args);
     },
-    create: (opts: { registryName: string; schema: string; recipient: string; data: Record<string, unknown> }) => {
-      this.run([
+    create: async (opts: { registryName: string; schema: string; recipient: string; data: Record<string, unknown> }): Promise<void> => {
+      await this.run([
         "vc",
         "create",
         "--name",

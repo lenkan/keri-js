@@ -10,13 +10,13 @@ const wil = await resolveWitness("http://localhost:5643");
 const keripy = new KERIPy();
 
 // Set up KERIpy identity on wil
-keripy.init();
-keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${SCHEMA_SAID}`);
-keripy.oobi.resolve(`http://localhost:5643/oobi`, "wil");
-keripy.incept({ wits: [wil.aid], toad: 1 });
-keripy.ends.add({ eid: wil.aid });
+await keripy.init();
+await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${SCHEMA_SAID}`);
+await keripy.oobi.resolve(`http://localhost:5643/oobi`, "wil");
+await keripy.incept({ wits: [wil.aid], toad: 1 });
+await keripy.ends.add({ eid: wil.aid });
 
-const keripy_aid = keripy.aid();
+const keripy_aid = await keripy.aid();
 
 // Set up KeriJS identity on wan
 const controller = createController();
@@ -35,7 +35,7 @@ const keripy_oobi = `http://localhost:5643/oobi/${keripy_aid}`;
 const kerijs_oobi = `http://localhost:5642/oobi/${jsState.id}`;
 
 await controller.introduce(keripy_oobi);
-keripy.oobi.resolve(kerijs_oobi, "kerijs");
+await keripy.oobi.resolve(kerijs_oobi, "kerijs");
 
 // KeriJS creates registry and credential
 const registry = await controller.createRegistry(jsState.id);
@@ -60,15 +60,15 @@ await controller.sendCredentialArtifacts(credential, keripy_aid);
 await controller.grant({ credential });
 
 // KERIpy polls and admits the grant
-keripy.query({ prefix: jsState.id });
-keripy.ipex.list({ type: "grant", poll: true });
+await keripy.query({ prefix: jsState.id });
+await keripy.ipex.list({ type: "grant", poll: true });
 
-const grants = keripy.ipex.list({ type: "grant", said: true });
+const grants = await keripy.ipex.list({ type: "grant", said: true });
 assert.ok(grants.length > 0, "Expected at least one grant");
 
 const grantSaid = grants[grants.length - 1];
 assert(grantSaid);
-keripy.ipex.admit(grantSaid);
+await keripy.ipex.admit(grantSaid);
 
-const vcOutput = keripy.vc.list();
+const vcOutput = await keripy.vc.list();
 assert.ok(vcOutput.trim().length > 0, "Expected vc list to contain at least one credential");
