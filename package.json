@@ -23,7 +23,7 @@
     ".": "./dist/main.js",
     "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",
     "./witness": "./dist/witness/main.js",
-    "./witness/serve-node": "./dist/witness/serve-node.js"
+    "./nodejs-utils": "./dist/nodejs-utils/serve.js"
   },
   "files": [
     "dist"

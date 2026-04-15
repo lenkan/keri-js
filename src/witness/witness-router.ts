@@ -21,9 +21,6 @@ function createResponse(events: readonly WitnessEvent[]): Response {
     headers: { "Content-Type": "application/json+cesr" },
   });
 }
-const ROOT_PATTERN = new globalThis.URLPattern({ pathname: "/" });
-const PATTERN_OOBI_REQUEST = new globalThis.URLPattern({ pathname: "/oobi{/:aid}?{/:role}?{/:eid}?" });
-const PATTERN_RECEIPT_REQUEST = new globalThis.URLPattern({ pathname: "/receipts" });
 
 export function createRouter(witness: Witness): (request: Request) => Promise<Response> {
   async function handleReceiptRequest(request: Request): Promise<Response> {
@@ -37,7 +34,7 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
 
     for await (const witnessEvent of parseKeyEvents(bodyText + atc)) {
       try {
-        const receipt = witness.receive(witnessEvent.message as Parameters<Witness["receive"]>[0]);
+        const receipt = witness.receipt(witnessEvent.message as Parameters<Witness["receipt"]>[0]);
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {
@@ -68,18 +65,19 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
   }
 
   return async function handler(request: Request): Promise<Response> {
-    const { method, url } = request;
+    const { method } = request;
+    const pathname = new URL(request.url).pathname;
 
-    if (ROOT_PATTERN.test(url)) {
+    if (pathname === "/") {
       switch (method) {
         case "GET":
-          return createResponse(witness.events);
+          return Response.json({ status: "OK" });
         default:
           return new Response("Method Not Allowed", { status: 405 });
       }
     }
 
-    if (PATTERN_OOBI_REQUEST.test(url)) {
+    if (pathname.startsWith("/oobi")) {
       switch (method) {
         case "GET":
           return handleOobiRequest(request);
@@ -88,7 +86,7 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
       }
     }
 
-    if (PATTERN_RECEIPT_REQUEST.test(url)) {
+    if (pathname === "/receipts") {
       switch (method) {
         case "POST":
           return handleReceiptRequest(request);

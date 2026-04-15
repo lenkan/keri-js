@@ -86,7 +86,7 @@ export class Witness {
     this.events = events;
   }
 
-  receive(message: Message<KeyEventBody>): Message<ReceiptEventBody> {
+  receipt(message: Message<KeyEventBody>): Message<ReceiptEventBody> {
     const body = message.body;
 
     if (typeof body.i !== "string" || typeof body.d !== "string" || typeof body.s !== "string") {
