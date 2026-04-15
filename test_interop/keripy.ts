@@ -194,7 +194,12 @@ export class KERIPy {
       }
       return this.run(args);
     },
-    create: async (opts: { registryName: string; schema: string; recipient: string; data: Record<string, unknown> }): Promise<void> => {
+    create: async (opts: {
+      registryName: string;
+      schema: string;
+      recipient: string;
+      data: Record<string, unknown>;
+    }): Promise<void> => {
       await this.run([
         "vc",
         "create",
