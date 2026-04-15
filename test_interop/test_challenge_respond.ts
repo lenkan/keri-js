@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { keri } from "#keri/main.ts";
+import { keri } from "../src/main.ts";
 import { KERIPy } from "./keripy.ts";
 import { createController, resolveWitness } from "./utils.ts";
 

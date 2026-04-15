@@ -318,7 +318,7 @@ describe("SqliteControllerStorage", () => {
     test("saves and retrieves encrypted private key", () => {
       const storage = createStorage();
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED");
-      assert.equal(storage.getKey("PUBKEY"), "ENCRYPTED");
+      assert.equal(storage.getEncryptedPrivateKey("PUBKEY"), "ENCRYPTED");
     });
 
     test("retrieves public key by digest", () => {
@@ -329,7 +329,7 @@ describe("SqliteControllerStorage", () => {
 
     test("throws when key not found", () => {
       const storage = createStorage();
-      assert.throws(() => storage.getKey("UNKNOWN"), /Key not found/);
+      assert.throws(() => storage.getEncryptedPrivateKey("UNKNOWN"), /Key not found/);
     });
 
     test("throws when digest not found", () => {
@@ -341,7 +341,7 @@ describe("SqliteControllerStorage", () => {
       const storage = createStorage();
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED1");
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED2");
-      assert.equal(storage.getKey("PUBKEY"), "ENCRYPTED1");
+      assert.equal(storage.getEncryptedPrivateKey("PUBKEY"), "ENCRYPTED1");
     });
   });
 });

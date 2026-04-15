@@ -5,7 +5,6 @@ export { NodeSqliteDatabase } from "./node-sqlite.ts";
 export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
 
 import type { MessageBody } from "../../cesr/__main__.ts";
-import type { ControllerStorage } from "../../controller/controller.ts";
 import {
   Attachments,
   type CredentialBody,
@@ -17,6 +16,10 @@ import {
   type ReplyEventBody,
   type RevokeEvent,
 } from "../../core/main.ts";
+import type { CredentialStorage } from "../credential-storage.ts";
+import type { KeyEventStorage } from "../key-event-storage.ts";
+import type { MailboxStorage } from "../mailbox-storage.ts";
+import type { PrivateKeyStorage } from "../private-key-storage.ts";
 
 function parseRow<T extends MessageBody>(result: Row): Message<T> {
   if (!("event_json" in result) || typeof result.event_json !== "string") {
@@ -107,7 +110,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
   }
 }
 
-export class SqliteControllerStorage implements ControllerStorage {
+export class SqliteControllerStorage implements KeyEventStorage, PrivateKeyStorage, CredentialStorage, MailboxStorage {
   #db: Database;
 
   constructor(db: Database) {
@@ -134,7 +137,7 @@ export class SqliteControllerStorage implements ControllerStorage {
     });
   }
 
-  getKey(publicKey: string): string {
+  getEncryptedPrivateKey(publicKey: string): string {
     const statement = ["SELECT encrypted_private_key FROM key_info", "WHERE public_key = $public_key", "LIMIT 1"].join(
       "\n",
     );

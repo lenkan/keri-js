@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { keri, sign, submitToWitnesses } from "#keri/main.ts";
+import { keri, sign, submitToWitnesses } from "../src/main.ts";
 import { resolveWitness, type Witness } from "./utils.ts";
 
 const wan: Witness = await resolveWitness("http://localhost:5642");
