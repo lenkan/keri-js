@@ -56,7 +56,20 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
 
   const server = createServer(listener);
 
-  await new Promise<void>((resolve) => server.listen(port, resolve));
+  await new Promise<void>((resolve, reject) => {
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+    const onError = (err: Error) => {
+      server.off("listening", onListening);
+      reject(err);
+    };
+
+    server.once("listening", onListening);
+    server.once("error", onError);
+    server.listen(port);
+  });
 
   opts.signal?.addEventListener("abort", () => {
     server.close();
@@ -86,16 +99,22 @@ export async function startKeripyWitness(
 
   const oobiUrl = `${url}/oobi`;
   const deadline = Date.now() + 30000;
+  let ready = false;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(oobiUrl);
       if (response.ok || response.status === 404) {
+        ready = true;
         break;
       }
     } catch {
       // not ready yet
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  if (!ready) {
+    throw new Error(`KERIpy witness at ${oobiUrl} did not become reachable within 30s`);
   }
 
   return { aid, url, oobi: oobiUrl };
