@@ -714,8 +714,10 @@
         "npm:@noble/ed25519@3",
         "npm:@noble/hashes@2",
         "npm:@noble/secp256k1@3",
+        "npm:@types/debug@^4.1.13",
         "npm:@types/node@^22.15.30",
         "npm:concurrently@^9.2.1",
+        "npm:debug@^4.4.3",
         "npm:serve@^14.2.5",
         "npm:typedoc@~0.28.14",
         "npm:typescript@^6.0.2"

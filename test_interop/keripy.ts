@@ -1,3 +1,4 @@
+import type { Buffer } from "node:buffer";
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
