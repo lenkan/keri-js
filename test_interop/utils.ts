@@ -89,7 +89,6 @@ export async function startKeripyWitness(
   while (Date.now() < deadline) {
     try {
       const response = await fetch(oobiUrl);
-      console.log(`Fetched OOBI URL: ${response.status} ${response.statusText}`);
       if (response.ok || response.status === 404) {
         break;
       }

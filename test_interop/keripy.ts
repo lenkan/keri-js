@@ -1,23 +1,20 @@
-/* eslint-disable no-console */
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { styleText } from "node:util";
+import debug, { type Debugger } from "debug";
 
 const KLI = join(dirname(fileURLToPath(import.meta.url)), "..", ".venv/bin/kli");
-
-const COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red"] as const;
 
 export class KERIPy {
   readonly name: string;
   readonly base: string | undefined;
-  private readonly color: (typeof COLORS)[number];
+  private readonly debug: Debugger;
 
   constructor(opts: { base?: string } = {}) {
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
-    this.color = COLORS[randomBytes(1)[0] % COLORS.length];
+    this.debug = debug(`keripy:${this.name}`);
   }
 
   private get baseArgs(): string[] {
@@ -25,9 +22,8 @@ export class KERIPy {
   }
 
   private log(message: string): void {
-    const prefix = styleText(this.color, `[keripy ${this.name}]:`);
     for (const line of message.split("\n").filter(Boolean)) {
-      console.error(`${prefix} ${line}`);
+      this.debug(line);
     }
   }
 
