@@ -1,60 +1,11 @@
-import { cesr, Indexer, Matter, Message, parse } from "../cesr/__main__.ts";
+import { cesr, Matter, Message } from "../cesr/__main__.ts";
 import type { KeyEventBody } from "./key-event.ts";
 import { MailboxClient } from "./mailbox-client.ts";
-import type { ReceiptEvent } from "./receipt-event.ts";
-import { verifyOrThrow } from "./verify.ts";
+import { WitnessClient } from "./witness-client.ts";
 
 export interface WitnessEndpoint {
   aid: string;
   url: string;
-}
-
-class WitnessClient {
-  #url: string;
-  #fetch: typeof globalThis.fetch;
-
-  constructor(url: string, fetch?: typeof globalThis.fetch) {
-    this.#url = url;
-    this.#fetch = fetch ?? globalThis.fetch;
-  }
-
-  async receipt(event: Message<KeyEventBody>): Promise<ReceiptEvent> {
-    const url = new URL("/receipts", this.#url);
-
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error(`Invalid protocol: ${url}`);
-    }
-
-    const fetchResponse = await this.#fetch(url, {
-      method: "POST",
-      body: JSON.stringify(event.body),
-      headers: {
-        "Content-Type": "application/cesr+json",
-        "CESR-ATTACHMENT": event.attachments.text(),
-      },
-    });
-
-    if (!fetchResponse.ok || !fetchResponse.body) {
-      throw new Error(`Failed to submit event to witness: ${fetchResponse.status} ${fetchResponse.statusText}`);
-    }
-
-    for await (const incoming of parse(fetchResponse.body)) {
-      if (incoming.body.t === "rct" && incoming.body.d === event.body.d) {
-        for (const couple of incoming.attachments.NonTransReceiptCouples) {
-          const sig = Indexer.convert(Matter.parse(couple.sig), 0).text();
-          verifyOrThrow(event.raw, {
-            keys: [couple.prefix],
-            sigs: [sig],
-            threshold: "1",
-          });
-        }
-
-        return incoming as ReceiptEvent;
-      }
-    }
-
-    throw new Error(`No receipt returned from ${this.#url}`);
-  }
 }
 
 /**

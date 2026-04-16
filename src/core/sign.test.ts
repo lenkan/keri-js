@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import { Indexer, Matter } from "../cesr/__main__.ts";
 import { generateKeyPair } from "./keys.ts";
 import { sign } from "./sign.ts";
-import { verify } from "./verify.ts";
+import { verifyThreshold } from "./verify.ts";
 
 describe("sign", () => {
   const payload = new TextEncoder().encode("test message");
@@ -13,7 +13,7 @@ describe("sign", () => {
       const { publicKey, privateKey } = generateKeyPair();
       const sig = sign(payload, { key: privateKey });
       const indexedSig = Indexer.convert(Matter.parse(sig), 0).text();
-      const result = verify(payload, { keys: [publicKey], sigs: [indexedSig], threshold: "1" });
+      const result = verifyThreshold(payload, { keys: [publicKey], sigs: [indexedSig], threshold: "1" });
       assert.deepEqual(result.ok, true);
     });
 
@@ -30,7 +30,7 @@ describe("sign", () => {
     test("produces a signature that verifies against the key at the given index", () => {
       const { publicKey, privateKey } = generateKeyPair();
       const sig = sign(payload, { key: privateKey, index: 0 });
-      const result = verify(payload, { keys: [publicKey], sigs: [sig], threshold: "1" });
+      const result = verifyThreshold(payload, { keys: [publicKey], sigs: [sig], threshold: "1" });
       assert.deepEqual(result.ok, true);
     });
 

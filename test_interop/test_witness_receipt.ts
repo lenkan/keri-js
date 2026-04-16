@@ -1,7 +1,8 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
+import { parse } from "../src/cesr/__main__.ts";
 import { keri, sign, submitToWitnesses } from "../src/main.ts";
-import { createController, startKeripyWitness, type Witness } from "./utils.ts";
+import { collectAsync, createController, startKeripyWitness, type Witness } from "./utils.ts";
 
 let wan: Witness;
 let wil: Witness;
@@ -37,6 +38,14 @@ test("Create identifier with single witness", async () => {
 
   const response = await fetch(`${wan.url}/oobi/${state.id}`);
   assert.equal(response.status, 200);
+  assert(response.body, "Expected response body");
+
+  const parsed = await collectAsync(parse(response.body));
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0]?.body.i, state.id);
+  assert.equal(parsed[0].attachments.ControllerIdxSigs.length, 1);
+  assert.equal(parsed[0].attachments.WitnessIdxSigs.length, 1);
+  assert.equal(parsed[0].attachments.NonTransReceiptCouples.length, 0);
 });
 
 test("Create identifier with two witnesses", async () => {

@@ -5,7 +5,7 @@ import { parseThreshold, type Threshold } from "./threshold.ts";
 export interface VerifyOptions {
   threshold: Threshold;
   keys: string[];
-  sigs: string[];
+  sigs: string[]; // Indexer-encoded; sig.index identifies which key it signs for
 }
 
 export type VerifyResult =
@@ -18,21 +18,17 @@ export type VerifyResult =
       error: string;
     };
 
-function verifySignature(payload: Uint8Array, key: Matter, sig: Indexer | Matter): boolean {
+export function verifySignature(payload: Uint8Array, key: Matter, sig: Uint8Array): boolean {
   switch (key.code) {
     case Matter.Code.Ed25519:
     case Matter.Code.Ed25519N:
-      // TODO:
-      // We can check the code of the signature,
-      // but it does not really matter since it will be verified correctly regardless.
-      // Anyway, revisit later
-      return ed25519.verify(sig.raw, payload, key.raw);
+      return ed25519.verify(sig, payload, key.raw);
     default:
       throw new Error(`Unsupported key code: ${key.code}`);
   }
 }
 
-export function verify(payload: Uint8Array, options: VerifyOptions): VerifyResult {
+export function verifyThreshold(payload: Uint8Array, options: VerifyOptions): VerifyResult {
   const keys = options.keys.map((key) => Matter.parse(key));
   const sigs = options.sigs.map((sig) => Indexer.parse(sig));
   const threshold = parseThreshold(options.threshold, options.keys.length);
@@ -45,7 +41,7 @@ export function verify(payload: Uint8Array, options: VerifyOptions): VerifyResul
       continue;
     }
 
-    if (!verifySignature(payload, keys[idx], sig)) {
+    if (!verifySignature(payload, keys[idx], sig.raw)) {
       return { ok: false, error: `Invalid signature for key at index ${idx}` };
     }
 
@@ -59,8 +55,34 @@ export function verify(payload: Uint8Array, options: VerifyOptions): VerifyResul
   return { ok: true };
 }
 
-export function verifyOrThrow(payload: Uint8Array, options: VerifyOptions): void {
-  const result = verify(payload, options);
+export function verifyThresholdOrThrow(payload: Uint8Array, options: VerifyOptions): void {
+  const result = verifyThreshold(payload, options);
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+}
+
+/**
+ * Validates that every signature present is cryptographically valid for its key,
+ * but does NOT check that the threshold is met.
+ */
+export function verifySignatures(payload: Uint8Array, options: VerifyOptions): VerifyResult {
+  const keys = options.keys.map((key) => Matter.parse(key));
+  const sigs = options.sigs.map((sig) => Indexer.parse(sig));
+
+  for (let idx = 0; idx < keys.length; idx++) {
+    const sig = sigs.find((s) => s.index === idx);
+    if (!sig) continue;
+    if (!verifySignature(payload, keys[idx], sig.raw)) {
+      return { ok: false, error: `Invalid signature for key at index ${idx}` };
+    }
+  }
+
+  return { ok: true };
+}
+
+export function verifySignaturesOrThrow(payload: Uint8Array, options: VerifyOptions): void {
+  const result = verifySignatures(payload, options);
   if (!result.ok) {
     throw new Error(result.error);
   }

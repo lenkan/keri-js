@@ -162,10 +162,11 @@ export class SqliteControllerStorage implements KeyEventStorage, PrivateKeyStora
   }
 
   saveMessage(message: Message): void {
+    // TODO: Should we use a flag to indicate "upsert" or "insert" ?
     const statement = [
       "INSERT INTO event(event_id, protocol, type, sn, event_json, attachments)",
       "VALUES ($event_id, $protocol, $type, $sn, $event_json, $attachments)",
-      "ON CONFLICT(event_id) DO NOTHING",
+      "ON CONFLICT(event_id) DO UPDATE SET attachments = excluded.attachments",
     ].join("\n");
 
     this.#db.execute(statement, prepareRow(message));

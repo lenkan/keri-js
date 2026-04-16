@@ -76,5 +76,5 @@ test("rejects receipt with invalid witness signature", async () => {
     url: "http://witness.example",
   };
 
-  await assert.rejects(() => submitToWitnesses(event, [endpoint], fetchMock), /Invalid signature for key at index 0/);
+  await assert.rejects(() => submitToWitnesses(event, [endpoint], fetchMock), /Invalid witness signature from/);
 });

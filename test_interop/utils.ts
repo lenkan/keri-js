@@ -44,8 +44,7 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
 
   const witness = new WitnessNode({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    // SIC! Keripy requires the trailing slash to be able to contruct the path
-    url: `http://localhost:${port}/`,
+    url: `http://localhost:${port}`,
   });
 
   const router = createRouter(witness);
@@ -118,4 +117,12 @@ export async function startKeripyWitness(
   }
 
   return { aid, url, oobi: oobiUrl };
+}
+
+export async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
+  const result: T[] = [];
+  for await (const item of iterable) {
+    result.push(item);
+  }
+  return result;
 }
