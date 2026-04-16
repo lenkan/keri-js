@@ -39,6 +39,9 @@ export class KERIPy {
         output += message;
       });
       child.stderr.on("data", (d: Buffer) => this.log(d.toString()));
+      child.on("error", (err) => {
+        reject(err);
+      });
       child.on("close", (code) => {
         if (code !== 0) {
           reject(new Error(`kli ${args[0]} failed`));
@@ -167,8 +170,15 @@ export class KERIPy {
         "-T",
         String(opts.tcp),
       ];
-      this.log(`kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`);
+      const command = `kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`;
+      this.log(command);
       const child = spawn(KLI, args, { signal: opts.signal });
+      child.on("error", (error: Error) => {
+        this.log(`failed to start ${command}: ${error.message}`);
+      });
+      child.on("exit", (code, signal) => {
+        this.log(`witness process exited with code=${code ?? "null"} signal=${signal ?? "null"}`);
+      });
       child.stdout.on("data", (d: Buffer) => {
         for (const line of d.toString().split("\n").filter(Boolean)) {
           this.log(line);
