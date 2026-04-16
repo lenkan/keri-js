@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "node --test --no-warnings 'src/**/*.test.ts'",
-    "test:interop": "node --no-warnings scripts/run-scripts.ts",
+    "test:interop": "node --test --no-warnings 'test_interop/test_*.ts'",
     "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -50,8 +50,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
     "concurrently": "^9.2.1",
+    "debug": "^4.4.3",
     "serve": "^14.2.5",
     "typedoc": "^0.28.14",
     "typescript": "^6.0.2"
