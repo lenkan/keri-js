@@ -68,6 +68,7 @@ export function createListener(
     const start = Date.now();
     const url = req.url ?? "/";
     const method = req.method ?? "GET";
+    logger?.(`${method} ${url}`);
 
     res.on("finish", () => {
       const ms = Date.now() - start;
