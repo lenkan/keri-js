@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { cesr } from "../cesr/__main__.ts";
 import { formatDate } from "./events.ts";
 import { exchange } from "./routed-event.ts";
 
-describe("exchange", () => {
+describe(basename(import.meta.url), () => {
   test("should create exchange event", () => {
     const dt = formatDate(new Date());
     const event = exchange({
@@ -18,7 +19,7 @@ describe("exchange", () => {
     assert.deepStrictEqual(event.body.e, {});
   });
 
-  test("create exchange event with embedded message", () => {
+  test("should create exchange event with embedded message", () => {
     const sender = "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS";
     const event = exchange({
       sender,
@@ -44,7 +45,7 @@ describe("exchange", () => {
     });
   });
 
-  test("create exchange event with embedded message attachments", () => {
+  test("should create exchange event with embedded message attachments", () => {
     const sender = "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS";
     const embedded = exchange({
       sender,

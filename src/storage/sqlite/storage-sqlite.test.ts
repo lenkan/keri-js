@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { type InceptEventBody, type KeyEvent, type KeyState, keri, Message } from "../../core/main.ts";
@@ -16,9 +17,9 @@ function createStorage() {
   return storage;
 }
 
-describe("SqliteControllerStorage", () => {
+describe(basename(import.meta.url), () => {
   describe("iterate key events", () => {
-    test("returns events ordered by sn", () => {
+    test("should return events ordered by sn", () => {
       const storage = createStorage();
       const icp = incept();
 
@@ -54,13 +55,13 @@ describe("SqliteControllerStorage", () => {
       assert.equal((events[2].body as { s: string }).s, "2");
     });
 
-    test("returns empty array when prefix not found", () => {
+    test("should return empty array when prefix not found", () => {
       const storage = createStorage();
       const events = [...storage.getKeyEvents("UNKNOWN")];
       assert.equal(events.length, 0);
     });
 
-    test("ignores duplicate event ids on save", () => {
+    test("should ignore duplicate event ids on save", () => {
       const storage = createStorage();
       const icp = incept();
 
@@ -71,7 +72,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(events.length, 1);
     });
 
-    test("preserves SealSourceCouples attachments round-trip", () => {
+    test("should preserve SealSourceCouples attachments round-trip", () => {
       const storage = createStorage();
       const icp = incept();
       const seal = { digest: icp.body.d, snu: icp.body.s };
@@ -85,7 +86,7 @@ describe("SqliteControllerStorage", () => {
       assert.deepStrictEqual(result.attachments.SealSourceCouples, [seal]);
     });
 
-    test("preserves SealSourceTriples attachments round-trip", () => {
+    test("should preserve SealSourceTriples attachments round-trip", () => {
       const storage = createStorage();
       const icp = incept();
       const triple = { prefix: icp.body.i, snu: icp.body.s, digest: icp.body.d };
@@ -100,7 +101,7 @@ describe("SqliteControllerStorage", () => {
   });
 
   describe("iterate reply events", () => {
-    test("filters by types", () => {
+    test("should filter by types", () => {
       const icp = incept();
       const rpy = keri.reply({ r: "/loc/scheme", a: { url: "http://localhost" } });
       const storage = createStorage();
@@ -113,7 +114,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(rpyEvents[0].body.t, "rpy");
     });
 
-    test("filters by route", () => {
+    test("should filter by route", () => {
       const storage = createStorage();
       storage.saveMessage(keri.reply({ r: "/loc/scheme", a: {} }));
       storage.saveMessage(keri.reply({ r: "/end/role/add", a: {} }));
@@ -123,7 +124,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal((events[0].body as { r: string }).r, "/loc/scheme");
     });
 
-    test("filters by eid", () => {
+    test("should filter by eid", () => {
       const storage = createStorage();
       storage.saveMessage(keri.reply({ r: "/loc/scheme", a: { eid: "EID_A", url: "http://a" } }));
       storage.saveMessage(keri.reply({ r: "/loc/scheme", a: { eid: "EID_B", url: "http://b" } }));
@@ -133,7 +134,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(events[0].body.a.eid, "EID_A");
     });
 
-    test("filters by cid", () => {
+    test("should filter by cid", () => {
       const storage = createStorage();
       storage.saveMessage(keri.reply({ r: "/end/role/add", a: { cid: "CID_1", role: "controller", eid: "EID_A" } }));
       storage.saveMessage(keri.reply({ r: "/end/role/add", a: { cid: "CID_2", role: "controller", eid: "EID_B" } }));
@@ -145,12 +146,12 @@ describe("SqliteControllerStorage", () => {
   });
 
   describe("getRegistry", () => {
-    test("returns null when registry not found", () => {
+    test("should return null when registry not found", () => {
       const storage = createStorage();
       assert.equal(storage.getRegistry("UNKNOWN"), null);
     });
 
-    test("returns registry event body when found", () => {
+    test("should return registry event body when found", () => {
       const storage = createStorage();
       const icp = incept();
       const vcp = keri.registry({ ii: icp.body.i });
@@ -163,7 +164,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(result.body.ii, icp.body.i);
     });
 
-    test("returns null for non-vcp event with matching prefix", () => {
+    test("should return null for non-vcp event with matching prefix", () => {
       const storage = createStorage();
       const icp = incept();
       storage.saveMessage(icp);
@@ -173,7 +174,7 @@ describe("SqliteControllerStorage", () => {
   });
 
   describe("getRegistriesByOwner", () => {
-    test("returns registries for the given owner", () => {
+    test("should return registries for the given owner", () => {
       const storage = createStorage();
       const owner = incept();
       const reg1 = keri.registry({ ii: owner.body.i });
@@ -188,7 +189,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(registries[1].body.d, reg2.body.d);
     });
 
-    test("excludes registries belonging to other owners", () => {
+    test("should exclude registries belonging to other owners", () => {
       const storage = createStorage();
       const owner1 = incept();
       const owner2 = incept();
@@ -201,7 +202,7 @@ describe("SqliteControllerStorage", () => {
       assert.equal(registries[0].body.ii, owner1.body.i);
     });
 
-    test("returns empty array when owner has no registries", () => {
+    test("should return empty array when owner has no registries", () => {
       const storage = createStorage();
       assert.equal([...storage.getRegistriesByOwner("UNKNOWN")].length, 0);
     });
@@ -308,36 +309,36 @@ describe("SqliteControllerStorage", () => {
       assert.equal(result[1].d, credentialB.body.d);
     });
 
-    test("returns null when credential not found", () => {
+    test("should return null when credential not found", () => {
       const storage = createStorage();
       assert.equal(storage.getCredential("UNKNOWN"), null);
     });
   });
 
   describe("key storage", () => {
-    test("saves and retrieves encrypted private key", () => {
+    test("should save and retrieve encrypted private key", () => {
       const storage = createStorage();
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED");
       assert.equal(storage.getEncryptedPrivateKey("PUBKEY"), "ENCRYPTED");
     });
 
-    test("retrieves public key by digest", () => {
+    test("should retrieve public key by digest", () => {
       const storage = createStorage();
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED");
       assert.equal(storage.getPublicKeyByDigest("DIGEST"), "PUBKEY");
     });
 
-    test("throws when key not found", () => {
+    test("should throw when key not found", () => {
       const storage = createStorage();
       assert.throws(() => storage.getEncryptedPrivateKey("UNKNOWN"), /Key not found/);
     });
 
-    test("throws when digest not found", () => {
+    test("should throw when digest not found", () => {
       const storage = createStorage();
       assert.throws(() => storage.getPublicKeyByDigest("UNKNOWN"), /Key not found/);
     });
 
-    test("ignores duplicate saveKey calls", () => {
+    test("should ignore duplicate saveKey calls", () => {
       const storage = createStorage();
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED1");
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED2");
