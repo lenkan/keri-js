@@ -9,12 +9,13 @@ export interface KeyPair {
 }
 
 export interface GenerateKeyPairOptions {
+  seed?: string;
   nonTransferable?: boolean;
 }
 
-export function generateKeyPair(seed?: string, options?: GenerateKeyPairOptions): KeyPair {
-  const privateKey = seed
-    ? blake3(new TextEncoder().encode(seed), { dkLen: 32 })
+export function generateKeyPair(options?: GenerateKeyPairOptions): KeyPair {
+  const privateKey = options?.seed
+    ? blake3(new TextEncoder().encode(options.seed), { dkLen: 32 })
     : crypto.getRandomValues(new Uint8Array(32));
 
   const rawPublicKey = ed25519.getPublicKey(privateKey);

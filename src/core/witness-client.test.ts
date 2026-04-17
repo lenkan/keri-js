@@ -9,7 +9,7 @@ import { WitnessClient } from "./witness-client.ts";
 
 function makeEvent() {
   const sigKey = generateKeyPair();
-  const witnessKey = generateKeyPair(undefined, { nonTransferable: true });
+  const witnessKey = generateKeyPair({ nonTransferable: true });
 
   const event = incept({
     signingKeys: [sigKey.publicKey],
@@ -45,7 +45,7 @@ test("receipt() returns the receipt when the witness signature is valid", async 
 
 test("receipt() throws when the witness signature is invalid", async () => {
   const { event, witnessKey } = makeEvent();
-  const attackerKey = generateKeyPair(undefined, { nonTransferable: true });
+  const attackerKey = generateKeyPair({ nonTransferable: true });
 
   const rct = receipt({ d: event.body.d, i: event.body.i, s: event.body.s });
   const badSig = sign(event.raw, { key: attackerKey.privateKey });

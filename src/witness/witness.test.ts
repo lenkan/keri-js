@@ -3,15 +3,15 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Indexer, Matter, Message } from "../cesr/__main__.ts";
+import { generateKeyPair } from "../core/keys.ts";
 import { KeyEventLog, keri } from "../core/main.ts";
 import { verifySignature } from "../core/verify.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
-import { createSeed } from "./seed.ts";
 import { Witness, WitnessError } from "./witness.ts";
 
 function makeWitness(seed = "test-witness") {
   return new Witness({
-    privateKey: ed25519.utils.randomSecretKey(createSeed(seed, "salt")),
+    privateKey: generateKeyPair({ seed }).privateKey,
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
   });
 }
@@ -21,8 +21,7 @@ interface InceptOptions {
 }
 
 function createInceptEvent(options: InceptOptions = {}) {
-  const controllerKey = ed25519.utils.randomSecretKey(createSeed("controller", "salt"));
-  const controllerPub = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(controllerKey) }).text();
+  const { privateKey: controllerKey, publicKey: controllerPub } = generateKeyPair();
   const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [], wits: options.wits });
   const sig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0).text();
   return new Message(icp.body, { ControllerIdxSigs: [sig] });
@@ -77,12 +76,10 @@ test("getKeyEvents() returns empty for unknown AID", () => {
 
 test("receipt() throws WitnessError when icp controller signature is invalid", () => {
   const witness = makeWitness();
-  const controllerKey = ed25519.utils.randomSecretKey(createSeed("controller", "salt"));
-  const controllerPub = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(controllerKey) }).text();
+  const { publicKey: controllerPub } = generateKeyPair();
   const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [] });
 
-  // Sign with a different (wrong) key
-  const wrongKey = ed25519.utils.randomSecretKey(createSeed("wrong-key", "salt"));
+  const wrongKey = generateKeyPair().privateKey;
   const badSig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, wrongKey), 0).text();
   const msg = new Message(icp.body, { ControllerIdxSigs: [badSig] });
 
@@ -91,8 +88,7 @@ test("receipt() throws WitnessError when icp controller signature is invalid", (
 
 test("receipt() throws WitnessError when ixn controller signature is invalid", () => {
   const witness = makeWitness();
-  const controllerKey = ed25519.utils.randomSecretKey(createSeed("controller", "salt"));
-  const controllerPub = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(controllerKey) }).text();
+  const { privateKey: controllerKey, publicKey: controllerPub } = generateKeyPair();
   const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [] });
   const icpSig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0).text();
   witness.receipt(new Message(icp.body, { ControllerIdxSigs: [icpSig] }));
@@ -100,8 +96,7 @@ test("receipt() throws WitnessError when ixn controller signature is invalid", (
   const state = KeyEventLog.from(witness.getKeyEvents(icp.body.i)).state;
   const ixn = keri.interact(state);
 
-  // Sign with a different (wrong) key
-  const wrongKey = ed25519.utils.randomSecretKey(createSeed("wrong-key", "salt"));
+  const wrongKey = generateKeyPair().privateKey;
   const badSig = Indexer.crypto.ed25519_sig(ed25519.sign(ixn.raw, wrongKey), 0).text();
   const msg = new Message(ixn.body, { ControllerIdxSigs: [badSig] });
 
@@ -120,8 +115,10 @@ test("handleMessage() is a no-op for non-rct events", () => {
 
 test("handleMessage() is a no-op when this witness is not a backer", () => {
   const witness = makeWitness();
-  const otherKey = ed25519.utils.randomSecretKey(createSeed("other-witness", "salt"));
-  const otherPub = new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(otherKey) }).text();
+  const { privateKey: otherKey, publicKey: otherPub } = generateKeyPair({
+    seed: "other-witness",
+    nonTransferable: true,
+  });
 
   const icp = createInceptEvent({ wits: [otherPub] });
   witness.receipt(icp);
@@ -134,25 +131,23 @@ test("handleMessage() is a no-op when this witness is not a backer", () => {
 
   witness.handleMessage(rctMsg);
 
-  // event stored but WitnessIdxSigs should be empty (witness is not a backer)
   const stored = Array.from(witness.getKeyEvents(icp.body.i));
   assert.strictEqual(stored[0]?.attachments.WitnessIdxSigs.length, 0);
 });
 
 test("handleMessage() merges NonTransReceiptCouples from another witness", () => {
   const witness = makeWitness();
-  const otherKey = ed25519.utils.randomSecretKey(createSeed("other-witness", "salt"));
-  const otherPub = new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(otherKey) }).text();
+  const { privateKey: otherKey, publicKey: otherPub } = generateKeyPair({
+    seed: "other-witness",
+    nonTransferable: true,
+  });
 
-  // icp lists both witnesses as backers
   const icp = createInceptEvent({ wits: [witness.aid, otherPub] });
   witness.receipt(icp);
 
-  // After receipt() this witness has signed, but only its own WitnessIdxSig is stored
   const before = Array.from(witness.getKeyEvents(icp.body.i));
   assert.strictEqual(before[0]?.attachments.WitnessIdxSigs.length, 1);
 
-  // Simulate the other witness sending a receipt with its signature
   const otherSig = new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }).text();
   const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: icp.body.s });
   const rctMsg = new Message(rct.body, {
