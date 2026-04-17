@@ -19,21 +19,21 @@ function inceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
 describe("KeyEvent", () => {
   describe("constructor", () => {
     test("body returns the event body", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [] });
       assert.equal(event.body.t, "icp");
       assert.equal(event.body.k[0], key.publicKey);
     });
 
     test("raw returns non-empty Uint8Array", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [] });
       assert.ok(event.raw instanceof Uint8Array);
       assert.ok(event.raw.length > 0);
     });
 
     test("raw bytes encode the body", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [] });
       const text = new TextDecoder().decode(event.raw);
       assert.ok(text.includes(key.publicKey));
@@ -48,8 +48,8 @@ describe("KeyEvent", () => {
     });
 
     test("transferable single-sig AID has correct fields in spec order", () => {
-      const key0 = generateKeyPair("key0");
-      const key1 = generateKeyPair("key1");
+      const key0 = generateKeyPair({ seed: "key0" });
+      const key1 = generateKeyPair({ seed: "key1" });
       const event = incept({
         signingKeys: [key0.publicKey],
         nextKeys: [key1.publicKeyDigest],
@@ -75,7 +75,7 @@ describe("KeyEvent", () => {
     });
 
     test("non-transferable single-sig AID has correct fields in spec order", () => {
-      const ntKey = generateKeyPair("ntKey", { nonTransferable: true });
+      const ntKey = generateKeyPair({ seed: "ntKey", nonTransferable: true });
       const event = incept({ signingKeys: [ntKey.publicKey], nextKeys: [] });
 
       assert.deepStrictEqual(event.body, {
@@ -96,13 +96,13 @@ describe("KeyEvent", () => {
     });
 
     test("toad defaults to 0 with no witnesses", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [] });
       assert.equal(event.body.bt, "0");
     });
 
     test("toad defaults to 1 with one witness", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({
         signingKeys: [key.publicKey],
         nextKeys: [],
@@ -112,7 +112,7 @@ describe("KeyEvent", () => {
     });
 
     test("toad defaults to n-1 with multiple witnesses", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({
         signingKeys: [key.publicKey],
         nextKeys: [],
@@ -126,7 +126,7 @@ describe("KeyEvent", () => {
     });
 
     test("explicit toad overrides default", () => {
-      const key = generateKeyPair("k0");
+      const key = generateKeyPair({ seed: "k0" });
       const event = incept({
         signingKeys: [key.publicKey],
         nextKeys: [],
@@ -137,15 +137,15 @@ describe("KeyEvent", () => {
     });
 
     test("fields are in spec order", () => {
-      const key = generateKeyPair("k0");
-      const next = generateKeyPair("k1");
+      const key = generateKeyPair({ seed: "k0" });
+      const next = generateKeyPair({ seed: "k1" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [next.publicKeyDigest] });
       assert.deepEqual(Object.keys(event.body), ["v", "t", "d", "i", "s", "kt", "k", "nt", "n", "bt", "b", "c", "a"]);
     });
 
     test("d and i are equal for transferable single-sig AID (self-addressing)", () => {
-      const key = generateKeyPair("k0");
-      const next = generateKeyPair("k1");
+      const key = generateKeyPair({ seed: "k0" });
+      const next = generateKeyPair({ seed: "k1" });
       const event = incept({ signingKeys: [key.publicKey], nextKeys: [next.publicKeyDigest] });
       const body = event.body;
       assert.equal(body.d, body.i);
@@ -154,48 +154,48 @@ describe("KeyEvent", () => {
 
   describe("interact", () => {
     test("produces correct field order", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const event = interact(log.state);
       assert.deepEqual(Object.keys(event.body), ["v", "t", "d", "i", "s", "p", "a"]);
     });
 
     test("increments sequence number", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const event = interact(log.state);
       assert.equal(event.body.s, "1");
     });
 
     test("references prior event digest", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const event = interact(log.state);
       assert.equal(event.body.p, log.state.lastEvent.d);
     });
 
     test("identifier matches state", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const event = interact(log.state);
       assert.equal(event.body.i, log.state.identifier);
     });
 
     test("without data produces empty a field", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const event = interact(log.state);
       assert.deepEqual(event.body.a, []);
     });
 
     test("with data wraps it in a field array", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       const log = inceptLog(key0, key1);
       const anchor = { i: "EFoo", s: "0", d: "EBar" };
       const event = interact(log.state, { data: anchor });
@@ -203,8 +203,8 @@ describe("KeyEvent", () => {
     });
 
     test("chained interactions increment sequence correctly", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
       let log = inceptLog(key0, key1);
 
       for (let i = 1; i <= 3; i++) {
@@ -310,7 +310,7 @@ describe("KeyEvent", () => {
     });
 
     test("throws when state has no next key digest", () => {
-      const key0 = generateKeyPair("k0");
+      const key0 = generateKeyPair({ seed: "k0" });
       const event = incept({ signingKeys: [key0.publicKey], nextKeys: [] });
       const sigs = sign(event, [key0]);
       const log = KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
@@ -321,9 +321,9 @@ describe("KeyEvent", () => {
     });
 
     test("increments sequence from lastEvent", () => {
-      const key0 = generateKeyPair("k0");
-      const key1 = generateKeyPair("k1");
-      const key2 = generateKeyPair("k2");
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const key2 = generateKeyPair({ seed: "k2" });
       const log = inceptLog(key0, key1);
       const event = rotate(log.state, {
         signingKeys: [key1.publicKey],

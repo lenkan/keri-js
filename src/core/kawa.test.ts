@@ -11,7 +11,7 @@ import { sign } from "./sign.ts";
 test("returns witness indexed signature for single witness", async () => {
   const sigKey = generateKeyPair();
   const nextKey = generateKeyPair();
-  const witnessKey = generateKeyPair(undefined, { nonTransferable: true });
+  const witnessKey = generateKeyPair({ nonTransferable: true });
 
   const event = incept({
     signingKeys: [sigKey.publicKey],
@@ -51,8 +51,8 @@ test("returns witness indexed signature for single witness", async () => {
 test("rejects receipt with invalid witness signature", async () => {
   const sigKey = generateKeyPair();
   const nextKey = generateKeyPair();
-  const witnessKey = generateKeyPair(undefined, { nonTransferable: true });
-  const attackerKey = generateKeyPair(undefined, { nonTransferable: true });
+  const witnessKey = generateKeyPair({ nonTransferable: true });
+  const attackerKey = generateKeyPair({ nonTransferable: true });
 
   const event = incept({
     signingKeys: [sigKey.publicKey],
@@ -76,5 +76,5 @@ test("rejects receipt with invalid witness signature", async () => {
     url: "http://witness.example",
   };
 
-  await assert.rejects(() => submitToWitnesses(event, [endpoint], fetchMock), /Invalid signature for key at index 0/);
+  await assert.rejects(() => submitToWitnesses(event, [endpoint], fetchMock), /Invalid witness signature from/);
 });

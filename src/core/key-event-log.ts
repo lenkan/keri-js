@@ -1,6 +1,13 @@
 import { Message, parse } from "../cesr/__main__.ts";
 import type { InceptEventBody, InteractEventBody, KeyEventBody, KeyState, RotateEventBody } from "./key-event.ts";
-import { verifyOrThrow } from "./verify.ts";
+import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
+
+export interface AppendOptions {
+  /** Allow appending an event whose controller signatures don't meet the signing threshold. Individual signatures that are present must still be cryptographically valid. */
+  allowPartiallySigned?: boolean;
+  /** Allow appending an event whose witness signatures don't meet the backer threshold. Individual signatures that are present must still be cryptographically valid. */
+  allowPartiallyWitnessed?: boolean;
+}
 
 export type {
   InceptEventBody as InceptEvent,
@@ -22,21 +29,21 @@ export class KeyEventLog {
     return new KeyEventLog([], null);
   }
 
-  static from(events: Iterable<Message<KeyEventBody>>): KeyEventLog {
+  static from(events: Iterable<Message<KeyEventBody>>, options?: AppendOptions): KeyEventLog {
     let log = KeyEventLog.empty();
     for (const event of events) {
-      log = log.append(event);
+      log = log.append(event, options);
     }
     return log;
   }
 
-  static async parse(stream: AsyncIterable<Uint8Array>): Promise<KeyEventLog> {
+  static async parse(stream: AsyncIterable<Uint8Array>, options?: AppendOptions): Promise<KeyEventLog> {
     let log = KeyEventLog.empty();
 
     for await (const message of parse(stream)) {
       // TODO: Verify that the message is a valid KeyEventBody before casting
       if (message.body.t === "icp" || message.body.t === "ixn" || message.body.t === "rot") {
-        log = log.append(message as Message<KeyEventBody>);
+        log = log.append(message as Message<KeyEventBody>, options);
       }
     }
 
@@ -54,11 +61,14 @@ export class KeyEventLog {
     return this.#events;
   }
 
-  append(message: Message<KeyEventBody>): KeyEventLog {
+  append(message: Message<KeyEventBody>, options?: AppendOptions): KeyEventLog {
     const sigs = message.attachments.ControllerIdxSigs ?? [];
     const wigs = message.attachments.WitnessIdxSigs ?? [];
     const body = message.body;
     const bodyRaw = new Message(body).raw;
+
+    const verifySigning = options?.allowPartiallySigned ? verifySignaturesOrThrow : verifyThresholdOrThrow;
+    const verifyWitness = options?.allowPartiallyWitnessed ? verifySignaturesOrThrow : verifyThresholdOrThrow;
 
     switch (body.t) {
       case "icp": {
@@ -71,14 +81,14 @@ export class KeyEventLog {
           throw new Error("Inception event must have at least one key");
         }
 
-        verifyOrThrow(bodyRaw, {
+        verifySigning(bodyRaw, {
           keys: icp.k,
           threshold: icp.kt as string[] | string,
           sigs,
         });
 
         if (icp.b && Array.isArray(icp.b) && icp.b.length > 0) {
-          verifyOrThrow(bodyRaw, {
+          verifyWitness(bodyRaw, {
             keys: icp.b,
             threshold: icp.bt as string[] | string,
             sigs: wigs,
@@ -93,13 +103,13 @@ export class KeyEventLog {
         }
 
         const state = this.#state;
-        verifyOrThrow(bodyRaw, {
+        verifySigning(bodyRaw, {
           keys: state.signingKeys,
           threshold: state.signingThreshold as string[] | string,
           sigs,
         });
         if (state.backers && state.backers.length > 0) {
-          verifyOrThrow(bodyRaw, {
+          verifyWitness(bodyRaw, {
             keys: state.backers,
             threshold: state.backerThreshold as string[] | string,
             sigs: wigs,

@@ -8,7 +8,7 @@ import { receipt } from "./receipt-event.ts";
 import { incept as registry } from "./registry-event.ts";
 import { exchange, query, reply } from "./routed-event.ts";
 import { sign } from "./sign.ts";
-import { verify } from "./verify.ts";
+import { verifyThreshold } from "./verify.ts";
 
 export {
   Attachments,
@@ -92,7 +92,7 @@ export const keri = {
   receipt,
   utils: {
     sign,
-    verify,
+    verifyThreshold,
     formatDate,
     generateKeyPair,
     digest,

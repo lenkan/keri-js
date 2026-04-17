@@ -1,5 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Indexer, Matter, Message } from "../cesr/__main__.ts";
+import { Attachments, Indexer, Matter, Message } from "../cesr/__main__.ts";
 import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "../core/main.ts";
 import type { KeyEventStorage } from "../storage/key-event-storage.ts";
 
@@ -27,8 +27,7 @@ export class Witness {
     return this.#kel.state.identifier;
   }
 
-  static createKEL(options: WitnessOptions): KeyEventLog {
-    const privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
+  static createKEL(privateKey: Uint8Array): KeyEventLog {
     const publicKey = new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }).text();
 
     const icp = keri.incept({
@@ -45,7 +44,7 @@ export class Witness {
   constructor(options: WitnessOptions) {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
-    this.#kel = Witness.createKEL(options);
+    this.#kel = Witness.createKEL(this.#privateKey);
 
     const events: WitnessEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 
@@ -97,23 +96,84 @@ export class Witness {
       throw new WitnessError("Missing controller signatures");
     }
 
+    let kel = KeyEventLog.from(this.#storage.getKeyEvents(body.i));
+
+    try {
+      kel = kel.append(message, { allowPartiallyWitnessed: true });
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new WitnessError(`Failed to append message to KEL: ${error.message}`);
+      }
+    }
+
+    const sig = this.#sign(message);
+    const witnessIndex = kel.state.backers.indexOf(this.aid);
+
     const receipt = keri.receipt({ d: message.body.d, i: message.body.i, s: message.body.s });
     receipt.attachments = {
-      NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig: this.#sign(message) }],
+      NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig }],
     };
+
+    const WitnessIdxSigs = witnessIndex >= 0 ? [Indexer.convert(Matter.parse(sig), witnessIndex).text()] : [];
 
     const storedMessage = new Message(message.body, {
       ControllerIdxSigs: message.attachments.ControllerIdxSigs,
-      NonTransReceiptCouples: [
-        ...message.attachments.NonTransReceiptCouples,
-        ...receipt.attachments.NonTransReceiptCouples,
-      ],
+      WitnessIdxSigs,
       FirstSeenReplayCouples: [{ fnu: body.s, dt: new Date() }],
     });
 
     this.#storage.saveMessage(storedMessage);
 
     return receipt;
+  }
+
+  handleMessage(message: Message): void {
+    const body = message.body as KeyEventBody;
+
+    if (body.t !== "rct") {
+      return;
+    }
+
+    if (typeof body.i !== "string" || typeof body.d !== "string") {
+      return;
+    }
+
+    const kel = KeyEventLog.from(this.#storage.getKeyEvents(body.i), {
+      // TODO: This should only be for the event that is this receit
+      allowPartiallyWitnessed: true,
+    });
+
+    if (!kel.state.backers.includes(this.aid)) {
+      return;
+    }
+
+    const storedEvent = kel.events.find((event) => event.body.d === body.d);
+    if (!storedEvent) {
+      return;
+    }
+
+    const existingWigsByIndex = new Map<number, string>();
+    for (const sig of storedEvent.attachments.WitnessIdxSigs) {
+      const indexer = Indexer.parse(sig);
+      existingWigsByIndex.set(indexer.index, sig);
+    }
+
+    for (const couple of message.attachments.NonTransReceiptCouples) {
+      const witnessIndex = kel.state.backers.indexOf(couple.prefix);
+      if (witnessIndex === -1) {
+        continue;
+      }
+      const wigSig = Indexer.convert(Matter.parse(couple.sig), witnessIndex).text();
+      existingWigsByIndex.set(witnessIndex, wigSig);
+    }
+
+    const mergedAttachments = new Attachments({
+      ControllerIdxSigs: storedEvent.attachments.ControllerIdxSigs,
+      WitnessIdxSigs: Array.from(existingWigsByIndex.values()),
+      FirstSeenReplayCouples: storedEvent.attachments.FirstSeenReplayCouples,
+    });
+
+    this.#storage.saveMessage(new Message(storedEvent.body, mergedAttachments));
   }
 
   *getKeyEvents(aid: string): Generator<KeyEvent> {

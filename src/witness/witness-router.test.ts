@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, Indexer, Matter } from "../cesr/__main__.ts";
+import { generateKeyPair } from "../core/keys.ts";
 import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
 import { parseKeyEvents } from "./parser.ts";
@@ -24,7 +25,7 @@ async function collect<T>(iter: AsyncIterable<T>): Promise<T[]> {
 function makeWitness(): Witness {
   const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
   return new Witness({
-    privateKey: ed25519.utils.randomSecretKey(crypto.getRandomValues(new Uint8Array(32))),
+    privateKey: generateKeyPair().privateKey,
     url: "http://localhost:5631",
     storage,
   });
@@ -59,11 +60,8 @@ class TestContext {
   }
 }
 
-const privateKey0 = ed25519.utils.randomSecretKey(crypto.getRandomValues(new Uint8Array(32)));
-const privateKey1 = ed25519.utils.randomSecretKey(crypto.getRandomValues(new Uint8Array(32)));
-
-const pubKey0 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey0) }).text();
-const pubKey1 = new Matter({ code: Matter.Code.Ed25519, raw: ed25519.getPublicKey(privateKey1) }).text();
+const { privateKey: privateKey0, publicKey: pubKey0 } = generateKeyPair();
+const { publicKey: pubKey1 } = generateKeyPair();
 
 const icp = keri.incept({
   signingKeys: [pubKey0],
@@ -115,6 +113,77 @@ describe("Witness oobi request", () => {
     const message = messages.find((m) => m.message.body.r === "/end/role/add");
     assert.strictEqual(message?.message.body.t, "rpy");
     assert.strictEqual(message?.message.body.r, "/end/role/add");
+  });
+});
+
+describe("Witness message request", () => {
+  test("Should return 400 when CESR-ATTACHMENT header is missing", async () => {
+    const context = new TestContext();
+    const response = await context.fetch(
+      request("/", {
+        method: "POST",
+        body: new TextDecoder().decode(icp.raw),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    assert.strictEqual(response.status, 400);
+  });
+
+  test("Should return 200 for a valid rct message", async () => {
+    const context = new TestContext();
+    await context.receipt(icp, sigs);
+
+    const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: "0" });
+    const rctAtc = new Attachments({ NonTransReceiptCouples: [] });
+
+    const response = await context.fetch(
+      request("/", {
+        method: "POST",
+        body: new TextDecoder().decode(rct.raw),
+        headers: { "CESR-ATTACHMENT": rctAtc.text() },
+      }),
+    );
+
+    assert.strictEqual(response.status, 200);
+  });
+
+  test("Should merge witness receipt signatures into stored event", async () => {
+    const context1 = new TestContext();
+    const context2 = new TestContext();
+
+    const icpWithWitnesses = keri.incept({
+      signingKeys: [pubKey0],
+      nextKeys: [pubKey1],
+      wits: [context1.witness.aid, context2.witness.aid],
+      toad: 1,
+    });
+    const icpSigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icpWithWitnesses.raw, privateKey0), 0).text()];
+
+    await context1.receipt(icpWithWitnesses, icpSigs);
+    const rctResponse = await context2.receipt(icpWithWitnesses, icpSigs);
+    assert(rctResponse.body);
+    const [rctMessage] = await collect(parseKeyEvents(rctResponse.body));
+
+    const rct = keri.receipt({ d: icpWithWitnesses.body.d, i: icpWithWitnesses.body.i, s: "0" });
+    const rctAtc = new Attachments({
+      NonTransReceiptCouples: rctMessage.message.attachments.NonTransReceiptCouples,
+    });
+
+    const response = await context1.fetch(
+      request("/", {
+        method: "POST",
+        body: new TextDecoder().decode(rct.raw),
+        headers: { "CESR-ATTACHMENT": rctAtc.text() },
+      }),
+    );
+
+    assert.strictEqual(response.status, 200);
+
+    const oobiResponse = await context1.fetch(request(`/oobi/${icpWithWitnesses.body.i}`, { method: "GET" }));
+    assert(oobiResponse.body);
+    const messages = await collect(parseKeyEvents(oobiResponse.body));
+    assert(messages.length > 0);
+    assert.strictEqual(messages[0].message.attachments.WitnessIdxSigs.length, 2);
   });
 });
 

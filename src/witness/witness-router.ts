@@ -64,6 +64,20 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
     return response;
   }
 
+  async function handleMessageRequest(request: Request): Promise<Response> {
+    const atc = request.headers.get("CESR-ATTACHMENT");
+    if (!atc) {
+      return Response.json({ error: "Bad Request" }, { status: 400 });
+    }
+
+    const bodyText = await request.text();
+    for await (const event of parseKeyEvents(bodyText + atc)) {
+      witness.handleMessage(event.message);
+    }
+
+    return new Response(null, { status: 200 });
+  }
+
   return async function handler(request: Request): Promise<Response> {
     const { method } = request;
     const pathname = new URL(request.url).pathname;
@@ -72,6 +86,9 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
       switch (method) {
         case "GET":
           return Response.json({ status: "OK" });
+        case "POST": {
+          return handleMessageRequest(request);
+        }
         default:
           return new Response("Method Not Allowed", { status: 405 });
       }
