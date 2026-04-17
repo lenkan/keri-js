@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Matter } from "../cesr/__main__.ts";
 import { incept } from "./registry-event.ts";
 
-describe("Registry", () => {
-  test("Should create registry incept event", () => {
+describe(basename(import.meta.url), () => {
+  test("should create registry incept event", () => {
     const event = incept({
       ii: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",
     });
@@ -20,7 +21,7 @@ describe("Registry", () => {
     assert.equal(event.body.n.slice(0, 2), "0A");
   });
 
-  test("Should set NB (no backer) configuration", () => {
+  test("should set NB (no backer) configuration", () => {
     const event = incept({
       ii: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",
     });
@@ -28,7 +29,7 @@ describe("Registry", () => {
     assert.deepEqual(event.body.c, ["NB"]);
   });
 
-  test("Should generate salt for registry event", () => {
+  test("should generate salt for registry event", () => {
     const event = incept({
       ii: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",
     });

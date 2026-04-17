@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { issue } from "./credential-event.ts";
 
-describe("Credential events", () => {
-  test("Should create issuance event", () => {
+describe(basename(import.meta.url), () => {
+  test("should create issuance event", () => {
     const event = issue({
       i: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS",
       ri: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "../cesr/__main__.ts";
 import { incept, interact, type KeyEvent, rotate } from "./key-event.ts";
@@ -17,8 +18,8 @@ function inceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
   return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
 }
 
-describe("KeyEventLog", () => {
-  test("append icp creates log at sequence 0", () => {
+describe(basename(import.meta.url), () => {
+  test("should create log at sequence 0 when appending icp", () => {
     const key0 = generateKeyPair();
     const key1 = generateKeyPair();
 
@@ -26,7 +27,7 @@ describe("KeyEventLog", () => {
     assert.equal(log.state.lastEvent.s, "0");
   });
 
-  test("append icp throws on missing signatures", () => {
+  test("should throw on missing signatures when appending icp", () => {
     const key0 = generateKeyPair();
     const key1 = generateKeyPair();
 
@@ -36,7 +37,7 @@ describe("KeyEventLog", () => {
     });
   });
 
-  test("append ixn advances sequence", () => {
+  test("should advance sequence when appending ixn", () => {
     const key0 = generateKeyPair();
     const key1 = generateKeyPair();
 
@@ -47,7 +48,7 @@ describe("KeyEventLog", () => {
     assert.equal(log2.state.lastEvent.s, "1");
   });
 
-  test("append rot advances sequence and updates keys", () => {
+  test("should advance sequence and update keys when appending rot", () => {
     const key0 = generateKeyPair();
     const key1 = generateKeyPair();
 
@@ -59,7 +60,7 @@ describe("KeyEventLog", () => {
     assert.deepEqual(log2.state.signingKeys, [key1.publicKey]);
   });
 
-  test("fromAsync parses alice.cesr into a valid key event log", async () => {
+  test("should parse alice.cesr into a valid key event log", async () => {
     const stream = createReadStream(new URL("../../fixtures/alice.cesr", import.meta.url));
     const log = await KeyEventLog.parse(stream);
 
@@ -70,7 +71,7 @@ describe("KeyEventLog", () => {
   });
 
   describe("allowPartiallySigned", () => {
-    test("allows appending icp with no controller sigs", () => {
+    test("should allow appending icp with no controller sigs", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const event = incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
@@ -78,7 +79,7 @@ describe("KeyEventLog", () => {
       assert.equal(log.state.lastEvent.s, "0");
     });
 
-    test("still throws on cryptographically invalid controller sig", () => {
+    test("should still throw on cryptographically invalid controller sig", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const wrongKey = generateKeyPair();
@@ -95,7 +96,7 @@ describe("KeyEventLog", () => {
   });
 
   describe("allowPartiallyWitnessed", () => {
-    test("allows appending witnessed icp with no witness sigs", () => {
+    test("should allow appending witnessed icp with no witness sigs", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const witnessKey = generateKeyPair();
@@ -111,7 +112,7 @@ describe("KeyEventLog", () => {
       assert.equal(log.state.lastEvent.s, "0");
     });
 
-    test("throws on missing witness sigs by default", () => {
+    test("should throw on missing witness sigs by default", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const witnessKey = generateKeyPair();
@@ -126,7 +127,7 @@ describe("KeyEventLog", () => {
       });
     });
 
-    test("still throws on cryptographically invalid witness sig", () => {
+    test("should still throw on cryptographically invalid witness sig", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const witnessKey = generateKeyPair();

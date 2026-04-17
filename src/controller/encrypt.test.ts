@@ -1,9 +1,10 @@
 import assert from "node:assert";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { PassphraseEncrypter } from "./encrypt.ts";
 
-describe("Passphrase encrypter", () => {
-  test("derive key", async () => {
+describe(basename(import.meta.url), () => {
+  test("should encrypt and decrypt successfully", async () => {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 

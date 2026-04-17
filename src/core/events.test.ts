@@ -1,42 +1,43 @@
 import assert from "node:assert/strict";
+import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeEvent } from "./events.ts";
 
-describe("encodeEvent", () => {
-  test("Should add a version string field", () => {
+describe(basename(import.meta.url), () => {
+  test("should add a version string field", () => {
     const result = encodeEvent({ d: "", t: "icp" });
     assert.ok(result.v.startsWith("KERI10JSON"));
   });
 
-  test("Should compute a SAID for the d field", () => {
+  test("should compute a SAID for the d field", () => {
     const result = encodeEvent({ d: "", t: "icp" });
     assert.equal(result.d.length, 44);
     assert.equal(result.d.slice(0, 1), "E");
   });
 
-  test("Should be deterministic", () => {
+  test("should be deterministic", () => {
     const a = encodeEvent({ d: "", t: "icp", i: "abc" });
     const b = encodeEvent({ d: "", t: "icp", i: "abc" });
     assert.equal(a.d, b.d);
   });
 
-  test("Should preserve other fields", () => {
+  test("should preserve other fields", () => {
     const result = encodeEvent({ d: "", t: "icp", i: "somevalue" });
     assert.equal(result.t, "icp");
     assert.equal(result.i, "somevalue");
   });
 
-  test("Should throw if a required label is missing", () => {
+  test("should throw if a required label is missing", () => {
     assert.throws(() => encodeEvent({ t: "icp" }), /missing label 'd'/i);
   });
 
-  test("Should support custom labels", () => {
+  test("should support custom labels", () => {
     const result = encodeEvent({ d: "", i: "", t: "icp" }, { labels: ["d", "i"] });
     assert.equal(result.d.length, 44);
     assert.equal(result.i, result.d);
   });
 
-  test("Should encode version string with custom protocol", () => {
+  test("should encode version string with custom protocol", () => {
     const result = encodeEvent({ d: "", t: "vcp" }, { protocol: "ACDC" });
     assert.ok(result.v.startsWith("ACDC10JSON"));
   });

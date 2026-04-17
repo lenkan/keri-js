@@ -1,9 +1,10 @@
 import assert from "node:assert";
+import { basename } from "node:path";
 import test, { describe } from "node:test";
 import { createCredential } from "./credential.ts";
 
-describe("Credential event", () => {
-  test("Should create credential event", () => {
+describe(basename(import.meta.url), () => {
+  test("should create credential event", () => {
     const event = createCredential({
       i: "EAK1H-RJM-mRzgNa7oNTv71FBvJERCHLunYI9ja9KW7w",
       ri: "EEXV71avZSL6fKJnQky_oxHqRPlNYR3zNGD-OpJe0DJa",

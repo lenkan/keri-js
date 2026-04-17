@@ -13,7 +13,7 @@ KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure
 - **`controller/`** — Identifier controller
 - **`encoding/`** — Base64 and UTF-8 encoding utilities
 - **`storage/`** — Storage backends (e.g. SQLite)
-- **`witness/`** — Witness node implementation (HTTP server via Hono)
+- **`witness/`** — Witness node implementation
 
 ## Commands
 
@@ -28,7 +28,7 @@ npm run test:interop      # Interop tests (requires KERIpy demo running)
 npm run test:vector       # Cross-impl test vectors (test_vectors/)
 ```
 
-Tests use the native Node.js test runner (`--test`). There is no Jest/Vitest. Unit test files live alongside source files (`src/**/*.test.ts`).
+Tests use the native Node.js test runner. Unit test files live alongside source files (`src/**/*.test.ts`).
 
 ## TypeScript & Code Style
 
