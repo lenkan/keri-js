@@ -1,5 +1,4 @@
-import { decodeBase64Int, decodeBase64Url, encodeBase64Url } from "../encoding/base64.ts";
-import { decodeUtf8, encodeUtf8 } from "../encoding/utf8.ts";
+import { decodeBase64Int, decodeBase64Url, decodeUtf8, encodeBase64Url, encodeUtf8 } from "#keri/encoding";
 import { concat } from "./array-utils.ts";
 import { MatterCode, MatterTableInit } from "./codes.ts";
 import {

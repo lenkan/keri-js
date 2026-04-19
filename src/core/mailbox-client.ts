@@ -1,4 +1,4 @@
-import { type Message, parse } from "../cesr/__main__.ts";
+import { type Message, parse } from "#keri/cesr";
 
 export interface MailboxClientOptions {
   /**

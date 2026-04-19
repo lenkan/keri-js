@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
-import { Controller } from "../src/controller/controller.ts";
-import { createRouter, Witness as WitnessNode } from "../src/main.ts";
-import { createListener } from "../src/nodejs-utils/serve.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/storage/sqlite/storage-sqlite.ts";
+import { Controller } from "#keri";
+import { createListener } from "#keri/nodejs-utils";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
+import { createRouter, Witness as WitnessNode } from "#keri/witness";
 import { KERIPy } from "./keripy.ts";
 
 export interface Witness {

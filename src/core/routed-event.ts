@@ -1,4 +1,4 @@
-import { Attachments, Message } from "../cesr/__main__.ts";
+import { Attachments, Message } from "#keri/cesr";
 import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
 import { saidify } from "./said.ts";
 

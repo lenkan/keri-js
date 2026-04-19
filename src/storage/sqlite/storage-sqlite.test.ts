@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
-import { type InceptEventBody, type KeyEvent, type KeyState, keri, Message } from "../../core/main.ts";
+import { type InceptEventBody, type KeyEvent, type KeyState, keri, Message } from "#keri/core";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "./storage-sqlite.ts";
 
 function incept(): KeyEvent<InceptEventBody> {

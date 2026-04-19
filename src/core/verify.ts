@@ -1,5 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Indexer, Matter } from "../cesr/__main__.ts";
+import { Indexer, Matter } from "#keri/cesr";
 import { parseThreshold, type Threshold } from "./threshold.ts";
 
 export interface VerifyOptions {

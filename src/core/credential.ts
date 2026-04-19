@@ -1,4 +1,4 @@
-import { Message, VersionString } from "../cesr/__main__.ts";
+import { Message, VersionString } from "#keri/cesr";
 import { encodeEvent } from "./events.ts";
 import { saidify } from "./said.ts";
 

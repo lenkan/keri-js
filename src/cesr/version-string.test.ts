@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { encodeUtf8 } from "../encoding/utf8.ts";
+import { encodeUtf8 } from "#keri/encoding";
 import { VersionString } from "./version-string.ts";
 
 describe(basename(import.meta.url), () => {

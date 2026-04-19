@@ -1,7 +1,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Attachments, Indexer, Matter, Message } from "../cesr/__main__.ts";
-import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "../core/main.ts";
-import type { KeyEventStorage } from "../storage/key-event-storage.ts";
+import { Attachments, Indexer, Matter, Message } from "#keri/cesr";
+import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "#keri/core";
+import type { KeyEventStorage } from "#keri/storage";
 
 export interface WitnessOptions {
   privateKey?: Uint8Array;

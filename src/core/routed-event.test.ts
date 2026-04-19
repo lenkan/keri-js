@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { cesr } from "../cesr/__main__.ts";
+import { cesr } from "#keri/cesr";
 import { formatDate } from "./events.ts";
 import { exchange } from "./routed-event.ts";
 

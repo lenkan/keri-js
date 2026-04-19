@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Indexer, Matter } from "../cesr/__main__.ts";
+import { Indexer, Matter } from "#keri/cesr";
 import { generateKeyPair } from "./keys.ts";
 import { sign } from "./sign.ts";
 import { verifyThreshold } from "./verify.ts";

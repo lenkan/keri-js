@@ -1,4 +1,4 @@
-import { decodeUtf8 } from "../encoding/utf8.ts";
+import { decodeUtf8 } from "#keri/encoding";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import {
   decodeText,

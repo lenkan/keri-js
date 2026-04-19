@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "../src/cesr/parse.ts";
+import { parse } from "#keri/cesr";
 import { collectAsync, createController, startKerijsWitness, type Witness } from "./utils.ts";
 
 let wan: Witness;

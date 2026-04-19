@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
-import { encodeUtf8 } from "../encoding/utf8.ts";
+import { encodeUtf8 } from "#keri/encoding";
 import { concat } from "./array-utils.ts";
 import { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";

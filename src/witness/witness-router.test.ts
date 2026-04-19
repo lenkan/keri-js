@@ -3,10 +3,9 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Attachments, Indexer, Matter, type Message, parse } from "../cesr/__main__.ts";
-import { generateKeyPair } from "../core/keys.ts";
-import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
+import { Attachments, Indexer, Matter, type Message, parse } from "#keri/cesr";
+import { generateKeyPair, type InceptEventBody, type KeyEvent, keri } from "#keri/core";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { Witness } from "./witness.ts";
 import { createRouter } from "./witness-router.ts";
 

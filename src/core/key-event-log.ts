@@ -1,4 +1,4 @@
-import { Message, parse } from "../cesr/__main__.ts";
+import { Message, parse } from "#keri/cesr";
 import type { InceptEventBody, InteractEventBody, KeyEventBody, KeyState, RotateEventBody } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 

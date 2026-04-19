@@ -1,4 +1,4 @@
-import { decodeBase64Int, encodeBase64Int } from "../encoding/base64.ts";
+import { decodeBase64Int, encodeBase64Int } from "#keri/encoding";
 import { IndexCode, IndexTableInit } from "./codes.ts";
 import {
   decodeText,

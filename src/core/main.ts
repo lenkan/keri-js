@@ -24,7 +24,7 @@ export {
   type TransIdxSigGroup,
   type TransLastIdxSigGroup,
   VersionString,
-} from "../cesr/__main__.ts";
+} from "#keri/cesr";
 export type {
   Credential,
   CredentialBody,
@@ -57,6 +57,8 @@ export type {
 } from "./key-event.ts";
 export { KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
+export { generateKeyPair } from "./keys.ts";
+
 export type { MailboxClientOptions } from "./mailbox-client.ts";
 export { MailboxClient } from "./mailbox-client.ts";
 export type { ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
@@ -73,6 +75,7 @@ export type { SignOptions } from "./sign.ts";
 export { sign } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";
 export type { VerifyOptions, VerifyResult } from "./verify.ts";
+export { verifySignature } from "./verify.ts";
 
 export const keri = {
   // Key events

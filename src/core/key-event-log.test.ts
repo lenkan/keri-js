@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Message } from "../cesr/__main__.ts";
+import { Message } from "#keri/cesr";
 import { incept, interact, type KeyEvent, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";

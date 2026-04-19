@@ -1,4 +1,4 @@
-import type { Message } from "../cesr/__main__.ts";
+import type { Message } from "#keri/cesr";
 import type { ReplyEventBody } from "./routed-event.ts";
 
 export interface EndRoleRecord extends Record<string, unknown> {
