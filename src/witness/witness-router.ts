@@ -1,5 +1,5 @@
-import { Attachments, parse } from "../cesr/__main__.ts";
-import type { KeyEvent, KeyEventBody } from "../core/main.ts";
+import { Attachments, parse } from "#keri/cesr";
+import type { KeyEvent, KeyEventBody } from "#keri/core";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 function createResponse(events: readonly WitnessEvent[]): Response {

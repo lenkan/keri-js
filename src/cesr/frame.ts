@@ -1,5 +1,11 @@
-import { decodeBase64Int, decodeBase64Url, encodeBase64Int, encodeBase64Url } from "../encoding/base64.ts";
-import { decodeUtf8, encodeUtf8 } from "../encoding/utf8.ts";
+import {
+  decodeBase64Int,
+  decodeBase64Url,
+  decodeUtf8,
+  encodeBase64Int,
+  encodeBase64Url,
+  encodeUtf8,
+} from "#keri/encoding";
 import { prepad, toArray } from "./array-utils.ts";
 import { lshift } from "./shifting.ts";
 

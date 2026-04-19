@@ -1,5 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { cesr } from "../cesr/__main__.ts";
+import { cesr } from "#keri/cesr";
 
 function calculateSaid(event: Record<string, unknown>): string {
   const digest = cesr.crypto.blake3_256(

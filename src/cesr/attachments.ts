@@ -1,4 +1,4 @@
-import { encodeUtf8 } from "../encoding/utf8.ts";
+import { encodeUtf8 } from "#keri/encoding";
 import { AttachmentsReader } from "./attachments-reader.ts";
 import { Counter } from "./counter.ts";
 import type { Frame } from "./frame.ts";

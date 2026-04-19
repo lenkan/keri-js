@@ -1,4 +1,4 @@
-import { decodeUtf8, encodeUtf8 } from "../encoding/utf8.ts";
+import { decodeUtf8, encodeUtf8 } from "#keri/encoding";
 import { Attachments, type AttachmentsInit } from "./attachments.ts";
 import { VersionString } from "./version-string.ts";
 

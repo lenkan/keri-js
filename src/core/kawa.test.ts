@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, mock, test } from "node:test";
-import { Message } from "../cesr/__main__.ts";
+import { Message } from "#keri/cesr";
 import type { WitnessEndpoint } from "./kawa.ts";
 import { submitToWitnesses } from "./kawa.ts";
 import { incept } from "./key-event.ts";

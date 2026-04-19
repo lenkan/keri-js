@@ -1,4 +1,4 @@
-import { cesr, Matter, Message } from "../cesr/__main__.ts";
+import { cesr, Matter, Message } from "#keri/cesr";
 import type { KeyEventBody } from "./key-event.ts";
 import { MailboxClient } from "./mailbox-client.ts";
 import { WitnessClient } from "./witness-client.ts";

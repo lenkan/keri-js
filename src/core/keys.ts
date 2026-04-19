@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { blake3 } from "@noble/hashes/blake3.js";
-import { cesr } from "../cesr/__main__.ts";
+import { cesr } from "#keri/cesr";
 
 export interface KeyPair {
   privateKey: Uint8Array;

@@ -1,4 +1,4 @@
-import { Matter, Message, VersionString } from "../cesr/__main__.ts";
+import { Matter, Message, VersionString } from "#keri/cesr";
 import { saidify } from "./said.ts";
 
 export const DUMMY_VERSION = VersionString.encode({ protocol: "KERI", legacy: true, kind: "JSON" });

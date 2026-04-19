@@ -1,4 +1,4 @@
-import type { KeyEvent, Message, ReplyEventBody } from "../core/main.ts";
+import type { KeyEvent, Message, ReplyEventBody } from "#keri/core";
 
 export interface KeyEventStorage {
   saveMessage(message: Message): void;

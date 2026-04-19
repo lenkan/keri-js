@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "../src/cesr/__main__.ts";
-import { keri, sign, submitToWitnesses } from "../src/main.ts";
+import { parse } from "#keri/cesr";
+import { keri, submitToWitnesses } from "#keri/core";
 import { collectAsync, createController, startKeripyWitness, type Witness } from "./utils.ts";
 
 let wan: Witness;
@@ -111,7 +111,7 @@ test("Single witness returns one witness receipt", async () => {
     toad: 1,
   });
 
-  event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: key.privateKey, index: 0 }));
+  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
 
   const wigs = await submitToWitnesses(event, [wan]);
   assert.strictEqual(wigs.length, 1);
@@ -129,7 +129,7 @@ test("Two witnesses return two witness receipts", async () => {
     toad: 2,
   });
 
-  event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: key.privateKey, index: 0 }));
+  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
 
   const wigs = await submitToWitnesses(event, [wan, wil]);
   assert.strictEqual(wigs.length, 2);
@@ -147,7 +147,7 @@ test("Three witnesses return three witness receipts", async () => {
     toad: 3,
   });
 
-  event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: key.privateKey, index: 0 }));
+  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
 
   const wigs = await submitToWitnesses(event, [wan, wil, wes]);
   assert.strictEqual(wigs.length, 3);

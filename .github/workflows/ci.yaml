@@ -40,7 +40,10 @@ jobs:
         run: npm run build
 
       - name: Run tests
-        run: node --test
+        run: npm run test
+ 
+      - name: Run vector test
+        run: npm run test:vector
 
   interop:
     runs-on: ubuntu-24.04
@@ -92,5 +95,5 @@ jobs:
         run: deno check src
 
       - name: Run test in deno
-        run: deno test --allow-net --allow-read
+        run: deno test --allow-net --allow-read --conditions=source
 

@@ -3,9 +3,9 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
-import { Attachments, cesr } from "../cesr/__main__.ts";
-import { type EndRoleRecord, keri, type LocationRecord } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
+import { Attachments, cesr } from "#keri/cesr";
+import { type EndRoleRecord, keri, type LocationRecord } from "#keri/core";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { Controller } from "./controller.ts";
 
 class TestController extends Controller {

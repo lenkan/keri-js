@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Message } from "../cesr/__main__.ts";
+import { Message } from "#keri/cesr";
 import { incept, type KeyEvent } from "./key-event.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
