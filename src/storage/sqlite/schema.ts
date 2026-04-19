@@ -32,6 +32,18 @@ const migrations: string[][] = [
       ")",
     ].join("\n"),
   ],
+  // Migration 3: mailbox entry (server-side message store)
+  [
+    [
+      "CREATE TABLE IF NOT EXISTS mailbox_entry (",
+      "  id          INTEGER PRIMARY KEY AUTOINCREMENT,",
+      "  pre         TEXT NOT NULL,",
+      "  topic       TEXT NOT NULL,",
+      "  event_json  JSON NOT NULL,",
+      "  attachments TEXT",
+      ")",
+    ].join("\n"),
+  ],
 ];
 
 export function migrate(db: Database): void {

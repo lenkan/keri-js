@@ -18,6 +18,7 @@ import {
 } from "#keri/core";
 import type { CredentialStorage } from "../credential-storage.ts";
 import type { KeyEventStorage } from "../key-event-storage.ts";
+import type { MailboxServerStorage } from "../mailbox-server-storage.ts";
 import type { MailboxStorage } from "../mailbox-storage.ts";
 import type { PrivateKeyStorage } from "../private-key-storage.ts";
 
@@ -110,7 +111,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
   }
 }
 
-export class SqliteControllerStorage implements KeyEventStorage, PrivateKeyStorage, CredentialStorage, MailboxStorage {
+export class SqliteControllerStorage implements KeyEventStorage, PrivateKeyStorage, CredentialStorage, MailboxStorage, MailboxServerStorage {
   #db: Database;
 
   constructor(db: Database) {
@@ -287,5 +288,29 @@ export class SqliteControllerStorage implements KeyEventStorage, PrivateKeyStora
         "ON CONFLICT(prefix, topic) DO UPDATE SET offset = $offset",
       { prefix, topic, offset },
     );
+  }
+
+  saveMailboxEntry(pre: string, topic: string, message: Message): void {
+    this.#db.execute(
+      "INSERT INTO mailbox_entry(pre, topic, event_json, attachments) VALUES ($pre, $topic, $event_json, $attachments)",
+      {
+        pre,
+        topic,
+        event_json: JSON.stringify(message.body),
+        attachments: encodeText(message.attachments.frames()),
+      },
+    );
+  }
+
+  *getMailboxEntries(pre: string, topic: string, offset: number): Generator<Message> {
+    const statement = [
+      "SELECT event_json, attachments FROM mailbox_entry",
+      "WHERE pre = $pre AND topic = $topic AND id > $offset",
+      "ORDER BY id ASC",
+    ].join("\n");
+
+    for (const row of this.#db.iterate(statement, { pre, topic, offset })) {
+      yield parseRow(row);
+    }
   }
 }
