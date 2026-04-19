@@ -92,7 +92,7 @@ jobs:
         run: deno install --frozen
  
       - name: Deno typecheck
-        run: deno check src
+        run: deno check --conditions=source src
 
       - name: Run test in deno
         run: deno test --allow-net --allow-read --conditions=source
