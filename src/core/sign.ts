@@ -1,5 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { cesr, Indexer } from "#keri/cesr";
+import { Indexer, Matter } from "#keri/cesr";
 
 export interface SignOptions {
   key: Uint8Array;
@@ -13,5 +13,5 @@ export function sign(payload: Uint8Array, options: SignOptions): string {
     return Indexer.crypto.ed25519_sig(signature, options.index).text();
   }
 
-  return cesr.crypto.ed25519_sig(signature).text();
+  return Matter.crypto.ed25519_sig(signature).text();
 }

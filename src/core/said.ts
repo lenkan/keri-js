@@ -1,14 +1,14 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { cesr } from "#keri/cesr";
+import { Matter } from "#keri/cesr";
 
 function calculateSaid(event: Record<string, unknown>): string {
-  const digest = cesr.crypto.blake3_256(
-    blake3
+  const digest = new Matter({
+    code: Matter.Code.Blake3_256,
+    raw: blake3
       .create({ dkLen: 32 })
       .update(new TextEncoder().encode(JSON.stringify(event)))
       .digest(),
-  );
-
+  });
   return digest.text();
 }
 
