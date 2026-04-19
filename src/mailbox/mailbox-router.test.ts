@@ -9,14 +9,15 @@ import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlit
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 
-function makeMailbox() {
+function makeMailbox(url?: string) {
   return new Mailbox({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
+    url,
   });
 }
 
-function makeApp() {
-  return createRouter(makeMailbox());
+function makeApp(url?: string) {
+  return createRouter(makeMailbox(url));
 }
 
 function request(path: string, init: RequestInit = {}): Request {
@@ -141,6 +142,57 @@ describe(basename(import.meta.url), () => {
       const response = await app(postMessage(makeQuery(pre, { "/credential": 1 })));
       const messages = await parseSse(response);
       assert.strictEqual(messages.length, 2);
+    });
+  });
+
+  describe("GET /oobi", () => {
+    test("should return 200 with application/json+cesr content type", async () => {
+      const app = makeApp("http://localhost:5640");
+      const response = await app(request("/oobi", { method: "GET" }));
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
+    });
+
+    test("should include Keri-Aid header with mailbox AID", async () => {
+      const mailbox = makeMailbox("http://localhost:5640");
+      const app = createRouter(mailbox);
+      const response = await app(request("/oobi", { method: "GET" }));
+      assert.strictEqual(response.headers.get("Keri-Aid"), mailbox.aid);
+    });
+
+    test("should return inception event as first message", async () => {
+      const mailbox = makeMailbox("http://localhost:5640");
+      const app = createRouter(mailbox);
+      const response = await app(request("/oobi", { method: "GET" }));
+      const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
+      assert(messages.length > 0);
+      assert.strictEqual(messages[0].body.t, "icp");
+      assert.strictEqual(messages[0].body.i, mailbox.aid);
+    });
+
+    test("should return location record", async () => {
+      const app = makeApp("http://localhost:5640");
+      const response = await app(request("/oobi", { method: "GET" }));
+      const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
+      const loc = messages.find((m) => m.body.r === "/loc/scheme");
+      assert.partialDeepStrictEqual(loc?.body, { t: "rpy", r: "/loc/scheme" });
+    });
+
+    test("should return end role record with mailbox role", async () => {
+      const app = makeApp("http://localhost:5640");
+      const response = await app(request("/oobi", { method: "GET" }));
+      const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
+      const endrole = messages.find((m) => m.body.r === "/end/role/add");
+      assert.partialDeepStrictEqual(endrole?.body, { t: "rpy", r: "/end/role/add" });
+      assert.strictEqual((endrole?.body.a as { role?: string })?.role, "mailbox");
+    });
+
+    test("should return only inception event when no url is configured", async () => {
+      const app = makeApp();
+      const response = await app(request("/oobi", { method: "GET" }));
+      const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
+      assert.strictEqual(messages.length, 1);
+      assert.strictEqual(messages[0].body.t, "icp");
     });
   });
 

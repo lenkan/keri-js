@@ -1,6 +1,23 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
 import type { Message } from "#keri/core";
-import type { Mailbox } from "./mailbox.ts";
+import type { Mailbox, MailboxEvent } from "./mailbox.ts";
+
+function createOobiResponse(events: readonly MailboxEvent[]): Response {
+  const body = events
+    .flatMap(({ message }) => {
+      const atc = new Attachments({
+        ControllerIdxSigs: message.attachments.ControllerIdxSigs,
+        NonTransReceiptCouples: message.attachments.NonTransReceiptCouples,
+      });
+      return [new TextDecoder().decode(message.raw), encodeText(atc.frames())];
+    })
+    .join("");
+
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "application/json+cesr" },
+  });
+}
 
 function createResponse(messages: readonly Message[]): Response {
   if (messages.length === 0) {
@@ -52,8 +69,19 @@ export function createRouter(mailbox: Mailbox): (request: Request) => Promise<Re
       switch (method) {
         case "GET":
           return Response.json({ status: "OK" });
-        case "POST": {
+        case "POST":
           return handleMessageRequest(request);
+        default:
+          return new Response("Method Not Allowed", { status: 405 });
+      }
+    }
+
+    if (pathname.startsWith("/oobi")) {
+      switch (method) {
+        case "GET": {
+          const response = createOobiResponse(mailbox.events);
+          response.headers.set("Keri-Aid", mailbox.aid);
+          return response;
         }
         default:
           return new Response("Method Not Allowed", { status: 405 });
