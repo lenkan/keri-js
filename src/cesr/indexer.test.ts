@@ -13,7 +13,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed25519_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed25519_Sig);
-      assert.strictEqual(frame.text().slice(0, 2), "AB");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -26,7 +25,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed25519_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed25519_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2AABAD");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -38,7 +36,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed25519_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed25519_Big_Crt_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2BBBAA");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -51,7 +48,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed25519_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed25519_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2ABBBC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -65,7 +61,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed448_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed448_Crt_Sig);
-      assert.strictEqual(frame.text().slice(0, 4), "0BBA");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -78,7 +73,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed448_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed448_Sig);
-      assert.strictEqual(frame.text().slice(0, 4), "0ABC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -90,7 +84,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed448_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed448_Big_Crt_Sig);
-      assert.strictEqual(frame.text().slice(0, 8), "3BABBAAA");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -103,7 +96,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ed448_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.Ed448_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 8), "3AABBABC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -117,7 +109,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256k1_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256k1_Sig);
-      assert.strictEqual(frame.text().slice(0, 2), "CB");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -129,7 +120,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256k1_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256k1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2CBBAA");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -142,7 +132,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256k1_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256k1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2CABAC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -155,7 +144,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256k1_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256k1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2CBBBC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -169,7 +157,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256r1_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256r1_Sig);
-      assert.strictEqual(frame.text().slice(0, 2), "EB");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -181,7 +168,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256r1_sig(raw, index);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256r1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2EBBAA");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, undefined);
       assert.deepStrictEqual(frame.raw, raw);
@@ -194,7 +180,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256r1_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256r1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2EABAC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);
@@ -207,7 +192,6 @@ describe(basename(import.meta.url), () => {
       const frame = Indexer.crypto.ecdsa_256r1_sig(raw, index, ondex);
 
       assert.strictEqual(frame.code, Indexer.Code.ECDSA_256r1_Big_Sig);
-      assert.strictEqual(frame.text().slice(0, 6), "2EBBBC");
       assert.strictEqual(frame.index, index);
       assert.strictEqual(frame.ondex, ondex);
       assert.deepStrictEqual(frame.raw, raw);

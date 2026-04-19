@@ -4,6 +4,7 @@ import type { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { Counter } from "./counter.ts";
+import { resolveQuadletCount } from "./frame.ts";
 import { Genus } from "./genus.ts";
 import { Message } from "./message.ts";
 
@@ -93,19 +94,19 @@ export async function* parse(input: ParseInput, options?: ParseOptions): AsyncIt
         buffer = buffer.slice(message.raw.length);
       } else if (start === "-" && next === "_") {
         genus = Genus.parse(buffer);
-        buffer = buffer.slice(genus.quadlets * 4);
+        buffer = buffer.slice(resolveQuadletCount(genus) * 4);
       } else if (start === "-") {
-        const counter = Counter.peek(buffer);
-
-        if (!counter.frame) {
+        if (!Counter.peek(buffer).frame) {
           break;
         }
 
+        const counter = Counter.parse(buffer);
+
         if (
-          (genus.major === 1 && counter.frame.code === CountCode_10.AttachmentGroup) ||
-          (genus.major === 2 && counter.frame.code === CountCode_20.AttachmentGroup)
+          (genus.major === 1 && counter.code === CountCode_10.AttachmentGroup) ||
+          (genus.major === 2 && counter.code === CountCode_20.AttachmentGroup)
         ) {
-          if (buffer.length < counter.n + counter.frame.count * 4) {
+          if (buffer.length < counter.code.length + counter.count * 4) {
             // Not enough data to read the whole attachment group
             break;
           }

@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Message } from "#keri/cesr";
+import { encodeText, Message } from "#keri/cesr";
 import { incept, type KeyEvent } from "./key-event.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
@@ -29,7 +29,7 @@ function makeReceiptResponse(event: KeyEvent, witnessKey: KeyPair) {
   const receiptMsg = new Message(rct.body, {
     NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: witnessSig }],
   });
-  return JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
+  return JSON.stringify(receiptMsg.body) + encodeText(receiptMsg.attachments.frames());
 }
 
 describe(basename(import.meta.url), () => {
@@ -55,7 +55,7 @@ describe(basename(import.meta.url), () => {
       const receiptMsg = new Message(rct.body, {
         NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: badSig }],
       });
-      const body = JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
+      const body = JSON.stringify(receiptMsg.body) + encodeText(receiptMsg.attachments.frames());
 
       const client = new WitnessClient("http://witness.example", async () => new Response(body));
       await assert.rejects(() => client.receipt(event), /Invalid witness signature from/);

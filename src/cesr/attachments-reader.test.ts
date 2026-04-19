@@ -2,9 +2,9 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
 import { encodeUtf8 } from "#keri/encoding";
-import { concat } from "./array-utils.ts";
 import { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
+import { encodeText } from "./frame.ts";
 
 const [sig0, sig1, sig2, sig3] = [
   "AABAMwd_6GLRwk6UYU2CQ_DKakLZ8Qz0KyaZllbOmlU8zAhx5iFCHVdyzgDpffiKDXzfHhOWHZzzcxrzpJDEwSs2",
@@ -25,20 +25,22 @@ describe(basename(import.meta.url), () => {
   describe("reading individual attachment types", () => {
     test("should read empty attachment group", () => {
       const attachments = new Attachments({});
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
+      const frames = result?.frames() ?? [];
 
-      assert(result);
-      assert.strictEqual(result.text(), "-VAA");
+      assert.equal(frames.length, 1);
+      assert.strictEqual(frames[0].code, "-V");
+      assert.strictEqual(frames[0].soft, 0);
     });
 
     test("should read ControllerIdxSigs", () => {
       const attachments = new Attachments({
         ControllerIdxSigs: [sig0, sig1],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -52,7 +54,7 @@ describe(basename(import.meta.url), () => {
       const attachments = new Attachments({
         WitnessIdxSigs: [sig0, sig1],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -69,7 +71,7 @@ describe(basename(import.meta.url), () => {
           { prefix: prefix, sig: nsig1 },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -92,7 +94,7 @@ describe(basename(import.meta.url), () => {
           { fnu: "2", dt: date2 },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -112,7 +114,7 @@ describe(basename(import.meta.url), () => {
           { snu: "a", digest: digest },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -132,7 +134,7 @@ describe(basename(import.meta.url), () => {
           { prefix: prefix, snu: "7", digest: digest },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -162,7 +164,7 @@ describe(basename(import.meta.url), () => {
           },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -190,7 +192,7 @@ describe(basename(import.meta.url), () => {
           },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -214,7 +216,7 @@ describe(basename(import.meta.url), () => {
           { path: "-c", grouped: true, attachments: nestedAttachments },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -226,10 +228,19 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(result.PathedMaterialCouples[1].path, "-c");
       assert.strictEqual(result.PathedMaterialCouples[1].grouped, true);
 
-      assert.deepStrictEqual(
-        result.frames().map((f) => f.text()),
-        ["-VA2", "-LAa", "4AAB-a-b", "-VAX", "-AAB", sig0, "-LAa", "5AABAA-c", "-VAX", "-AAB", sig0],
-      );
+      assert.deepStrictEqual(result.frames().map(encodeText), [
+        "-VA2",
+        "-LAa",
+        "4AAB-a-b",
+        "-VAX",
+        "-AAB",
+        sig0,
+        "-LAa",
+        "5AABAA-c",
+        "-VAX",
+        "-AAB",
+        sig0,
+      ]);
     });
 
     test("should read ungrouped PathedMaterialCouples", () => {
@@ -252,7 +263,7 @@ describe(basename(import.meta.url), () => {
         ],
       });
 
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -265,20 +276,23 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(result.PathedMaterialCouples[1].grouped, false);
 
       const frames = result.frames();
-      assert.deepStrictEqual(
-        frames.map((f) => f.text()),
-        ["-VA0", "-LAZ", "4AAB-a-b", "-AAB", sig0, "-LAZ", "5AABAA-c", "-AAB", sig0],
-      );
+      assert.deepStrictEqual(frames.map(encodeText), [
+        "-VA0",
+        "-LAZ",
+        "4AAB-a-b",
+        "-AAB",
+        sig0,
+        "-LAZ",
+        "5AABAA-c",
+        "-AAB",
+        sig0,
+      ]);
     });
 
     test("should read ungrouped attachment", () => {
       const attachments = new Attachments({ ControllerIdxSigs: [sig0] });
-      const input = encodeUtf8(
-        attachments
-          .frames()
-          .slice(1)
-          .reduce((a, b) => a + b.text(), ""),
-      );
+
+      const input = encodeUtf8(encodeText(attachments.frames().slice(1)));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -294,7 +308,7 @@ describe(basename(import.meta.url), () => {
         ControllerIdxSigs: [sig0],
         WitnessIdxSigs: [sig1],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -321,7 +335,7 @@ describe(basename(import.meta.url), () => {
           },
         ],
       });
-      const input = encodeUtf8(attachments.text());
+      const input = encodeUtf8(encodeText(attachments.frames()));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -340,7 +354,7 @@ describe(basename(import.meta.url), () => {
       const attachments = new Attachments({
         ControllerIdxSigs: [sig0, sig1],
       });
-      const input = encodeUtf8(attachments.text()).slice(0, -5);
+      const input = encodeUtf8(encodeText(attachments.frames())).slice(0, -5);
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -354,12 +368,7 @@ describe(basename(import.meta.url), () => {
       });
 
       // Removes the last signature from the encoded attachments
-      const input = encodeUtf8(
-        attachments
-          .frames()
-          .slice(0, -1)
-          .reduce((a, b) => a + b.text(), ""),
-      );
+      const input = encodeUtf8(encodeText(attachments.frames().slice(0, -1)));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -374,7 +383,7 @@ describe(basename(import.meta.url), () => {
 
       // Remove the signature part of the couple
       const frames = attachments.frames();
-      const input = encodeUtf8(frames.slice(0, -1).reduce((a, b) => a + b.text(), ""));
+      const input = encodeUtf8(encodeText(frames.slice(0, -1)));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -388,8 +397,7 @@ describe(basename(import.meta.url), () => {
       });
 
       // Remove the signature part of the couple
-      const frames = attachments.frames();
-      const input = frames.slice(0, -1).reduce((a, b) => a + b.text(), "");
+      const input = encodeText(attachments.frames().slice(0, -1));
       const reader = new AttachmentsReader(encodeUtf8(input));
 
       const result = reader.readAttachments();
@@ -411,7 +419,7 @@ describe(basename(import.meta.url), () => {
 
       // Remove part of the nested ControllerIdxSigs
       const frames = attachments.frames();
-      const input = encodeUtf8(frames.slice(0, -1).reduce((a, b) => a + b.text(), ""));
+      const input = encodeUtf8(encodeText(frames.slice(0, -1)));
       const reader = new AttachmentsReader(input);
 
       const result = reader.readAttachments();
@@ -433,7 +441,7 @@ describe(basename(import.meta.url), () => {
       const attachments1 = new Attachments({ ControllerIdxSigs: [sig0] });
       const attachments2 = new Attachments({ WitnessIdxSigs: [sig1] });
 
-      const combined = concat(encodeUtf8(attachments1.text()), encodeUtf8(attachments2.text()));
+      const combined = encodeUtf8(encodeText([...attachments1.frames(), ...attachments2.frames()]));
       const reader = new AttachmentsReader(combined);
 
       const result1 = reader.readAttachments();

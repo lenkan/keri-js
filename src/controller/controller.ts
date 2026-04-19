@@ -1,4 +1,4 @@
-import { cesr, Matter, parse } from "#keri/cesr";
+import { encodeText, Indexer, Matter, parse } from "#keri/cesr";
 import {
   Attachments,
   type CredentialBody,
@@ -193,7 +193,7 @@ export class Controller {
     return Promise.all(
       keys.map(async (key, idx) => {
         const sig = await this.signWithKey(key, raw);
-        return cesr.index(Matter.parse(sig), idx).text();
+        return encodeText(Indexer.convert(Matter.parse(sig), idx));
       }),
     );
   }

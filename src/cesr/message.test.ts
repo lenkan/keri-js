@@ -4,6 +4,7 @@ import test, { describe } from "node:test";
 import { inspect } from "node:util";
 import { decodeUtf8, encodeUtf8 } from "#keri/encoding";
 import { Attachments } from "./attachments.ts";
+import { encodeText } from "./frame.ts";
 import { Indexer } from "./indexer.ts";
 import { Message } from "./message.ts";
 import { VersionString } from "./version-string.ts";
@@ -120,9 +121,9 @@ describe(basename(import.meta.url), () => {
         },
         {
           ControllerIdxSigs: [
-            Indexer.crypto.ed25519_sig(new Uint8Array(64), 0).text(),
-            Indexer.crypto.ed25519_sig(new Uint8Array(64), 1).text(),
-          ],
+            Indexer.crypto.ed25519_sig(new Uint8Array(64), 0),
+            Indexer.crypto.ed25519_sig(new Uint8Array(64), 1),
+          ].map(encodeText),
         },
       );
 
@@ -135,7 +136,7 @@ describe(basename(import.meta.url), () => {
         test: "data",
       });
 
-      const sig = Indexer.crypto.ed25519_sig(new Uint8Array(64), 0).text();
+      const sig = encodeText(Indexer.crypto.ed25519_sig(new Uint8Array(64), 0));
 
       message.attachments = new Attachments({
         ControllerIdxSigs: [sig],

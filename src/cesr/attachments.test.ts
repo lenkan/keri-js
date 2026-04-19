@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Attachments } from "./attachments.ts";
+import { encodeText } from "./frame.ts";
 import { Matter } from "./matter.ts";
 
 const [sig0, sig1] = [
@@ -16,29 +17,29 @@ describe(basename(import.meta.url), () => {
         ControllerIdxSigs: [sig0, sig1],
       });
 
-      assert.deepStrictEqual(attachments.text(), ["-VAt", "-AAC", sig0, sig1].join(""));
+      assert.deepStrictEqual(encodeText(attachments.frames()), ["-VAt", "-AAC", sig0, sig1].join(""));
     });
 
     test("should serialize controller signatures with seal source", () => {
       const attachments = new Attachments({
         TransIdxSigGroups: [
           {
-            prefix: Matter.crypto.blake3_256(new Uint8Array(32)).text(),
+            prefix: encodeText(Matter.crypto.blake3_256(new Uint8Array(32))),
             snu: "3",
-            digest: Matter.crypto.blake3_256(new Uint8Array(32)).text(),
+            digest: encodeText(Matter.crypto.blake3_256(new Uint8Array(32))),
             ControllerIdxSigs: [sig0, sig1],
           },
         ],
       });
 
       assert.deepStrictEqual(
-        attachments.text(),
+        encodeText(attachments.frames()),
         [
           "-VBK",
           "-FAB",
-          Matter.crypto.blake3_256(new Uint8Array(32)).text(),
-          Matter.primitive.hex("3").text(),
-          Matter.crypto.blake3_256(new Uint8Array(32)).text(),
+          encodeText(Matter.crypto.blake3_256(new Uint8Array(32))),
+          encodeText(Matter.primitive.hex("3")),
+          encodeText(Matter.crypto.blake3_256(new Uint8Array(32))),
           "-AAC",
           sig0,
           sig1,
@@ -50,15 +51,15 @@ describe(basename(import.meta.url), () => {
       const attachments = new Attachments({
         TransLastIdxSigGroups: [
           {
-            prefix: Matter.crypto.blake3_256(new Uint8Array(32)).text(),
+            prefix: encodeText(Matter.crypto.blake3_256(new Uint8Array(32))),
             ControllerIdxSigs: [sig0, sig1],
           },
         ],
       });
 
       assert.deepStrictEqual(
-        attachments.text(),
-        ["-VA5", "-HAB", Matter.crypto.blake3_256(new Uint8Array(32)).text(), "-AAC", sig0, sig1].join(""),
+        encodeText(attachments.frames()),
+        ["-VA5", "-HAB", encodeText(Matter.crypto.blake3_256(new Uint8Array(32))), "-AAC", sig0, sig1].join(""),
       );
     });
 
@@ -67,7 +68,7 @@ describe(basename(import.meta.url), () => {
         WitnessIdxSigs: [sig0, sig1],
       });
 
-      assert.deepStrictEqual(attachments.text(), ["-VAt", "-BAC", sig0, sig1].join(""));
+      assert.deepStrictEqual(encodeText(attachments.frames()), ["-VAt", "-BAC", sig0, sig1].join(""));
     });
 
     test("should serialize receipt couples", () => {
@@ -81,7 +82,7 @@ describe(basename(import.meta.url), () => {
       });
 
       assert.deepStrictEqual(
-        attachments.text(),
+        encodeText(attachments.frames()),
         [
           "-VAi",
           "-CAB",
@@ -104,7 +105,7 @@ describe(basename(import.meta.url), () => {
         ],
       });
 
-      assert.deepStrictEqual(attachments.text(), ["-VAb", "-LAa", "6AACAAA-a-bc", "-AAB", sig0].join(""));
+      assert.deepStrictEqual(encodeText(attachments.frames()), ["-VAb", "-LAa", "6AACAAA-a-bc", "-AAB", sig0].join(""));
     });
 
     test("should serialize embedded attachment with group wrapper", () => {
@@ -120,7 +121,10 @@ describe(basename(import.meta.url), () => {
         ],
       });
 
-      assert.deepStrictEqual(attachments.text(), ["-VAc", "-LAb", "6AACAAA-a-bc", "-VAX", "-AAB", sig0].join(""));
+      assert.deepStrictEqual(
+        encodeText(attachments.frames()),
+        ["-VAc", "-LAb", "6AACAAA-a-bc", "-VAX", "-AAB", sig0].join(""),
+      );
     });
 
     test("should serialize multiple embedded attachments", () => {
@@ -144,7 +148,7 @@ describe(basename(import.meta.url), () => {
       });
 
       assert.deepStrictEqual(
-        attachments.text(),
+        encodeText(attachments.frames()),
         ["-VA2", "-LAa", "6AACAAA-a-bc", "-AAB", sig0, "-LAa", "6AACAAAx-y-z", "-BAB", sig1].join(""),
       );
     });

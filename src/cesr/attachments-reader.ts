@@ -6,6 +6,7 @@ import {
 } from "./attachments.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { Counter } from "./counter.ts";
+import { encodeText, resolveQuadletCount } from "./frame.ts";
 import { Indexer } from "./indexer.ts";
 import { Matter } from "./matter.ts";
 
@@ -48,14 +49,10 @@ export class AttachmentsReader {
     }
 
     this.#readBytes(result.n);
-    return new Matter({
-      code: result.frame.code,
-      raw: result.frame.raw,
-      soft: result.frame.soft,
-    });
+    return new Matter(result.frame);
   }
 
-  #readIndexer(): Indexer {
+  #readIndexer(): string {
     const result = Indexer.peek(this.#buffer);
 
     if (!result.frame) {
@@ -63,18 +60,18 @@ export class AttachmentsReader {
     }
 
     this.#readBytes(result.n);
-    return result.frame;
+    return encodeText(result.frame);
   }
 
   #readCounter(): Counter {
     const result = Counter.peek(this.#buffer);
-
     if (!result.frame) {
       throw new Error("Failed to read counter, not enough data");
     }
 
+    const counter = Counter.parse(this.#buffer);
     this.#readBytes(result.n);
-    return result.frame;
+    return counter;
   }
 
   /**
@@ -108,7 +105,7 @@ export class AttachmentsReader {
    * Read count indexed signatures
    * Behavior differs based on version (v1 counts signatures, v2 counts quadlets)
    */
-  *#readIndexedSignatures(count: number): IterableIterator<Indexer> {
+  *#readIndexedSignatures(count: number): IterableIterator<string> {
     if (this.#version === 1) {
       for (let n = 0; n < count; n++) {
         yield this.#readIndexer();
@@ -120,7 +117,7 @@ export class AttachmentsReader {
     while (counted < count) {
       const frame = this.#readIndexer();
       yield frame;
-      counted += frame.text().length / 4;
+      counted += frame.length / 4;
     }
   }
 
@@ -136,8 +133,8 @@ export class AttachmentsReader {
       const sigs = Array.from(this.#readIndexedSignatures(group.count));
 
       yield {
-        prefix: pre.text(),
-        ControllerIdxSigs: sigs.map((sig) => sig.text()),
+        prefix: encodeText(pre),
+        ControllerIdxSigs: sigs,
       };
     }
   }
@@ -156,10 +153,10 @@ export class AttachmentsReader {
       const sigs = Array.from(this.#readIndexedSignatures(group.count));
 
       yield {
-        prefix: pre.text(),
+        prefix: encodeText(pre),
         snu: snu.as.hex(),
-        digest: dig.text(),
-        ControllerIdxSigs: sigs.map((sig) => sig.text()),
+        digest: encodeText(dig),
+        ControllerIdxSigs: sigs,
       };
     }
   }
@@ -171,8 +168,15 @@ export class AttachmentsReader {
     const path = reader.#readMatter().as.string();
 
     const result = Counter.peek(reader.#buffer);
-    const grouped =
-      result.frame?.type === (this.#version === 1 ? CountCode_10.AttachmentGroup : CountCode_20.AttachmentGroup);
+    let grouped = false;
+    if (result.frame) {
+      const counter = Counter.parse(reader.#buffer);
+      if (this.#version === 1 && counter.type === CountCode_10.AttachmentGroup) {
+        grouped = true;
+      } else if (this.#version === 2 && counter.type === CountCode_20.AttachmentGroup) {
+        grouped = true;
+      }
+    }
 
     const pathAttachments = reader.readAttachments();
 
@@ -192,30 +196,32 @@ export class AttachmentsReader {
       return null;
     }
 
-    const result = Counter.peek(this.#buffer);
+    const peek = Counter.peek(this.#buffer);
 
-    if (!result.frame) {
+    if (!peek.frame) {
       return null;
     }
 
+    const counter = Counter.parse(this.#buffer);
+
     let end = 0;
 
-    if (this.#version === 1 && result.frame.type === CountCode_10.AttachmentGroup) {
-      const requiredLength = result.frame.count * 4 + result.frame.quadlets * 4;
+    if (this.#version === 1 && counter.type === CountCode_10.AttachmentGroup) {
+      const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
       if (this.#buffer.length < requiredLength) {
         return null;
       }
 
-      this.#readBytes(result.n);
-      end = this.#buffer.length - result.frame.count * 4;
-    } else if (this.#version === 2 && result.frame.type === CountCode_20.AttachmentGroup) {
-      const requiredLength = result.frame.count * 4 + result.frame.quadlets * 4;
+      this.#readBytes(peek.n);
+      end = this.#buffer.length - counter.count * 4;
+    } else if (this.#version === 2 && counter.type === CountCode_20.AttachmentGroup) {
+      const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
       if (this.#buffer.length < requiredLength) {
         return null;
       }
 
-      this.#readBytes(result.n);
-      end = this.#buffer.length - result.frame.count * 4;
+      this.#readBytes(peek.n);
+      end = this.#buffer.length - counter.count * 4;
     }
 
     const attachments = new Attachments();
@@ -228,13 +234,13 @@ export class AttachmentsReader {
           switch (counter.type) {
             case CountCode_10.ControllerIdxSigs: {
               for (const sig of this.#readIndexedSignatures(counter.count)) {
-                attachments.ControllerIdxSigs.push(sig.text());
+                attachments.ControllerIdxSigs.push(sig);
               }
               break;
             }
             case CountCode_10.WitnessIdxSigs: {
               for (const sig of this.#readIndexedSignatures(counter.count)) {
-                attachments.WitnessIdxSigs.push(sig.text());
+                attachments.WitnessIdxSigs.push(sig);
               }
               break;
             }
@@ -251,24 +257,24 @@ export class AttachmentsReader {
               for (const [snu, dig] of this.#readCouples(counter)) {
                 attachments.SealSourceCouples.push({
                   snu: snu.as.hex(),
-                  digest: dig.text(),
+                  digest: encodeText(dig),
                 });
               }
               break;
             case CountCode_10.SealSourceTriples:
               for (const [pre, snu, dig] of this.#readTriples(counter.count)) {
                 attachments.SealSourceTriples.push({
-                  prefix: pre.text(),
+                  prefix: encodeText(pre),
                   snu: snu.as.hex(),
-                  digest: dig.text(),
+                  digest: encodeText(dig),
                 });
               }
               break;
             case CountCode_10.NonTransReceiptCouples:
               for (const [pre, sig] of this.#readCouples(counter)) {
                 attachments.NonTransReceiptCouples.push({
-                  prefix: pre.text(),
-                  sig: sig.text(),
+                  prefix: encodeText(pre),
+                  sig: encodeText(sig),
                 });
               }
               break;
@@ -297,14 +303,14 @@ export class AttachmentsReader {
           switch (counter.type) {
             case CountCode_20.ControllerIdxSigs: {
               for (const sig of this.#readIndexedSignatures(counter.count)) {
-                attachments.ControllerIdxSigs.push(sig.text());
+                attachments.ControllerIdxSigs.push(sig);
               }
               break;
             }
 
             case CountCode_20.WitnessIdxSigs: {
               for (const sig of this.#readIndexedSignatures(counter.count)) {
-                attachments.WitnessIdxSigs.push(sig.text());
+                attachments.WitnessIdxSigs.push(sig);
               }
               break;
             }

@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { blake3 } from "@noble/hashes/blake3.js";
-import { cesr } from "#keri/cesr";
+import { encodeText, Matter } from "#keri/cesr";
 
 export interface KeyPair {
   privateKey: Uint8Array;
@@ -19,13 +19,15 @@ export function generateKeyPair(options?: GenerateKeyPairOptions): KeyPair {
     : crypto.getRandomValues(new Uint8Array(32));
 
   const rawPublicKey = ed25519.getPublicKey(privateKey);
-  const publicKey = options?.nonTransferable
-    ? cesr.crypto.ed25519N(rawPublicKey).text()
-    : cesr.crypto.ed25519(rawPublicKey).text();
+  const code = options?.nonTransferable ? Matter.Code.Ed25519N : Matter.Code.Ed25519;
+  const publicKey = encodeText(new Matter({ code, raw: rawPublicKey }));
 
-  const publicKeyDigest = cesr.crypto
-    .blake3_256(blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(publicKey)).digest())
-    .text();
+  const publicKeyDigest = encodeText(
+    new Matter({
+      code: Matter.Code.Blake3_256,
+      raw: blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(publicKey)).digest(),
+    }),
+  );
 
   return { privateKey, publicKey, publicKeyDigest };
 }

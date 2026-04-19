@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Indexer, Matter, Message } from "#keri/cesr";
+import { encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import { generateKeyPair, KeyEventLog, keri, verifySignature } from "#keri/core";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { Witness, WitnessError } from "./witness.ts";
@@ -22,7 +22,7 @@ interface InceptOptions {
 function createInceptEvent(options: InceptOptions = {}) {
   const { privateKey: controllerKey, publicKey: controllerPub } = generateKeyPair();
   const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [], wits: options.wits });
-  const sig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0).text();
+  const sig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0));
   return new Message(icp.body, { ControllerIdxSigs: [sig] });
 }
 
@@ -75,7 +75,7 @@ describe(basename(import.meta.url), () => {
       const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [] });
 
       const wrongKey = generateKeyPair().privateKey;
-      const badSig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, wrongKey), 0).text();
+      const badSig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, wrongKey), 0));
       const msg = new Message(icp.body, { ControllerIdxSigs: [badSig] });
 
       assert.throws(() => witness.receipt(msg), WitnessError);
@@ -85,14 +85,15 @@ describe(basename(import.meta.url), () => {
       const witness = makeWitness();
       const { privateKey: controllerKey, publicKey: controllerPub } = generateKeyPair();
       const icp = keri.incept({ signingKeys: [controllerPub], nextKeys: [] });
-      const icpSig = Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0).text();
+      const icpSig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, controllerKey), 0));
+
       witness.receipt(new Message(icp.body, { ControllerIdxSigs: [icpSig] }));
 
       const state = KeyEventLog.from(witness.getKeyEvents(icp.body.i)).state;
       const ixn = keri.interact(state);
 
       const wrongKey = generateKeyPair().privateKey;
-      const badSig = Indexer.crypto.ed25519_sig(ed25519.sign(ixn.raw, wrongKey), 0).text();
+      const badSig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(ixn.raw, wrongKey), 0));
       const msg = new Message(ixn.body, { ControllerIdxSigs: [badSig] });
 
       assert.throws(() => witness.receipt(msg), WitnessError);
@@ -128,7 +129,7 @@ describe(basename(import.meta.url), () => {
       const icp = createInceptEvent({ wits: [otherPub] });
       witness.receipt(icp);
 
-      const otherSig = new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }).text();
+      const otherSig = encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }));
       const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: icp.body.s });
       const rctMsg = new Message(rct.body, {
         NonTransReceiptCouples: [{ prefix: otherPub, sig: otherSig }],
@@ -153,7 +154,7 @@ describe(basename(import.meta.url), () => {
       const before = Array.from(witness.getKeyEvents(icp.body.i));
       assert.strictEqual(before[0]?.attachments.WitnessIdxSigs.length, 1);
 
-      const otherSig = new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }).text();
+      const otherSig = encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }));
       const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: icp.body.s });
       const rctMsg = new Message(rct.body, {
         NonTransReceiptCouples: [{ prefix: otherPub, sig: otherSig }],

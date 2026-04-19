@@ -1,16 +1,6 @@
 import { decodeBase64Int, encodeBase64Int } from "#keri/encoding";
 import { IndexCode, IndexTableInit } from "./codes.ts";
-import {
-  decodeText,
-  encodeBinary,
-  encodeText,
-  type Frame,
-  type FrameInit,
-  type FrameSize,
-  peekText,
-  type ReadResult,
-  resolveQuadletCount,
-} from "./frame.ts";
+import { decodeText, type Frame, type FrameSize, peekText, type ReadResult, resolveQuadletCount } from "./frame.ts";
 import { Matter } from "./matter.ts";
 
 export interface IndexerInit {
@@ -56,7 +46,7 @@ function lookup(input: string | Uint8Array): IndexCodeTableEntry {
   return entry;
 }
 
-function resolveIndexerInit(frame: FrameInit, entry: IndexCodeTableEntry): IndexerInit {
+function resolveIndexerInit(frame: Frame, entry: IndexCodeTableEntry): IndexerInit {
   const ms = entry.ss - entry.os;
   const os = entry.os;
 
@@ -105,17 +95,9 @@ export class Indexer implements IndexerInit, Frame {
     return lookup(this.code);
   }
 
-  text(): string {
-    return encodeText(this);
-  }
-
-  binary(): Uint8Array {
-    return encodeBinary(this);
-  }
-
   static readonly Code = IndexCode;
 
-  static peek(input: Uint8Array): ReadResult<Indexer> {
+  static peek(input: Uint8Array): ReadResult {
     const entry = lookup(input);
     const result = peekText(input, entry);
 
@@ -159,7 +141,7 @@ export class Indexer implements IndexerInit, Frame {
    * @param ondex The optional secondary index of the signature
    * @returns The created Indexer frame
    */
-  static convert(matter: Pick<FrameInit, "code" | "raw">, index: number, ondex?: number): Indexer {
+  static convert(matter: Pick<Frame, "code" | "raw">, index: number, ondex?: number): Indexer {
     if (!matter.raw) {
       throw new Error("Cannot create Indexer from Matter without raw data");
     }

@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Attachments, Indexer, Matter, type Message, parse } from "#keri/cesr";
+import { Attachments, encodeText, Indexer, Matter, type Message, parse } from "#keri/cesr";
 import { generateKeyPair, type InceptEventBody, type KeyEvent, keri } from "#keri/core";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { Witness } from "./witness.ts";
@@ -50,7 +50,7 @@ class TestContext {
         body: new TextDecoder().decode(event.raw),
         headers: {
           "Content-Type": "application/json",
-          "CESR-ATTACHMENT": new Attachments({ ControllerIdxSigs: sigs }).text(),
+          "CESR-ATTACHMENT": encodeText(new Attachments({ ControllerIdxSigs: sigs }).frames()),
         },
       }),
     );
@@ -67,7 +67,7 @@ const icp = keri.incept({
   nextKeys: [pubKey1],
 });
 
-const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0).text()];
+const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0)].map(encodeText);
 
 describe(basename(import.meta.url), () => {
   describe("oobi request", () => {
@@ -136,7 +136,7 @@ describe(basename(import.meta.url), () => {
         request("/", {
           method: "POST",
           body: new TextDecoder().decode(rct.raw),
-          headers: { "CESR-ATTACHMENT": rctAtc.text() },
+          headers: { "CESR-ATTACHMENT": encodeText(rctAtc.frames()) },
         }),
       );
 
@@ -153,7 +153,7 @@ describe(basename(import.meta.url), () => {
         wits: [context1.witness.aid, context2.witness.aid],
         toad: 1,
       });
-      const icpSigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icpWithWitnesses.raw, privateKey0), 0).text()];
+      const icpSigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icpWithWitnesses.raw, privateKey0), 0)].map(encodeText);
 
       await context1.receipt(icpWithWitnesses, icpSigs);
       const rctResponse = await context2.receipt(icpWithWitnesses, icpSigs);
@@ -168,7 +168,7 @@ describe(basename(import.meta.url), () => {
         request("/", {
           method: "POST",
           body: new TextDecoder().decode(rct.raw),
-          headers: { "CESR-ATTACHMENT": rctAtc.text() },
+          headers: { "CESR-ATTACHMENT": encodeText(rctAtc.frames()) },
         }),
       );
 

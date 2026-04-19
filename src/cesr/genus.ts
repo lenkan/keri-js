@@ -1,5 +1,5 @@
 import { decodeBase64Int, encodeBase64Int } from "#keri/encoding";
-import { decodeText, encodeBinary, encodeText, type Frame, type FrameSize, resolveQuadletCount } from "./frame.ts";
+import { decodeText, type Frame, type FrameSize } from "./frame.ts";
 
 export interface GenusInit {
   protocol: string;
@@ -43,18 +43,6 @@ export class Genus implements Frame, GenusInit {
 
   get soft(): number {
     return decodeBase64Int(`${encodeBase64Int(this.major, 1)}${encodeBase64Int(this.minor, 2)}`);
-  }
-
-  get quadlets(): number {
-    return resolveQuadletCount(this);
-  }
-
-  text(): string {
-    return encodeText(this);
-  }
-
-  binary(): Uint8Array {
-    return encodeBinary(this);
   }
 
   static KERIACDC_10 = new Genus({

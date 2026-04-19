@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { cesr } from "#keri/cesr";
+import { encodeText, Indexer } from "#keri/cesr";
 import { formatDate } from "./events.ts";
 import { exchange } from "./routed-event.ts";
 
@@ -52,7 +52,7 @@ describe(basename(import.meta.url), () => {
       route: "/embedded",
     });
 
-    const sigs = [cesr.index(cesr.crypto.ed25519_sig(randomBytes(64)), 0).text()];
+    const sigs = [encodeText(Indexer.crypto.ed25519_sig(randomBytes(64), 0))];
     embedded.attachments = { ControllerIdxSigs: sigs };
 
     const event = exchange({

@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import path from "node:path";
 import test, { describe } from "node:test";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
+import { encodeBinary, encodeText } from "../src/cesr/frame.ts";
 import { Indexer } from "../src/cesr/indexer.ts";
 
 describe(path.parse(import.meta.url).base, () => {
@@ -18,8 +19,8 @@ describe(path.parse(import.meta.url).base, () => {
       assert.deepEqual(frame.raw, raw);
       assert.deepEqual(frame.index, entry.index);
       assert.deepEqual(frame.ondex, entry.ondex);
-      assert.deepEqual(frame.text(), entry.qb64);
-      assert.deepEqual(frame.binary(), binary);
+      assert.deepEqual(encodeText(frame), entry.qb64);
+      assert.deepEqual(encodeBinary(frame), binary);
     });
 
     test(`Decode ${entry.type} ${entry.name} - ${entry.qb64.substring(0, 10)} - text`, () => {
@@ -30,8 +31,8 @@ describe(path.parse(import.meta.url).base, () => {
 
       assert.deepEqual(frame.code, entry.code);
       assert.deepEqual(frame.raw, raw);
-      assert.deepEqual(frame.text(), entry.qb64);
-      assert.deepEqual(frame.binary(), binary);
+      assert.deepEqual(encodeText(frame), entry.qb64);
+      assert.deepEqual(encodeBinary(frame), binary);
     });
   }
 });

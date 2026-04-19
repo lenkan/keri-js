@@ -9,11 +9,11 @@ import {
 import { prepad, toArray } from "./array-utils.ts";
 import { lshift } from "./shifting.ts";
 
-export interface ReadResult<T> {
+export interface ReadResult {
   /**
    * The frame, or null if there was not enough data in the input
    */
-  frame?: T;
+  frame?: Frame;
 
   /**
    * The number of bytes consumed from the input
@@ -29,23 +29,17 @@ export interface FrameSize {
   xs?: number;
 }
 
-export interface FrameInit {
+export interface Frame {
   code: string;
   size: FrameSize;
   raw?: Uint8Array;
   soft?: number;
 }
 
-export interface Frame extends FrameInit {
-  readonly quadlets: number;
-  text(): string;
-  binary(): Uint8Array;
-}
-
 /**
  * Resolves the quadlet/triplet count of a frame
  */
-export function resolveQuadletCount(frame: FrameInit): number {
+export function resolveQuadletCount(frame: Frame): number {
   if (typeof frame.size.fs !== "undefined" && frame.size.fs > 0) {
     return frame.size.fs / 4;
   }
@@ -59,7 +53,11 @@ export function resolveQuadletCount(frame: FrameInit): number {
   return cs / 4 + fs / 3;
 }
 
-export function encodeText(frame: FrameInit): string {
+export function encodeText(frame: Frame | Frame[]): string {
+  if (Array.isArray(frame)) {
+    return frame.reduce((acc, f) => acc + encodeText(f), "");
+  }
+
   if (frame.code.length !== frame.size.hs) {
     throw new Error(
       `Frame code ${frame.code} length ${frame.code.length} does not match expected size ${frame.size.hs}`,
@@ -84,7 +82,7 @@ export function encodeText(frame: FrameInit): string {
   return result;
 }
 
-export function encodeBinary(frame: FrameInit): Uint8Array {
+export function encodeBinary(frame: Frame): Uint8Array {
   const raw = frame.raw ?? new Uint8Array(0);
 
   // TODO: xs
@@ -103,7 +101,7 @@ export function encodeBinary(frame: FrameInit): Uint8Array {
   return result;
 }
 
-export function peekText(input: Uint8Array | string, entry: FrameSize): ReadResult<FrameInit> {
+export function peekText(input: Uint8Array | string, entry: FrameSize): ReadResult {
   if (typeof input === "string") {
     input = encodeUtf8(input);
   }
@@ -152,7 +150,7 @@ export function peekText(input: Uint8Array | string, entry: FrameSize): ReadResu
   };
 }
 
-export function decodeText(input: string | Uint8Array, entry: FrameSize): FrameInit {
+export function decodeText(input: string | Uint8Array, entry: FrameSize): Frame {
   const result = peekText(input, entry);
 
   if (!result.frame) {

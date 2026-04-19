@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Indexer, Matter } from "#keri/cesr";
+import { encodeText, Indexer, Matter } from "#keri/cesr";
 import { generateKeyPair } from "./keys.ts";
 import { sign } from "./sign.ts";
 import { verifyThreshold } from "./verify.ts";
@@ -13,7 +13,7 @@ describe(basename(import.meta.url), () => {
     test("should produce a signature that verifies against the key", () => {
       const { publicKey, privateKey } = generateKeyPair();
       const sig = sign(payload, { key: privateKey });
-      const indexedSig = Indexer.convert(Matter.parse(sig), 0).text();
+      const indexedSig = encodeText(Indexer.convert(Matter.parse(sig), 0));
       const result = verifyThreshold(payload, { keys: [publicKey], sigs: [indexedSig], threshold: "1" });
       assert.deepEqual(result.ok, true);
     });
