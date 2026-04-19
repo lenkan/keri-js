@@ -1,8 +1,16 @@
-import type { IncomingMessage, RequestListener, ServerResponse } from "node:http";
+import type { IncomingMessage, RequestListener } from "node:http";
 import { Readable } from "node:stream";
-import { format } from "node:util";
+import { type Logger, noopLogger } from "./logger.ts";
 
-function toWebRequest(req: IncomingMessage, url: URL): Request {
+export interface ListenerOptions {
+  logger?: Logger;
+}
+
+function toWebRequest(req: IncomingMessage): Request {
+  const host = req.headers.host ?? "0.0.0.0";
+  const protocol = req.headers["x-forwarded-proto"] ?? "http";
+  const url = new URL(req.url ?? "/", `${protocol}://${host}`);
+
   const headers = new Headers();
   for (const [key, headerValue] of Object.entries(req.headers)) {
     if (headerValue !== undefined) {
@@ -21,74 +29,51 @@ function toWebRequest(req: IncomingMessage, url: URL): Request {
     body = Readable.toWeb(req) as ReadableStream<Uint8Array>;
   }
 
-  const request = new Request(url, {
+  return new Request(url, {
     method: req.method,
-    headers: headers,
+    headers,
     body,
     duplex: "half",
     // Cast required because DOM types omit `duplex`, but Node.js undici fetch requires it when body is a stream
   } as RequestInit & { duplex: "half" });
-
-  return request;
-}
-
-export interface ServerOptions {
-  logger?: (message: string, context?: unknown) => void;
-}
-
-async function handleRequest(
-  req: IncomingMessage,
-  res: ServerResponse<IncomingMessage>,
-  handler: (request: Request) => Promise<Response>,
-): Promise<void> {
-  const host = req.headers.host ?? "0.0.0.0";
-  const protocol = req.headers["x-forwarded-proto"] ?? "http";
-  const url = new URL(req.url ?? "/", `${protocol}://${host}`);
-  const request = toWebRequest(req, url);
-  const response = await handler(request);
-
-  res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
-
-  const reader = response.body?.getReader();
-  if (reader) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
-    }
-  }
-  res.end();
 }
 
 export function createListener(
   handler: (request: Request) => Promise<Response>,
-  logger?: (message: string, context?: unknown) => void,
+  options: ListenerOptions = {},
 ): RequestListener {
+  const log = options.logger ?? noopLogger;
+
   return async (req, res) => {
     const start = Date.now();
-    const url = req.url ?? "/";
     const method = req.method ?? "GET";
-    logger?.(`${method} ${url}`);
+    const url = req.url ?? "/";
 
     res.on("finish", () => {
-      const ms = Date.now() - start;
-
-      logger?.(`${method} ${url} - ${res.statusCode} - ${ms}ms`, {
-        request: {
-          url,
-          method,
-          headers: req.headers,
-        },
-        response: {
-          status: res.statusCode,
-        },
+      const durationMs = Date.now() - start;
+      log.info(`${method} ${url} ${res.statusCode} ${durationMs}ms`, {
+        method,
+        url,
+        status: res.statusCode,
+        durationMs,
       });
     });
 
     try {
-      await handleRequest(req, res, handler);
+      const response = await handler(toWebRequest(req));
+      res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+
+      if (response.body) {
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
     } catch (err) {
-      logger?.(`Error handling request\n${format(err)}\n`);
+      log.error("handler threw", { method, url, error: err instanceof Error ? err.message : String(err) });
       res.statusCode = 500;
       res.end("Internal Server Error");
     }

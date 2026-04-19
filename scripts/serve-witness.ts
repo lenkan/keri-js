@@ -16,11 +16,10 @@ const url = process.env.WITNESS_URL ?? `http://localhost:${port}`;
 
 const seed = scrypt(passphrase, salt, { N: 16384, r: 8, p: 1, dkLen: 32 });
 const privateKey = ed25519.utils.randomSecretKey(seed);
-const witness = new Witness({ privateKey, url, storage });
+const witness = new Witness({ privateKey, url, storage, logger: console });
 
-const router = createRouter(witness);
-const listener = createListener(router, (message, context) => console.log(message, context));
-const server = createServer(listener);
+const router = createRouter(witness, { logger: console });
+const server = createServer(createListener(router, { logger: console }));
 
 server.listen(port, () => {
   console.log(

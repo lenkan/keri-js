@@ -61,24 +61,25 @@ export class MailboxClient {
 
     if (contentType === "text/event-stream") {
       const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      const messages: Message[] = [];
+      let buffer = "";
       while (true) {
         const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const str = new TextDecoder().decode(value);
-
-        for (const line of str.split("\n")) {
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
           if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            const message = await Array.fromAsync(parse(data));
-            reader.cancel("Got message, cancelling reader");
-            return message;
+            messages.push(...(await Array.fromAsync(parse(line.slice(6)))));
           }
         }
       }
+      if (buffer.startsWith("data: ")) {
+        messages.push(...(await Array.fromAsync(parse(buffer.slice(6)))));
+      }
+      return messages;
     }
 
     if (contentType?.startsWith("application/json")) {

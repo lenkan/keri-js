@@ -6,3 +6,4 @@ api-docs/
 .pack/
 .vscode/
 .env
+.claude
