@@ -1,6 +1,5 @@
-import { Attachments } from "../cesr/__main__.ts";
-import type { KeyEventBody } from "../core/main.ts";
-import { parseKeyEvents } from "./parser.ts";
+import { Attachments, parse } from "../cesr/__main__.ts";
+import type { KeyEvent, KeyEventBody } from "../core/main.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 function createResponse(events: readonly WitnessEvent[]): Response {
@@ -32,9 +31,9 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
     const bodyText = await request.text();
     const receipts: WitnessEvent[] = [];
 
-    for await (const witnessEvent of parseKeyEvents(bodyText + atc)) {
+    for await (const witnessEvent of parse(bodyText + atc)) {
       try {
-        const receipt = witness.receipt(witnessEvent.message as Parameters<Witness["receipt"]>[0]);
+        const receipt = witness.receipt(witnessEvent as KeyEvent);
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {
@@ -71,8 +70,8 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
     }
 
     const bodyText = await request.text();
-    for await (const event of parseKeyEvents(bodyText + atc)) {
-      witness.handleMessage(event.message);
+    for await (const event of parse(bodyText + atc)) {
+      witness.handleMessage(event);
     }
 
     return new Response(null, { status: 200 });

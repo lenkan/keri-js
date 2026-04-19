@@ -3,11 +3,10 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Attachments, Indexer, Matter } from "../cesr/__main__.ts";
+import { Attachments, Indexer, Matter, type Message, parse } from "../cesr/__main__.ts";
 import { generateKeyPair } from "../core/keys.ts";
 import { type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
-import { parseKeyEvents } from "./parser.ts";
 import { Witness } from "./witness.ts";
 import { createRouter } from "./witness-router.ts";
 
@@ -15,10 +14,10 @@ function request(path: string, init: RequestInit = {}): Request {
   return new Request(`http://localhost${path}`, init);
 }
 
-async function collect<T>(iter: AsyncIterable<T>): Promise<T[]> {
-  const result: T[] = [];
-  for await (const item of iter) {
-    result.push(item);
+async function collect(stream: ReadableStream<Uint8Array> | null): Promise<Message[]> {
+  const result: Message[] = [];
+  for await (const message of parse(stream ?? new Uint8Array())) {
+    result.push(message);
   }
   return result;
 }
@@ -78,29 +77,25 @@ describe(basename(import.meta.url), () => {
       const response = await context.fetch(request("/oobi", { method: "GET" }));
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
-
-      assert(response.body);
     });
 
     test("should reply with incept event", async () => {
       const context = new TestContext();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
-      assert(response.body);
-      const messages = await collect(parseKeyEvents(response.body));
+      const messages = await collect(response.body);
 
       assert(messages.length > 0);
-      assert.strictEqual(messages[0].message.body.t, "icp");
-      assert.strictEqual(messages[0].message.body.i, context.witness.aid);
+      assert.strictEqual(messages[0].body.t, "icp");
+      assert.strictEqual(messages[0].body.i, context.witness.aid);
     });
 
     test("should reply with location record", async () => {
       const context = new TestContext();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
-      assert(response.body);
-      const messages = await collect(parseKeyEvents(response.body));
+      const messages = await collect(response.body);
 
-      const message = messages.find((m) => m.message.body.r === "/loc/scheme");
-      assert.partialDeepStrictEqual(message?.message.body, {
+      const message = messages.find((m) => m.body.r === "/loc/scheme");
+      assert.partialDeepStrictEqual(message?.body, {
         t: "rpy",
         r: "/loc/scheme",
       });
@@ -109,12 +104,12 @@ describe(basename(import.meta.url), () => {
     test("should reply with end role", async () => {
       const context = new TestContext();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
-      assert(response.body);
-      const messages = await collect(parseKeyEvents(response.body));
 
-      const message = messages.find((m) => m.message.body.r === "/end/role/add");
-      assert.strictEqual(message?.message.body.t, "rpy");
-      assert.strictEqual(message?.message.body.r, "/end/role/add");
+      const messages = await collect(response.body);
+
+      const message = messages.find((m) => m.body.r === "/end/role/add");
+      assert.strictEqual(message?.body.t, "rpy");
+      assert.strictEqual(message?.body.r, "/end/role/add");
     });
   });
 
@@ -163,12 +158,11 @@ describe(basename(import.meta.url), () => {
 
       await context1.receipt(icpWithWitnesses, icpSigs);
       const rctResponse = await context2.receipt(icpWithWitnesses, icpSigs);
-      assert(rctResponse.body);
-      const [rctMessage] = await collect(parseKeyEvents(rctResponse.body));
+      const [rctMessage] = await collect(rctResponse.body);
 
       const rct = keri.receipt({ d: icpWithWitnesses.body.d, i: icpWithWitnesses.body.i, s: "0" });
       const rctAtc = new Attachments({
-        NonTransReceiptCouples: rctMessage.message.attachments.NonTransReceiptCouples,
+        NonTransReceiptCouples: rctMessage.attachments.NonTransReceiptCouples,
       });
 
       const response = await context1.fetch(
@@ -182,10 +176,9 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(response.status, 200);
 
       const oobiResponse = await context1.fetch(request(`/oobi/${icpWithWitnesses.body.i}`, { method: "GET" }));
-      assert(oobiResponse.body);
-      const messages = await collect(parseKeyEvents(oobiResponse.body));
+      const messages = await collect(oobiResponse.body);
       assert(messages.length > 0);
-      assert.strictEqual(messages[0].message.attachments.WitnessIdxSigs.length, 2);
+      assert.strictEqual(messages[0].attachments.WitnessIdxSigs.length, 2);
     });
   });
 
@@ -203,14 +196,13 @@ describe(basename(import.meta.url), () => {
       const context = new TestContext();
       const response = await context.receipt(icp, sigs);
 
-      assert(response.body);
-      const messages = await collect(parseKeyEvents(response.body));
+      const messages = await collect(response.body);
 
       assert(messages.length > 0);
-      assert.strictEqual(messages[0].message.body.t, "rct");
-      assert.strictEqual(messages[0].message.body.d, icp.body.d);
+      assert.strictEqual(messages[0].body.t, "rct");
+      assert.strictEqual(messages[0].body.d, icp.body.d);
 
-      const couples = messages[0].message.attachments.NonTransReceiptCouples;
+      const couples = messages[0].attachments.NonTransReceiptCouples;
       assert.strictEqual(couples.length, 1);
 
       const couple = couples[0];
@@ -226,17 +218,16 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(oobiResponse.status, 200);
       assert.strictEqual(oobiResponse.headers.get("Content-Type"), "application/json+cesr");
 
-      assert(oobiResponse.body);
-      const messages = await collect(parseKeyEvents(oobiResponse.body));
+      const messages = await collect(oobiResponse.body);
 
       assert(messages.length > 0);
-      assert.partialDeepStrictEqual(messages[0].message.body, {
+      assert.partialDeepStrictEqual(messages[0].body, {
         t: "icp",
         i: icp.body.i,
         s: "0",
       });
 
-      assert.strictEqual(messages[0].message.attachments.ControllerIdxSigs.length, 1);
+      assert.strictEqual(messages[0].attachments.ControllerIdxSigs.length, 1);
     });
   });
 });
