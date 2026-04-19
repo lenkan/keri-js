@@ -48,6 +48,10 @@
       "source": "./src/witness/main.ts",
       "default": "./dist/witness/main.js"
     },
+    "#keri/mailbox": {
+      "source": "./src/mailbox/main.ts",
+      "default": "./dist/mailbox/main.js"
+    },
     "#keri/nodejs-utils": {
       "source": "./src/nodejs-utils/serve.ts",
       "default": "./dist/nodejs-utils/serve.js"

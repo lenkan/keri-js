@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "#keri";
+import { createMailboxRouter, Mailbox } from "#keri/mailbox";
 import { createListener } from "#keri/nodejs-utils";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { createRouter, Witness as WitnessNode } from "#keri/witness";
@@ -10,6 +11,10 @@ export interface Witness {
   aid: string;
   url: string;
   oobi: string;
+}
+
+export interface KeripyWitness extends Witness {
+  kli: KERIPy;
 }
 
 export function createController() {
@@ -38,21 +43,11 @@ function findFreePort(): Promise<number> {
   });
 }
 
-export async function startKerijsWitness(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Witness> {
-  const port = opts.port ?? (await findFreePort());
-  const url = `http://localhost:${port}`;
-
-  const witness = new WitnessNode({
-    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    url: `http://localhost:${port}`,
-  });
-
-  const router = createRouter(witness);
+async function serve(router: (request: Request) => Promise<Response>, port: number, signal?: AbortSignal) {
   const listener = createListener(router, (message, context) => {
-    const prefix = `[kerijs witness]`;
+    const prefix = `[server]`;
     console.log(`${prefix} ${message}`, context);
   });
-
   const server = createServer(listener);
 
   await new Promise<void>((resolve, reject) => {
@@ -70,16 +65,46 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
     server.listen(port);
   });
 
-  opts.signal?.addEventListener("abort", () => {
+  signal?.addEventListener("abort", () => {
     server.close();
   });
+}
+
+export async function startKerijsWitness(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Witness> {
+  const port = opts.port ?? (await findFreePort());
+  const url = `http://localhost:${port}`;
+
+  const witness = new WitnessNode({
+    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
+    url: `http://localhost:${port}`,
+  });
+
+  const router = createRouter(witness);
+
+  await serve(router, port, opts.signal);
 
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
 }
 
+export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Witness> {
+  const port = opts.port ?? (await findFreePort());
+  const url = `http://localhost:${port}`;
+
+  const mailbox = new Mailbox({
+    storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
+    url: `http://localhost:${port}`,
+  });
+
+  const router = createMailboxRouter(mailbox);
+
+  await serve(router, port, opts.signal);
+
+  return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
+}
+
 export async function startKeripyWitness(
   opts: { port?: number; salt?: string; signal?: AbortSignal; logLevel?: string } = {},
-): Promise<Witness> {
+): Promise<KeripyWitness> {
   const httpPort = opts.port ?? (await findFreePort());
   const tcpPort = await findFreePort();
   const url = `http://localhost:${httpPort}`;
@@ -116,7 +141,7 @@ export async function startKeripyWitness(
     throw new Error(`KERIpy witness at ${oobiUrl} did not become reachable within 30s`);
   }
 
-  return { aid, url, oobi: oobiUrl };
+  return { aid, url, oobi: oobiUrl, kli: keripy };
 }
 
 export async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
