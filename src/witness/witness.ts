@@ -1,5 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { Attachments, Indexer, Matter, Message } from "#keri/cesr";
+import { Attachments, encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "#keri/core";
 import type { KeyEventStorage } from "#keri/storage";
 
@@ -28,14 +28,14 @@ export class Witness {
   }
 
   static createKEL(privateKey: Uint8Array): KeyEventLog {
-    const publicKey = new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }).text();
+    const publicKey = encodeText(new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }));
 
     const icp = keri.incept({
       signingKeys: [publicKey],
       nextKeys: [],
     });
     icp.attachments = {
-      ControllerIdxSigs: [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey), 0).text()],
+      ControllerIdxSigs: [encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey), 0))],
     };
 
     return KeyEventLog.from([icp]);
@@ -114,7 +114,7 @@ export class Witness {
       NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig }],
     };
 
-    const WitnessIdxSigs = witnessIndex >= 0 ? [Indexer.convert(Matter.parse(sig), witnessIndex).text()] : [];
+    const WitnessIdxSigs = witnessIndex >= 0 ? [encodeText(Indexer.convert(Matter.parse(sig), witnessIndex))] : [];
 
     const storedMessage = new Message(message.body, {
       ControllerIdxSigs: message.attachments.ControllerIdxSigs,
@@ -163,7 +163,7 @@ export class Witness {
       if (witnessIndex === -1) {
         continue;
       }
-      const wigSig = Indexer.convert(Matter.parse(couple.sig), witnessIndex).text();
+      const wigSig = encodeText(Indexer.convert(Matter.parse(couple.sig), witnessIndex));
       existingWigsByIndex.set(witnessIndex, wigSig);
     }
 
@@ -182,6 +182,6 @@ export class Witness {
 
   #sign(message: Message): string {
     const rawSignature = ed25519.sign(message.raw, this.#privateKey);
-    return new Matter({ code: Matter.Code.Ed25519_Sig, raw: rawSignature }).text();
+    return encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: rawSignature }));
   }
 }

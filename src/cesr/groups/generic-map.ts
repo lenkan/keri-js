@@ -1,6 +1,5 @@
-import { concat } from "../array-utils.ts";
 import { Counter } from "../counter.ts";
-import type { Frame } from "../frame.ts";
+import { type Frame, resolveQuadletCount } from "../frame.ts";
 import { Matter } from "../matter.ts";
 
 export type GenericMapGroupInit = Record<string, unknown>;
@@ -15,7 +14,7 @@ export class GenericMapGroup {
     this.#map = new Map<string, unknown>(Object.entries(init));
   }
 
-  #frames(): Frame[] {
+  frames(): Frame[] {
     const frames: Frame[] = [];
 
     for (const [key, value] of this.#map.entries()) {
@@ -37,7 +36,7 @@ export class GenericMapGroup {
           break;
         case "object": {
           if (!Array.isArray(value) && value !== null && !(value instanceof Date)) {
-            frames.push(...new GenericMapGroup({ ...value }).#frames());
+            frames.push(...new GenericMapGroup({ ...value }).frames());
           } else {
             throw new Error(`Unsupported object type for key ${key}: ${JSON.stringify(value)}`);
           }
@@ -48,18 +47,8 @@ export class GenericMapGroup {
       }
     }
 
-    const size = frames.reduce((acc, frame) => acc + frame.quadlets, 0);
+    const size = frames.reduce((acc, frame) => acc + resolveQuadletCount(frame), 0);
     return [Counter.v2.GenericMapGroup(size), ...frames];
-  }
-
-  text(): string {
-    return this.#frames().reduce((acc, frame) => acc + frame.text(), "");
-  }
-
-  binary(): Uint8Array {
-    return this.#frames().reduce<Uint8Array>((acc, frame) => {
-      return concat(acc, frame.binary());
-    }, new Uint8Array());
   }
 
   static from(init: GenericMapGroupInit): GenericMapGroup {

@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { Buffer } from "node:buffer";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { encodeBinary, encodeText } from "#keri/cesr";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
 import { Counter } from "../src/cesr/counter.ts";
 
@@ -23,8 +24,8 @@ describe(path.parse(import.meta.url).base, () => {
 
       assert.deepEqual(frame.code, entry.code);
       assert.deepEqual(frame.raw, raw);
-      assert.deepEqual(frame.text(), entry.qb64);
-      assert.deepEqual(frame.binary(), binary);
+      assert.deepEqual(encodeText(frame), entry.qb64);
+      assert.deepEqual(encodeBinary(frame), binary);
     });
   }
 });

@@ -1,7 +1,6 @@
-import { encodeUtf8 } from "#keri/encoding";
 import { AttachmentsReader } from "./attachments-reader.ts";
 import { Counter } from "./counter.ts";
-import type { Frame } from "./frame.ts";
+import { type Frame, resolveQuadletCount } from "./frame.ts";
 import { Indexer } from "./indexer.ts";
 import { Matter } from "./matter.ts";
 
@@ -186,7 +185,7 @@ export class Attachments implements AttachmentsInit {
         nested.push(...couple.attachments.frames().slice(1));
       }
 
-      const size = nested.reduce((acc, frame) => acc + frame.quadlets, 0);
+      const size = nested.reduce((acc, frame) => acc + resolveQuadletCount(frame), 0);
 
       // SIC! For PathedMaterialCouples, keripy does not encode
       // multiple "couples" under the same group. Instead each group
@@ -206,17 +205,7 @@ export class Attachments implements AttachmentsInit {
       }
     }
 
-    const size = frames.reduce((acc, frame) => acc + frame.quadlets, 0);
+    const size = frames.reduce((acc, frame) => acc + resolveQuadletCount(frame), 0);
     return [Counter.v1.AttachmentGroup(size), ...frames];
-  }
-
-  binary(): Uint8Array {
-    const frames = this.frames();
-    return encodeUtf8(frames.reduce((acc, frame) => acc + frame.text(), ""));
-  }
-
-  text(): string {
-    const frames = this.frames();
-    return frames.reduce((acc, frame) => acc + frame.text(), "");
   }
 }

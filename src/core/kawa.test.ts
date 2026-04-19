@@ -1,13 +1,18 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, mock, test } from "node:test";
-import { Message } from "#keri/cesr";
+import { encodeText, Message } from "#keri/cesr";
 import type { WitnessEndpoint } from "./kawa.ts";
 import { submitToWitnesses } from "./kawa.ts";
 import { incept } from "./key-event.ts";
 import { generateKeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
 import { sign } from "./sign.ts";
+
+function createResponse(body: Message): Response {
+  const serialized = JSON.stringify(body.body) + encodeText(body.attachments.frames());
+  return new Response(serialized);
+}
 
 describe(basename(import.meta.url), () => {
   test("should return witness indexed signature for single witness", async () => {
@@ -29,8 +34,7 @@ describe(basename(import.meta.url), () => {
       NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: witnessSig }],
     });
 
-    const serialized = JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
-    const fetchMock = mock.method(globalThis, "fetch", async () => new Response(serialized));
+    const fetchMock = mock.method(globalThis, "fetch", async () => createResponse(receiptMsg));
 
     const endpoint: WitnessEndpoint = {
       aid: witnessKey.publicKey,
@@ -70,8 +74,7 @@ describe(basename(import.meta.url), () => {
       NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: invalidSig }],
     });
 
-    const serialized = JSON.stringify(receiptMsg.body) + receiptMsg.attachments.text();
-    const fetchMock = mock.method(globalThis, "fetch", async () => new Response(serialized));
+    const fetchMock = mock.method(globalThis, "fetch", async () => createResponse(receiptMsg));
 
     const endpoint: WitnessEndpoint = {
       aid: witnessKey.publicKey,

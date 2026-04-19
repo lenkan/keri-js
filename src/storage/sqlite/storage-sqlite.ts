@@ -4,7 +4,7 @@ import type { Database, Params, Row } from "./sqlite-database.ts";
 export { NodeSqliteDatabase } from "./node-sqlite.ts";
 export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
 
-import type { MessageBody } from "#keri/cesr";
+import { encodeText, type MessageBody } from "#keri/cesr";
 import {
   Attachments,
   type CredentialBody,
@@ -55,7 +55,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
       type: "credential",
       sn: null,
       event_json: JSON.stringify(body),
-      attachments: message.attachments.text(),
+      attachments: encodeText(message.attachments.frames()),
     };
   }
 
@@ -70,7 +70,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
         type: body.t,
         sn: parseInt(body.s, 16),
         event_json: JSON.stringify(body),
-        attachments: message.attachments.text(),
+        attachments: encodeText(message.attachments.frames()),
       };
     }
     case "vcp": {
@@ -81,7 +81,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
         type: body.t,
         sn: null,
         event_json: JSON.stringify(body),
-        attachments: message.attachments.text(),
+        attachments: encodeText(message.attachments.frames()),
       };
     }
     case "iss":
@@ -93,7 +93,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
         type: body.t,
         sn: null,
         event_json: JSON.stringify(body),
-        attachments: message.attachments.text(),
+        attachments: encodeText(message.attachments.frames()),
       };
     }
     default: {
@@ -104,7 +104,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
         type: typeof body.t === "string" ? body.t : null,
         sn: null,
         event_json: JSON.stringify(body),
-        attachments: message.attachments.text(),
+        attachments: encodeText(message.attachments.frames()),
       };
     }
   }

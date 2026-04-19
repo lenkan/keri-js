@@ -1,4 +1,4 @@
-import { Attachments, parse } from "#keri/cesr";
+import { Attachments, encodeText, parse } from "#keri/cesr";
 import type { KeyEvent, KeyEventBody } from "#keri/core";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
@@ -11,7 +11,7 @@ function createResponse(events: readonly WitnessEvent[]): Response {
         NonTransReceiptCouples: message.attachments.NonTransReceiptCouples,
         FirstSeenReplayCouples: [{ fnu: String((message.body as KeyEventBody).s ?? "0"), dt: timestamp }],
       });
-      return [new TextDecoder().decode(message.raw), atc.text()];
+      return [new TextDecoder().decode(message.raw), encodeText(atc.frames())];
     })
     .join("");
 

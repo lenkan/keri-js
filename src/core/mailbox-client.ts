@@ -1,4 +1,4 @@
-import { type Message, parse } from "#keri/cesr";
+import { encodeText, type Message, parse } from "#keri/cesr";
 
 export interface MailboxClientOptions {
   /**
@@ -35,7 +35,7 @@ export class MailboxClient {
     const body = JSON.stringify(message.body);
     const headers = {
       "Content-Type": "application/cesr+json",
-      "CESR-ATTACHMENT": message.attachments.text(),
+      "CESR-ATTACHMENT": encodeText(message.attachments.frames()),
       "CESR-DESTINATION": this.id,
     };
 

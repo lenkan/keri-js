@@ -1,15 +1,17 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { Matter } from "#keri/cesr";
+import { encodeText, Matter } from "#keri/cesr";
 
 function calculateSaid(event: Record<string, unknown>): string {
-  const digest = new Matter({
-    code: Matter.Code.Blake3_256,
-    raw: blake3
-      .create({ dkLen: 32 })
-      .update(new TextEncoder().encode(JSON.stringify(event)))
-      .digest(),
-  });
-  return digest.text();
+  const digest = encodeText(
+    new Matter({
+      code: Matter.Code.Blake3_256,
+      raw: blake3
+        .create({ dkLen: 32 })
+        .update(new TextEncoder().encode(JSON.stringify(event)))
+        .digest(),
+    }),
+  );
+  return digest;
 }
 
 export interface SaidArgs {

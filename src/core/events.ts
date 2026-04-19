@@ -1,4 +1,4 @@
-import { Matter, Message, VersionString } from "#keri/cesr";
+import { encodeText, Matter, Message, VersionString } from "#keri/cesr";
 import { saidify } from "./said.ts";
 
 export const DUMMY_VERSION = VersionString.encode({ protocol: "KERI", legacy: true, kind: "JSON" });
@@ -8,7 +8,7 @@ export function formatDate(date: Date): string {
 }
 
 export function randomNonce(): string {
-  return Matter.from(Matter.Code.Salt_128, crypto.getRandomValues(new Uint8Array(16))).text();
+  return encodeText(Matter.from(Matter.Code.Salt_128, crypto.getRandomValues(new Uint8Array(16))));
 }
 
 interface EncodeEventArgs {

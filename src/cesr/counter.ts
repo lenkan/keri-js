@@ -1,15 +1,6 @@
 import { decodeUtf8 } from "#keri/encoding";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
-import {
-  decodeText,
-  encodeBinary,
-  encodeText,
-  type Frame,
-  type FrameSize,
-  peekText,
-  type ReadResult,
-  resolveQuadletCount,
-} from "./frame.ts";
+import { decodeText, type Frame, type FrameSize, peekText, type ReadResult } from "./frame.ts";
 
 export interface CounterInit {
   type: string;
@@ -58,13 +49,12 @@ export class Counter implements Frame, CounterInit {
   readonly code: string;
   readonly count: number;
 
-  constructor(init: CounterInit) {
-    this.code = resolveCountCode(init);
-    this.count = init.count;
-  }
-
-  get quadlets() {
-    return resolveQuadletCount(this);
+  constructor(init: CounterInit | Frame) {
+    this.code = resolveCountCode({
+      type: "type" in init ? init.type : init.code.replace(/^-+/, ""),
+      count: "count" in init ? init.count : (init.soft ?? 0),
+    });
+    this.count = "count" in init ? init.count : (init.soft ?? 0);
   }
 
   get size() {
@@ -79,19 +69,11 @@ export class Counter implements Frame, CounterInit {
     return new Uint8Array(0);
   }
 
-  text(): string {
-    return encodeText(this);
-  }
-
-  binary(): Uint8Array {
-    return encodeBinary(this);
-  }
-
   get type() {
     return this.code.replace(/^-+/, "");
   }
 
-  static peek(input: string | Uint8Array): ReadResult<Counter> {
+  static peek(input: string | Uint8Array): ReadResult {
     if (input.length < 4) {
       return { n: 0 };
     }
@@ -99,17 +81,7 @@ export class Counter implements Frame, CounterInit {
     const entry = resolveCounterSize(input);
     const result = peekText(input, entry);
 
-    if (!result.frame) {
-      return { n: result.n };
-    }
-
-    return {
-      n: result.n,
-      frame: new Counter({
-        type: result.frame.code.replace(/^-+/, ""),
-        count: result.frame.soft ?? 0,
-      }),
-    };
+    return result;
   }
 
   static parse(input: string | Uint8Array): Counter {

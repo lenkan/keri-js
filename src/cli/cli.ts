@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI */
-import { parse } from "#keri/cesr";
+import { encodeText, parse } from "#keri/cesr";
 
 interface Arguments {
   options: Record<string, string | boolean>;
@@ -89,7 +89,7 @@ export async function execute(cli: CommandLineInterface) {
       console.dir(
         {
           payload: message.body,
-          attachments: message.attachments.frames().map((frame) => frame.text()),
+          attachments: message.attachments.frames().map(encodeText),
         },
         { depth: 100, colors: true },
       );
@@ -97,7 +97,7 @@ export async function execute(cli: CommandLineInterface) {
       console.log(
         JSON.stringify({
           payload: message.body,
-          attachments: message.attachments.frames().map((frame) => frame.text()),
+          attachments: message.attachments.frames().map(encodeText),
         }),
       );
     }

@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
-import { Attachments, Matter } from "#keri/cesr";
+import { Attachments, encodeText, Matter } from "#keri/cesr";
 import { type EndRoleRecord, keri, type LocationRecord } from "#keri/core";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
 import { Controller } from "./controller.ts";
@@ -133,9 +133,9 @@ describe(basename(import.meta.url), () => {
 
       const rot = await controller.rotate(icp.id, {});
 
-      const keydigest = Matter.crypto
-        .blake3_256(blake3.create().update(new TextEncoder().encode(rot.event.k[0])).digest())
-        .text();
+      const keydigest = encodeText(
+        Matter.crypto.blake3_256(blake3.create().update(new TextEncoder().encode(rot.event.k[0])).digest()),
+      );
 
       assert.strictEqual(
         keydigest,
@@ -377,7 +377,7 @@ describe(basename(import.meta.url), () => {
       const attachments = Attachments.parse(new TextEncoder().encode(headers.get("CESR-ATTACHMENT") ?? ""));
 
       assert(attachments);
-      const frames = attachments.frames().map((frame) => frame.text());
+      const frames = attachments.frames().map(encodeText);
       assert.strictEqual(frames[0], "-VBs");
       assert.strictEqual(frames[1], "-FAB");
       assert.strictEqual(frames[2], icp.id);

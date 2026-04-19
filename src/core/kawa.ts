@@ -1,4 +1,4 @@
-import { Indexer, Matter, Message } from "#keri/cesr";
+import { encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import type { KeyEventBody } from "./key-event.ts";
 import { MailboxClient } from "./mailbox-client.ts";
 import { WitnessClient } from "./witness-client.ts";
@@ -40,7 +40,7 @@ export async function submitToWitnesses(
 
       if (witnessIndex !== -1) {
         const signature = Matter.parse(receiptCouple.sig);
-        wigs.add(Indexer.convert(signature, witnessIndex).text());
+        wigs.add(encodeText(Indexer.convert(signature, witnessIndex)));
       }
     }
 

@@ -1,17 +1,7 @@
 import { decodeBase64Int, decodeBase64Url, decodeUtf8, encodeBase64Url, encodeUtf8 } from "#keri/encoding";
 import { concat } from "./array-utils.ts";
 import { MatterCode, MatterTableInit } from "./codes.ts";
-import {
-  decodeText,
-  encodeBinary,
-  encodeText,
-  type Frame,
-  type FrameInit,
-  type FrameSize,
-  peekText,
-  type ReadResult,
-  resolveQuadletCount,
-} from "./frame.ts";
+import { decodeText, type Frame, type FrameSize, peekText, type ReadResult } from "./frame.ts";
 
 const REGEX_BASE64_CHARACTER = /^[A-Za-z0-9\-_]+$/;
 
@@ -153,7 +143,7 @@ function createRaw(code: string): (raw: Uint8Array) => Matter {
 
 export interface MatterInit {
   code: string;
-  raw: Uint8Array;
+  raw?: Uint8Array;
   soft?: number;
 }
 
@@ -239,7 +229,7 @@ const PrimitiveMatter = {
   },
 
   as: {
-    string(frame: FrameInit): string {
+    string(frame: Frame): string {
       const raw = frame.raw || new Uint8Array();
       switch (frame.code) {
         case Matter.Code.StrB64_L0:
@@ -273,7 +263,7 @@ const PrimitiveMatter = {
       }
     },
 
-    date(init: FrameInit): Date {
+    date(init: Frame): Date {
       const raw = init.raw || new Uint8Array();
       if (init.code !== Matter.Code.DateTime) {
         throw new Error(`Cannot decode ${init.code} as a Date`);
@@ -290,7 +280,7 @@ const PrimitiveMatter = {
       return result;
     },
 
-    hex(frame: FrameInit): string {
+    hex(frame: Frame): string {
       const raw = frame.raw || new Uint8Array();
       return decodeHexRaw(raw);
     },
@@ -304,24 +294,12 @@ export class Matter implements Frame, MatterInit {
 
   constructor(init: MatterInit) {
     this.code = init.code;
-    this.raw = init.raw;
+    this.raw = init.raw ?? new Uint8Array(0);
     this.soft = init.soft;
-  }
-
-  get quadlets(): number {
-    return resolveQuadletCount(this);
   }
 
   get size() {
     return lookup(this.code);
-  }
-
-  text(): string {
-    return encodeText(this);
-  }
-
-  binary(): Uint8Array {
-    return encodeBinary(this);
   }
 
   static readonly Code = MatterCode;
@@ -330,7 +308,7 @@ export class Matter implements Frame, MatterInit {
     return new Matter({ code, raw });
   }
 
-  static peek(input: Uint8Array): ReadResult<Matter> {
+  static peek(input: Uint8Array): ReadResult {
     const entry = lookup(input);
     const result = peekText(input, entry);
 

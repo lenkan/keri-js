@@ -11,7 +11,13 @@ export {
   type TransLastIdxSigGroup,
 } from "./attachments.ts";
 export { Counter, type CounterInit } from "./counter.ts";
-export { encodeBinary, encodeText, type Frame, type FrameInit, type FrameSize, type ReadResult } from "./frame.ts";
+export {
+  encodeBinary,
+  encodeText,
+  type Frame,
+  type FrameSize,
+  type ReadResult,
+} from "./frame.ts";
 export { Genus, type GenusInit } from "./genus.ts";
 export { Indexer, type IndexerInit } from "./indexer.ts";
 export { Matter, type MatterInit } from "./matter.ts";
