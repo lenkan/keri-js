@@ -1,6 +1,6 @@
-import { keri } from "#keri/core";
 import assert from "node:assert";
 import test, { after, before } from "node:test";
+import { keri } from "#keri/core";
 import { KERIPy } from "./keripy.ts";
 import { createController, type Endpoint, startKerijsMailbox, startKeripyWitness } from "./utils.ts";
 
