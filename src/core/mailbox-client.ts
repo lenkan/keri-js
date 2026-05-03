@@ -14,12 +14,21 @@ async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Messa
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {
+      break;
+    }
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
       await flushLine(line);
+    }
+
+    // Long-poll SSE servers (e.g. KERIpy) keep the stream open after sending
+    // a snapshot. Once we have at least one message, stop reading and return.
+    if (messages.length > 0) {
+      await reader.cancel();
+      return messages;
     }
   }
   await flushLine(buffer);

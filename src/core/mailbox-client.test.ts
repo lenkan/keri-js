@@ -177,6 +177,31 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(messages[0].body.i, reply.body.i);
     });
 
+    test("should return without waiting for stream to close once a message is parsed", async () => {
+      const reply = makeMessage();
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sseFrame(reply, { id: 1 })));
+          // Server keeps the stream open (long-poll); never call controller.close()
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+
+      const client = new MailboxClient({
+        id: "EAID",
+        url: "http://mailbox.example",
+        fetch: async () => eventStreamResponse(stream),
+      });
+
+      const messages = await client.sendMessage(makeMessage());
+      assert.strictEqual(messages.length, 1);
+      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(cancelled, true);
+    });
+
     test("should parse a final data line that has no trailing newline", async () => {
       const reply = makeMessage();
       // Drop the trailing "\n\n" — common when a server flushes early
