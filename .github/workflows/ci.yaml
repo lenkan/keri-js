@@ -92,8 +92,8 @@ jobs:
         run: deno install --frozen
  
       - name: Deno typecheck
-        run: deno check --conditions=source src
+        run: deno check --conditions=keri-source src
 
       - name: Run test in deno
-        run: deno test --allow-net --allow-read --conditions=source
+        run: deno test --allow-net --allow-read --conditions=keri-source
 
