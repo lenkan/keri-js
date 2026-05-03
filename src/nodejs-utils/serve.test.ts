@@ -6,8 +6,9 @@ import { describe, test } from "node:test";
 import type { Logger } from "./logger.ts";
 import { createListener, type ListenerOptions } from "./serve.ts";
 
-interface TestServer extends AsyncDisposable {
+interface TestServer {
   url: string;
+  close(): Promise<void>;
 }
 
 async function startServer(
@@ -19,7 +20,7 @@ async function startServer(
   const { port } = server.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}`,
-    async [Symbol.asyncDispose]() {
+    async close() {
       await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
     },
   };
@@ -54,73 +55,88 @@ function recordRequest(response: Response = new Response(null, { status: 204 }))
 describe(basename(import.meta.url), () => {
   test("forwards method, path, and query to the handler", async () => {
     const { captured, handler } = recordRequest(new Response("ok", { status: 200 }));
-    await using server = await startServer(handler);
-
-    const response = await fetch(`${server.url}/foo/bar?x=1&y=2`);
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(await response.text(), "ok");
-    assert.ok(captured.request);
-    assert.strictEqual(captured.request.method, "GET");
-    const url = new URL(captured.request.url);
-    assert.strictEqual(url.pathname, "/foo/bar");
-    assert.strictEqual(url.searchParams.get("x"), "1");
-    assert.strictEqual(url.searchParams.get("y"), "2");
+    const server = await startServer(handler);
+    try {
+      const response = await fetch(`${server.url}/foo/bar?x=1&y=2`);
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(await response.text(), "ok");
+      assert.ok(captured.request);
+      assert.strictEqual(captured.request.method, "GET");
+      const url = new URL(captured.request.url);
+      assert.strictEqual(url.pathname, "/foo/bar");
+      assert.strictEqual(url.searchParams.get("x"), "1");
+      assert.strictEqual(url.searchParams.get("y"), "2");
+    } finally {
+      await server.close();
+    }
   });
 
   test("forwards request headers to the handler", async () => {
     const { captured, handler } = recordRequest();
-    await using server = await startServer(handler);
-
-    await fetch(`${server.url}/`, {
-      headers: { "x-custom-header": "abc", "content-type": "application/json" },
-    });
-    assert.ok(captured.request);
-    assert.strictEqual(captured.request.headers.get("x-custom-header"), "abc");
-    assert.strictEqual(captured.request.headers.get("content-type"), "application/json");
+    const server = await startServer(handler);
+    try {
+      await fetch(`${server.url}/`, {
+        headers: { "x-custom-header": "abc", "content-type": "application/json" },
+      });
+      assert.ok(captured.request);
+      assert.strictEqual(captured.request.headers.get("x-custom-header"), "abc");
+      assert.strictEqual(captured.request.headers.get("content-type"), "application/json");
+    } finally {
+      await server.close();
+    }
   });
 
   test("forwards POST body to the handler", async () => {
     let body: string | undefined;
-    await using server = await startServer(async (req) => {
+    const server = await startServer(async (req) => {
       body = await req.text();
       return new Response(null, { status: 204 });
     });
-
-    await fetch(`${server.url}/`, {
-      method: "POST",
-      body: "hello world",
-      headers: { "content-type": "text/plain" },
-    });
-    assert.strictEqual(body, "hello world");
+    try {
+      await fetch(`${server.url}/`, {
+        method: "POST",
+        body: "hello world",
+        headers: { "content-type": "text/plain" },
+      });
+      assert.strictEqual(body, "hello world");
+    } finally {
+      await server.close();
+    }
   });
 
   test("does not forward a body for GET requests", async () => {
     const { captured, handler } = recordRequest();
-    await using server = await startServer(handler);
-
-    await fetch(`${server.url}/`);
-    assert.ok(captured.request);
-    assert.strictEqual(captured.request.body, null);
+    const server = await startServer(handler);
+    try {
+      await fetch(`${server.url}/`);
+      assert.ok(captured.request);
+      assert.strictEqual(captured.request.body, null);
+    } finally {
+      await server.close();
+    }
   });
 
   test("forwards response status, headers, and body", async () => {
-    await using server = await startServer(
+    const server = await startServer(
       async () =>
         new Response("response body", {
           status: 201,
           headers: { "content-type": "text/plain", "x-extra": "value" },
         }),
     );
-
-    const response = await fetch(`${server.url}/`);
-    assert.strictEqual(response.status, 201);
-    assert.strictEqual(response.headers.get("content-type"), "text/plain");
-    assert.strictEqual(response.headers.get("x-extra"), "value");
-    assert.strictEqual(await response.text(), "response body");
+    try {
+      const response = await fetch(`${server.url}/`);
+      assert.strictEqual(response.status, 201);
+      assert.strictEqual(response.headers.get("content-type"), "text/plain");
+      assert.strictEqual(response.headers.get("x-extra"), "value");
+      assert.strictEqual(await response.text(), "response body");
+    } finally {
+      await server.close();
+    }
   });
 
   test("supports streamed response bodies", async () => {
-    await using server = await startServer(async () => {
+    const server = await startServer(async () => {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new TextEncoder().encode("chunk1"));
@@ -130,61 +146,76 @@ describe(basename(import.meta.url), () => {
       });
       return new Response(stream, { status: 200, headers: { "content-type": "text/plain" } });
     });
-
-    const response = await fetch(`${server.url}/`);
-    assert.strictEqual(await response.text(), "chunk1chunk2");
+    try {
+      const response = await fetch(`${server.url}/`);
+      assert.strictEqual(await response.text(), "chunk1chunk2");
+    } finally {
+      await server.close();
+    }
   });
 
   test("returns 500 when the handler throws", async () => {
-    await using server = await startServer(async () => {
+    const server = await startServer(async () => {
       throw new Error("boom");
     });
-
-    const response = await fetch(`${server.url}/`);
-    assert.strictEqual(response.status, 500);
-    assert.strictEqual(await response.text(), "Internal Server Error");
+    try {
+      const response = await fetch(`${server.url}/`);
+      assert.strictEqual(response.status, 500);
+      assert.strictEqual(await response.text(), "Internal Server Error");
+    } finally {
+      await server.close();
+    }
   });
 
   test("uses x-forwarded-proto when constructing the request URL", async () => {
     const { captured, handler } = recordRequest();
-    await using server = await startServer(handler);
-
-    await fetch(`${server.url}/`, { headers: { "x-forwarded-proto": "https" } });
-    assert.ok(captured.request);
-    assert.ok(captured.request.url.startsWith("https://"));
+    const server = await startServer(handler);
+    try {
+      await fetch(`${server.url}/`, { headers: { "x-forwarded-proto": "https" } });
+      assert.ok(captured.request);
+      assert.ok(captured.request.url.startsWith("https://"));
+    } finally {
+      await server.close();
+    }
   });
 
   test("logs request completion at info level with structured meta", async () => {
     const { logger, entries } = makeRecordingLogger();
-    await using server = await startServer(async () => new Response("ok", { status: 200 }), { logger });
+    const server = await startServer(async () => new Response("ok", { status: 200 }), { logger });
+    try {
+      await fetch(`${server.url}/some-path?x=1`, { headers: { "x-trace": "abc" } });
 
-    await fetch(`${server.url}/some-path?x=1`, { headers: { "x-trace": "abc" } });
-
-    const completed = entries.find((e) => e.level === "info" && e.msg.startsWith("GET /some-path?x=1 200 "));
-    assert.ok(completed, "expected an info-level completion log");
-    assert.match(completed.msg, /^GET \/some-path\?x=1 200 \d+ms$/);
-    const meta = completed.meta as { method: string; url: string; status: number; durationMs: number };
-    assert.strictEqual(meta.method, "GET");
-    assert.strictEqual(meta.url, "/some-path?x=1");
-    assert.strictEqual(meta.status, 200);
-    assert.ok(typeof meta.durationMs === "number");
+      const completed = entries.find((e) => e.level === "info" && e.msg.startsWith("GET /some-path?x=1 200 "));
+      assert.ok(completed, "expected an info-level completion log");
+      assert.match(completed.msg, /^GET \/some-path\?x=1 200 \d+ms$/);
+      const meta = completed.meta as { method: string; url: string; status: number; durationMs: number };
+      assert.strictEqual(meta.method, "GET");
+      assert.strictEqual(meta.url, "/some-path?x=1");
+      assert.strictEqual(meta.status, 200);
+      assert.ok(typeof meta.durationMs === "number");
+    } finally {
+      await server.close();
+    }
   });
 
   test("logs status 500 when the handler throws", async () => {
     const { logger, entries } = makeRecordingLogger();
-    await using server = await startServer(
+    const server = await startServer(
       async () => {
         throw new Error("boom");
       },
       { logger },
     );
+    try {
+      const response = await fetch(`${server.url}/`);
+      assert.strictEqual(response.status, 500);
 
-    const response = await fetch(`${server.url}/`);
-    assert.strictEqual(response.status, 500);
-
-    const errored = entries.find((e) => e.level === "error" && e.msg === "handler threw");
-    assert.ok(errored, "expected an error-level log when the handler throws");
-    const completed = entries.find((e) => e.level === "info" && e.msg.startsWith("GET / 500 "));
-    assert.ok(completed, "expected a completion log with status 500");
+      const errored = entries.find((e) => e.level === "error" && e.msg === "handler threw");
+      assert.ok(errored, "expected an error-level log when the handler throws");
+      const completed = entries.find((e) => e.level === "info" && e.msg.startsWith("GET / 500 "));
+      assert.ok(completed, "expected a completion log with status 500");
+    } finally {
+      await server.close();
+    }
   });
 });
