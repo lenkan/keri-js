@@ -1,6 +1,6 @@
+import { parse } from "#keri/cesr";
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "#keri/cesr";
 import { KERIPy } from "./keripy.ts";
 import {
   collectAsync,
@@ -73,7 +73,7 @@ test("Create identifier with single witness", async () => {
   });
 });
 
-test.only("Create kerijs identifier with single witness", async () => {
+test("Create kerijs identifier with single witness", async () => {
   const controller = createController();
 
   await controller.introduce(wan.oobi);
