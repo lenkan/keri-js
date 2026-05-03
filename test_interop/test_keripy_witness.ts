@@ -1,6 +1,6 @@
-import { parse } from "#keri/cesr";
 import assert from "node:assert";
 import test, { after, before } from "node:test";
+import { parse } from "#keri/cesr";
 import { KERIPy } from "./keripy.ts";
 import {
   collectAsync,
