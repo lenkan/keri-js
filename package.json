@@ -8,9 +8,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --conditions source --no-warnings 'src/**/*.test.ts'",
-    "test:interop": "node --test --conditions source --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
-    "test:vector": "node --test --conditions source --no-warnings 'test_vectors/**/*.test.ts'",
+    "test": "node --test --conditions keri-source --no-warnings 'src/**/*.test.ts'",
+    "test:interop": "node --test --conditions keri-source --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
+    "test:vector": "node --test --conditions keri-source --no-warnings 'test_vectors/**/*.test.ts'",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check": "tsc --noEmit",
@@ -21,35 +21,35 @@
   },
   "imports": {
     "#keri": {
-      "source": "./src/main.ts",
+      "keri-source": "./src/main.ts",
       "default": "./dist/main.js"
     },
     "#keri/encoding": {
-      "source": "./src/encoding/main.ts",
+      "keri-source": "./src/encoding/main.ts",
       "default": "./dist/encoding/main.js"
     },
     "#keri/cesr": {
-      "source": "./src/cesr/__main__.ts",
+      "keri-source": "./src/cesr/__main__.ts",
       "default": "./dist/cesr/__main__.js"
     },
     "#keri/core": {
-      "source": "./src/core/main.ts",
+      "keri-source": "./src/core/main.ts",
       "default": "./dist/core/main.js"
     },
     "#keri/storage": {
-      "source": "./src/storage/main.ts",
+      "keri-source": "./src/storage/main.ts",
       "default": "./dist/storage/main.js"
     },
     "#keri/storage/sqlite": {
-      "source": "./src/storage/sqlite/storage-sqlite.ts",
+      "keri-source": "./src/storage/sqlite/storage-sqlite.ts",
       "default": "./dist/storage/sqlite/storage-sqlite.js"
     },
     "#keri/witness": {
-      "source": "./src/witness/main.ts",
+      "keri-source": "./src/witness/main.ts",
       "default": "./dist/witness/main.js"
     },
     "#keri/nodejs-utils": {
-      "source": "./src/nodejs-utils/serve.ts",
+      "keri-source": "./src/nodejs-utils/serve.ts",
       "default": "./dist/nodejs-utils/serve.js"
     }
   },

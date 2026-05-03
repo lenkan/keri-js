@@ -9,6 +9,6 @@
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "types": ["node"],
-    "customConditions": ["source"]
+    "customConditions": ["keri-source"]
   }
 }
