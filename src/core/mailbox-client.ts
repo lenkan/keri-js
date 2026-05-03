@@ -1,5 +1,31 @@
 import { encodeText, type Message, parse } from "#keri/cesr";
 
+async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Message[]> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const messages: Message[] = [];
+  let buffer = "";
+
+  async function flushLine(line: string): Promise<void> {
+    if (line.startsWith("data: ")) {
+      messages.push(...(await Array.fromAsync(parse(line.slice(6)))));
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      await flushLine(line);
+    }
+  }
+  await flushLine(buffer);
+  return messages;
+}
+
 export interface MailboxClientOptions {
   /**
    * The SAID of the mailbox controller.
@@ -60,26 +86,7 @@ export class MailboxClient {
     }
 
     if (contentType === "text/event-stream") {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      const messages: Message[] = [];
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            messages.push(...(await Array.fromAsync(parse(line.slice(6)))));
-          }
-        }
-      }
-      if (buffer.startsWith("data: ")) {
-        messages.push(...(await Array.fromAsync(parse(buffer.slice(6)))));
-      }
-      return messages;
+      return await parseEventStream(response.body);
     }
 
     if (contentType?.startsWith("application/json")) {
