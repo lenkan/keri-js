@@ -2,10 +2,10 @@ import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { keri } from "#keri/core";
 import { KERIPy } from "./keripy.ts";
-import { createController, startKeripyWitness, type Witness } from "./utils.ts";
+import { createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
-let wan: Witness;
-let wil: Witness;
+let wan: Endpoint;
+let wil: Endpoint;
 const abortController = new AbortController();
 
 before(async () => {

@@ -1,6 +1,11 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
 import type { KeyEvent, KeyEventBody } from "#keri/core";
+import { type Logger, noopLogger } from "./logger.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
+
+export interface RouterOptions {
+  logger?: Logger;
+}
 
 function createResponse(events: readonly WitnessEvent[]): Response {
   const body = events
@@ -21,10 +26,13 @@ function createResponse(events: readonly WitnessEvent[]): Response {
   });
 }
 
-export function createRouter(witness: Witness): (request: Request) => Promise<Response> {
+export function createRouter(witness: Witness, options: RouterOptions = {}): (request: Request) => Promise<Response> {
+  const log = options.logger ?? noopLogger;
+
   async function handleReceiptRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");
     if (!atc) {
+      log.warn("rejecting POST /receipts: missing CESR-ATTACHMENT");
       return Response.json({ error: "Bad Request" }, { status: 400 });
     }
 
@@ -37,12 +45,14 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {
+          log.warn("rejecting POST /receipts", { error: err.message });
           return Response.json({ error: "Bad Request" }, { status: 400 });
         }
         throw err;
       }
     }
 
+    log.debug("POST /receipts: issued receipts", { count: receipts.length });
     return createResponse(receipts);
   }
 
@@ -51,13 +61,20 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
     const aid = url.pathname.split("/")[2];
     let response: Response;
     if (aid === undefined || aid === witness.aid) {
+      log.debug("GET /oobi: serving self", { count: witness.events.length });
       response = createResponse(witness.events);
     } else {
       const events = Array.from(witness.getKeyEvents(aid)).map((event) => ({
         message: event,
         timestamp: event.attachments.FirstSeenReplayCouples[0]?.dt ?? new Date(0),
       }));
-      response = events.length === 0 ? new Response("Not Found", { status: 404 }) : createResponse(events);
+      if (events.length === 0) {
+        log.debug("GET /oobi: not found", { aid });
+        response = new Response("Not Found", { status: 404 });
+      } else {
+        log.debug("GET /oobi: serving events", { aid, count: events.length });
+        response = createResponse(events);
+      }
     }
     response.headers.set("Keri-Aid", witness.aid);
     return response;
@@ -66,14 +83,18 @@ export function createRouter(witness: Witness): (request: Request) => Promise<Re
   async function handleMessageRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");
     if (!atc) {
+      log.warn("rejecting POST /: missing CESR-ATTACHMENT");
       return Response.json({ error: "Bad Request" }, { status: 400 });
     }
 
     const bodyText = await request.text();
+    let count = 0;
     for await (const event of parse(bodyText + atc)) {
       witness.handleMessage(event);
+      count++;
     }
 
+    log.debug("POST /: handled messages", { count });
     return new Response(null, { status: 200 });
   }
 

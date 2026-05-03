@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { KERIPy } from "./keripy.ts";
-import { createController, startKeripyWitness, type Witness } from "./utils.ts";
+import { createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 const QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
 const LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY";
@@ -16,8 +16,8 @@ const RULES = {
   },
 };
 
-let wan: Witness;
-let wil: Witness;
+let wan: Endpoint;
+let wil: Endpoint;
 const abortController = new AbortController();
 
 before(async () => {

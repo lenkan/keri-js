@@ -48,16 +48,20 @@
       "keri-source": "./src/witness/main.ts",
       "default": "./dist/witness/main.js"
     },
+    "#keri/mailbox": {
+      "keri-source": "./src/mailbox/main.ts",
+      "default": "./dist/mailbox/main.js"
+    },
     "#keri/nodejs-utils": {
-      "keri-source": "./src/nodejs-utils/serve.ts",
-      "default": "./dist/nodejs-utils/serve.js"
+      "keri-source": "./src/nodejs-utils/main.ts",
+      "default": "./dist/nodejs-utils/main.js"
     }
   },
   "exports": {
     ".": "./dist/main.js",
     "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",
     "./witness": "./dist/witness/main.js",
-    "./nodejs-utils": "./dist/nodejs-utils/serve.js"
+    "./nodejs-utils": "./dist/nodejs-utils/main.js"
   },
   "files": [
     "dist"

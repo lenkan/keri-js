@@ -1,5 +1,40 @@
 import { encodeText, type Message, parse } from "#keri/cesr";
 
+async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Message[]> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const messages: Message[] = [];
+  let buffer = "";
+
+  async function flushLine(line: string): Promise<void> {
+    if (line.startsWith("data: ")) {
+      messages.push(...(await Array.fromAsync(parse(line.slice(6)))));
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      await flushLine(line);
+    }
+
+    // Long-poll SSE servers (e.g. KERIpy) keep the stream open after sending
+    // a snapshot. Once we have at least one message, stop reading and return.
+    if (messages.length > 0) {
+      await reader.cancel();
+      return messages;
+    }
+  }
+  await flushLine(buffer);
+  return messages;
+}
+
 export interface MailboxClientOptions {
   /**
    * The SAID of the mailbox controller.
@@ -60,25 +95,7 @@ export class MailboxClient {
     }
 
     if (contentType === "text/event-stream") {
-      const reader = response.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const str = new TextDecoder().decode(value);
-
-        for (const line of str.split("\n")) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            const message = await Array.fromAsync(parse(data));
-            reader.cancel("Got message, cancelling reader");
-            return message;
-          }
-        }
-      }
+      return await parseEventStream(response.body);
     }
 
     if (contentType?.startsWith("application/json")) {
