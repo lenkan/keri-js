@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import debug, { type Debugger } from "debug";
+import { existsSync } from "node:fs";
 
 const KLI = join(dirname(fileURLToPath(import.meta.url)), "..", ".venv/bin/kli");
 
@@ -13,6 +14,10 @@ export class KERIPy {
   private readonly debug: Debugger;
 
   constructor(opts: { base?: string } = {}) {
+    if(!existsSync(KLI)) {
+      throw new Error(`kli not found at ${KLI}, make sure to set up the .venv and install keripy`);
+    }
+
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
     this.debug = debug(`keripy:${this.name}`);
