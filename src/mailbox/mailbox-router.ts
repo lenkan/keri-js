@@ -1,11 +1,11 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
-import { type Logger, noopLogger } from "./logger.ts";
+import { normalizeLogger, type PartialLogger } from "#keri/logging";
 import type { Mailbox, MailboxEvent, MailboxReply } from "./mailbox.ts";
 
 const RETRY_MS = 5000;
 
 export interface RouterOptions {
-  logger?: Logger;
+  logger?: PartialLogger;
 }
 
 function createOobiResponse(events: readonly MailboxEvent[]): Response {
@@ -51,7 +51,7 @@ function createResponse(replies: readonly MailboxReply[]): Response {
 }
 
 export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (request: Request) => Promise<Response> {
-  const log = options.logger ?? noopLogger;
+  const log = normalizeLogger(options.logger);
 
   async function handleMessageRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");

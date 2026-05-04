@@ -2,14 +2,14 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message, type MessageBody } from "#keri/cesr";
 import type { ExchangeEventBody, QueryEventBody } from "#keri/core";
 import { KeyEventLog, keri } from "#keri/core";
+import { type Logger, normalizeLogger, type PartialLogger } from "#keri/logging";
 import type { MailboxServerStorage } from "#keri/storage";
-import { type Logger, noopLogger } from "./logger.ts";
 
 export interface MailboxOptions {
   storage: MailboxServerStorage;
   privateKey?: Uint8Array;
   url?: string;
-  logger?: Logger;
+  logger?: PartialLogger;
 }
 
 export interface MailboxEvent {
@@ -47,7 +47,7 @@ export class Mailbox {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Mailbox.createKEL(this.#privateKey);
-    this.#log = options.logger ?? noopLogger;
+    this.#log = normalizeLogger(options.logger);
 
     const events: MailboxEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 

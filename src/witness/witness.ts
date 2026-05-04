@@ -1,14 +1,14 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "#keri/core";
+import { type Logger, normalizeLogger, type PartialLogger } from "#keri/logging";
 import type { KeyEventStorage } from "#keri/storage";
-import { type Logger, noopLogger } from "./logger.ts";
 
 export interface WitnessOptions {
   privateKey?: Uint8Array;
   url?: string;
   storage: KeyEventStorage;
-  logger?: Logger;
+  logger?: PartialLogger;
 }
 
 export interface WitnessEvent {
@@ -48,7 +48,7 @@ export class Witness {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Witness.createKEL(this.#privateKey);
-    this.#log = options.logger ?? noopLogger;
+    this.#log = normalizeLogger(options.logger);
 
     const events: WitnessEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 

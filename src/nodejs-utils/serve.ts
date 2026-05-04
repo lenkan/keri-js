@@ -1,9 +1,9 @@
 import type { IncomingMessage, RequestListener } from "node:http";
 import { Readable } from "node:stream";
-import { type Logger, noopLogger } from "./logger.ts";
+import { normalizeLogger, type PartialLogger } from "#keri/logging";
 
 export interface ListenerOptions {
-  logger?: Logger;
+  logger?: PartialLogger;
 }
 
 function toWebRequest(req: IncomingMessage): Request {
@@ -42,7 +42,7 @@ export function createListener(
   handler: (request: Request) => Promise<Response>,
   options: ListenerOptions = {},
 ): RequestListener {
-  const log = options.logger ?? noopLogger;
+  const log = normalizeLogger(options.logger);
 
   return async (req, res) => {
     const start = Date.now();

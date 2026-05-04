@@ -36,6 +36,10 @@
       "keri-source": "./src/core/main.ts",
       "default": "./dist/core/main.js"
     },
+    "#keri/logging": {
+      "keri-source": "./src/logging/main.ts",
+      "default": "./dist/logging/main.js"
+    },
     "#keri/storage": {
       "keri-source": "./src/storage/main.ts",
       "default": "./dist/storage/main.js"
