@@ -1,11 +1,11 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
-import { normalizeLogger, type PartialLogger } from "#keri/logging";
+import type { Logger } from "#keri/logging";
 import type { Mailbox, MailboxEvent, MailboxReply } from "./mailbox.ts";
 
 const RETRY_MS = 5000;
 
 export interface RouterOptions {
-  logger?: PartialLogger;
+  logger?: Logger;
 }
 
 function createOobiResponse(events: readonly MailboxEvent[]): Response {
@@ -51,12 +51,12 @@ function createResponse(replies: readonly MailboxReply[]): Response {
 }
 
 export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (request: Request) => Promise<Response> {
-  const log = normalizeLogger(options.logger);
+  const log = options.logger;
 
   async function handleMessageRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");
     if (!atc) {
-      log.warn("rejecting POST /: missing CESR-ATTACHMENT");
+      log?.warn("rejecting POST /: missing CESR-ATTACHMENT");
       return Response.json({ error: "Bad Request" }, { status: 400 });
     }
 
@@ -70,7 +70,7 @@ export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (re
       }
     }
 
-    log.debug("POST /: handled messages", { count, replies: replies.length });
+    log?.debug("POST /: handled messages", { count, replies: replies.length });
     return createResponse(replies);
   }
 
@@ -92,7 +92,7 @@ export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (re
     if (pathname.startsWith("/oobi")) {
       switch (method) {
         case "GET": {
-          log.debug("GET /oobi: serving self", { count: mailbox.events.length });
+          log?.debug("GET /oobi: serving self", { count: mailbox.events.length });
           const response = createOobiResponse(mailbox.events);
           response.headers.set("Keri-Aid", mailbox.aid);
           return response;

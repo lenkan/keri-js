@@ -1,9 +1,9 @@
 import type { IncomingMessage, RequestListener } from "node:http";
 import { Readable } from "node:stream";
-import { normalizeLogger, type PartialLogger } from "#keri/logging";
+import type { Logger } from "#keri/logging";
 
 export interface ListenerOptions {
-  logger?: PartialLogger;
+  logger?: Logger;
 }
 
 function toWebRequest(req: IncomingMessage): Request {
@@ -42,7 +42,7 @@ export function createListener(
   handler: (request: Request) => Promise<Response>,
   options: ListenerOptions = {},
 ): RequestListener {
-  const log = normalizeLogger(options.logger);
+  const log = options.logger;
 
   return async (req, res) => {
     const start = Date.now();
@@ -51,7 +51,7 @@ export function createListener(
 
     res.on("finish", () => {
       const durationMs = Date.now() - start;
-      log.info(`${method} ${url} ${res.statusCode} ${durationMs}ms`, {
+      log?.info(`${method} ${url} ${res.statusCode} ${durationMs}ms`, {
         method,
         url,
         status: res.statusCode,
@@ -73,7 +73,7 @@ export function createListener(
       }
       res.end();
     } catch (err) {
-      log.error("handler threw", { method, url, error: err instanceof Error ? err.message : String(err) });
+      log?.error("handler threw", { method, url, error: err instanceof Error ? err.message : String(err) });
       res.statusCode = 500;
       res.end("Internal Server Error");
     }

@@ -23,7 +23,7 @@ import {
   submitToWitnesses,
 } from "#keri/core";
 import { decodeBase64Url, encodeBase64Url } from "#keri/encoding";
-import { type Logger, normalizeLogger, type PartialLogger } from "#keri/logging";
+import type { Logger } from "#keri/logging";
 import type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "#keri/storage";
 import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";
 
@@ -45,7 +45,7 @@ export interface ControllerDeps {
   encrypter?: Encrypter;
   passphrase?: string;
   fetch?: typeof globalThis.fetch;
-  logger?: PartialLogger;
+  logger?: Logger;
 }
 
 export interface ReplyArgs {
@@ -103,13 +103,13 @@ export class Controller {
   #storage: ControllerStorage;
   #encrypter: Encrypter;
   #fetch: typeof globalThis.fetch;
-  #log: Logger;
+  #log: Logger | undefined;
 
   constructor(deps: ControllerDeps) {
     this.#storage = deps.storage;
     this.#encrypter = deps.encrypter ?? new PassphraseEncrypter(deps.passphrase ?? "default-passphrase");
     this.#fetch = deps.fetch ?? globalThis.fetch;
-    this.#log = normalizeLogger(deps.logger);
+    this.#log = deps.logger;
   }
 
   private async generateKey(): Promise<string> {
@@ -131,16 +131,16 @@ export class Controller {
   }
 
   async introduce(oobi: string): Promise<KeyState> {
-    this.#log.debug("introduce: fetching oobi", { oobi });
+    this.#log?.debug("introduce: fetching oobi", { oobi });
     const response = await this.#fetch(oobi);
 
     if (!response.ok) {
-      this.#log.warn("introduce: oobi fetch failed", { oobi, status: response.status });
+      this.#log?.warn("introduce: oobi fetch failed", { oobi, status: response.status });
       throw new Error(`Failed to fetch oobi: ${response.status} ${response.statusText}`);
     }
 
     if (!response.body) {
-      this.#log.warn("introduce: empty response body", { oobi });
+      this.#log?.warn("introduce: empty response body", { oobi });
       throw new Error(`No body in response`);
     }
 
@@ -166,7 +166,7 @@ export class Controller {
       }
     }
 
-    this.#log.debug("introduce: complete", { aid: log.state.identifier, messages });
+    this.#log?.debug("introduce: complete", { aid: log.state.identifier, messages });
     return log.state;
   }
 
@@ -222,7 +222,7 @@ export class Controller {
     });
 
     const body = event.body as InceptEventBody;
-    this.#log.debug("incept: created", { aid: body.i, wits: body.b?.length ?? 0 });
+    this.#log?.debug("incept: created", { aid: body.i, wits: body.b?.length ?? 0 });
     await this.commit(KeyEventLog.empty(), event);
 
     return {
@@ -234,7 +234,7 @@ export class Controller {
   async processMessage(message: Message): Promise<void> {
     if (message.version.protocol === "ACDC") {
       // TODO: verify ACDC credential SAID and anchors in TEL or KEL
-      this.#log.debug("processMessage: saving ACDC", { d: message.body.d });
+      this.#log?.debug("processMessage: saving ACDC", { d: message.body.d });
       this.#storage.saveMessage(message);
       return;
     }
@@ -250,9 +250,9 @@ export class Controller {
         if (!log.events.find((event) => event.body.d === message.body.d)) {
           log.append(message as Message<KeyEventBody>); // throws if verification fails
           this.#storage.saveMessage(message);
-          this.#log.debug("processMessage: appended key event", { t: body.t, aid: body.i, s: body.s, d: body.d });
+          this.#log?.debug("processMessage: appended key event", { t: body.t, aid: body.i, s: body.s, d: body.d });
         } else {
-          this.#log.debug("processMessage: duplicate key event ignored", { t: body.t, aid: body.i, d: body.d });
+          this.#log?.debug("processMessage: duplicate key event ignored", { t: body.t, aid: body.i, d: body.d });
         }
         break;
       }
@@ -260,17 +260,17 @@ export class Controller {
       case "iss":
       case "rev":
         // TODO: verify is anchored to a valid ixn in the issuer's KEL
-        this.#log.debug("processMessage: saving registry event", { t: message.body.t, d: message.body.d });
+        this.#log?.debug("processMessage: saving registry event", { t: message.body.t, d: message.body.d });
         this.#storage.saveMessage(message);
         break;
       case "rpy":
         // TODO: Verify that is signed by the controller
-        this.#log.debug("processMessage: saving reply", { d: message.body.d });
+        this.#log?.debug("processMessage: saving reply", { d: message.body.d });
         this.#storage.saveMessage(message);
         break;
       default:
         // TODO: Handle other message types
-        this.#log.debug("processMessage: ignoring", { t: message.body.t });
+        this.#log?.debug("processMessage: ignoring", { t: message.body.t });
         // this.#storage.saveMessage(message);
         break;
     }
@@ -282,7 +282,7 @@ export class Controller {
     const backers = event.body.t === "icp" ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
     const sigs = await this.sign(event.raw, signingKeys);
     event.attachments.ControllerIdxSigs.push(...sigs);
-    this.#log.debug("commit: submitting to witnesses", {
+    this.#log?.debug("commit: submitting to witnesses", {
       t: body.t,
       aid: body.i,
       s: body.s,
@@ -291,7 +291,7 @@ export class Controller {
     const endpoints = await Promise.all(backers.map((wit) => this.resolveEndpoint(wit)));
     const wigs = await submitToWitnesses(event, endpoints, this.#fetch);
     event.attachments.WitnessIdxSigs.push(...wigs);
-    this.#log.debug("commit: received witness signatures", { aid: body.i, s: body.s, wigs: wigs.length });
+    this.#log?.debug("commit: received witness signatures", { aid: body.i, s: body.s, wigs: wigs.length });
     await this.processMessage(event);
   }
 
@@ -299,7 +299,7 @@ export class Controller {
     const log = await this.loadEventLog(id);
     const event = keri.interact(log.state, { data: anchor.data });
 
-    this.#log.debug("anchor: created interaction", { aid: id, s: (event.body as InteractEventBody).s });
+    this.#log?.debug("anchor: created interaction", { aid: id, s: (event.body as InteractEventBody).s });
     await this.commit(log, event);
 
     return {
@@ -323,7 +323,7 @@ export class Controller {
       data: args.data,
     });
 
-    this.#log.debug("rotate: created rotation", { aid: id, s: (event.body as RotateEventBody).s });
+    this.#log?.debug("rotate: created rotation", { aid: id, s: (event.body as RotateEventBody).s });
     await this.commit(log, event);
 
     return {
@@ -354,7 +354,7 @@ export class Controller {
 
     await this.processMessage(rpy);
 
-    this.#log.debug("reply: broadcasting", { aid: args.id, route: args.route, witnesses: state.backers.length });
+    this.#log?.debug("reply: broadcasting", { aid: args.id, route: args.route, witnesses: state.backers.length });
     for (const wit of state.backers) {
       const endpoint = this.resolveEndpoint(wit, "controller");
       const client = new MailboxClient({
@@ -367,7 +367,7 @@ export class Controller {
   }
 
   async forward(args: ForwardArgs): Promise<void> {
-    this.#log.debug("forward: dispatching", {
+    this.#log?.debug("forward: dispatching", {
       sender: args.sender,
       recipient: args.recipient,
       topic: args.topic,
@@ -429,7 +429,7 @@ export class Controller {
       ii: owner,
     });
 
-    this.#log.debug("createRegistry: created", { owner, registry: vcp.body.i });
+    this.#log?.debug("createRegistry: created", { owner, registry: vcp.body.i });
 
     const anchor = await this.anchor(owner, {
       data: {
@@ -467,7 +467,7 @@ export class Controller {
     const registry = this.#storage.getRegistry(args.registryId);
 
     if (!registry) {
-      this.#log.warn("createCredential: registry not found", { registryId: args.registryId });
+      this.#log?.warn("createCredential: registry not found", { registryId: args.registryId });
       throw new Error(`Registry ${args.registryId} not found`);
     }
 
@@ -488,7 +488,7 @@ export class Controller {
       e: args.edges,
     });
 
-    this.#log.debug("createCredential: created", {
+    this.#log?.debug("createCredential: created", {
       d: credential.body.d,
       registry: args.registryId,
       schema: args.schemaId,
@@ -509,7 +509,7 @@ export class Controller {
 
   async issueCredential(credential: CredentialBody): Promise<void> {
     const log = await this.loadEventLog(credential.i);
-    this.#log.debug("issueCredential: issuing", { credential: credential.d, issuer: credential.i });
+    this.#log?.debug("issueCredential: issuing", { credential: credential.d, issuer: credential.i });
 
     const iss = keri.issue({
       i: credential.d,
@@ -668,7 +668,7 @@ export class Controller {
     const registry = this.#storage.getRegistry(args.credential.ri);
 
     if (!registry) {
-      this.#log.warn("grant: registry not found", { ri: args.credential.ri });
+      this.#log?.warn("grant: registry not found", { ri: args.credential.ri });
       throw new Error(`Registry not found for said ${args.credential.ri}`);
     }
 
@@ -676,10 +676,10 @@ export class Controller {
     const recipient = args.recipient || (typeof issuee === "string" && issuee ? issuee : undefined);
 
     if (!recipient) {
-      this.#log.warn("grant: no recipient", { credential: args.credential.d });
+      this.#log?.warn("grant: no recipient", { credential: args.credential.d });
       throw new Error("No recipient specified and the credential has no issuee");
     }
-    this.#log.debug("grant: building", { credential: args.credential.d, recipient });
+    this.#log?.debug("grant: building", { credential: args.credential.d, recipient });
 
     const iss = this.getIssueEvent(args.credential.d);
     const anchorSeal = iss.attachments.SealSourceCouples[0] || iss.attachments.SealSourceTriples[0];
@@ -767,7 +767,7 @@ export class Controller {
       ],
     };
 
-    this.#log.debug("query: sending", { aid: id, topic, offset });
+    this.#log?.debug("query: sending", { aid: id, topic, offset });
     const result = await client.sendMessage(queryMessage, AbortSignal.timeout(10000));
 
     for (const incoming of result) {
@@ -775,7 +775,7 @@ export class Controller {
     }
 
     this.#storage.saveMailboxOffset(id, topic, offset + result.length);
-    this.#log.debug("query: received", { aid: id, topic, count: result.length });
+    this.#log?.debug("query: received", { aid: id, topic, count: result.length });
 
     return result;
   }
@@ -794,7 +794,7 @@ export class Controller {
       const issBody = body.e?.iss as IssueEvent | undefined;
 
       if (!acdcBody || !issBody) {
-        this.#log.warn("receiveGrants: invalid grant", { holder: holderId });
+        this.#log?.warn("receiveGrants: invalid grant", { holder: holderId });
         throw new Error("Invalid grant message: missing acdc or iss embed");
       }
 
@@ -808,7 +808,7 @@ export class Controller {
       credentials.push(acdcBody);
     }
 
-    this.#log.debug("receiveGrants: complete", { holder: holderId, credentials: credentials.length });
+    this.#log?.debug("receiveGrants: complete", { holder: holderId, credentials: credentials.length });
     return credentials;
   }
 

@@ -2,14 +2,14 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message, type MessageBody } from "#keri/cesr";
 import type { ExchangeEventBody, QueryEventBody } from "#keri/core";
 import { KeyEventLog, keri } from "#keri/core";
-import { type Logger, normalizeLogger, type PartialLogger } from "#keri/logging";
+import type { Logger } from "#keri/logging";
 import type { MailboxServerStorage } from "#keri/storage";
 
 export interface MailboxOptions {
   storage: MailboxServerStorage;
   privateKey?: Uint8Array;
   url?: string;
-  logger?: PartialLogger;
+  logger?: Logger;
 }
 
 export interface MailboxEvent {
@@ -27,7 +27,7 @@ export class Mailbox {
   readonly #storage: MailboxServerStorage;
   readonly #privateKey: Uint8Array;
   readonly #kel: KeyEventLog;
-  readonly #log: Logger;
+  readonly #log: Logger | undefined;
   readonly events: readonly MailboxEvent[];
 
   static createKEL(privateKey: Uint8Array): KeyEventLog {
@@ -47,7 +47,7 @@ export class Mailbox {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Mailbox.createKEL(this.#privateKey);
-    this.#log = normalizeLogger(options.logger);
+    this.#log = options.logger;
 
     const events: MailboxEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 
@@ -84,18 +84,18 @@ export class Mailbox {
     const { t, r } = message.body as { t?: string; r?: string };
 
     if (t === "exn" && r === "/fwd") {
-      this.#log.debug("handling exn /fwd");
+      this.#log?.debug("handling exn /fwd");
       this.#handleForward(message as Message<ExchangeEventBody>);
       return;
     }
 
     if (t === "qry" && r === "mbx") {
-      this.#log.debug("handling qry mbx");
+      this.#log?.debug("handling qry mbx");
       yield* this.#handleQuery(message as Message<QueryEventBody>);
       return;
     }
 
-    this.#log.debug("ignoring message", { t, r });
+    this.#log?.debug("ignoring message", { t, r });
   }
 
   #handleForward(message: Message<ExchangeEventBody>): void {
@@ -104,20 +104,20 @@ export class Mailbox {
     const topic = q.topic as string | undefined;
 
     if (!pre || !topic) {
-      this.#log.warn("ignoring forward: missing q.pre or q.topic");
+      this.#log?.warn("ignoring forward: missing q.pre or q.topic");
       return;
     }
 
     const evtBody = e?.evt as MessageBody | undefined;
     if (!evtBody) {
-      this.#log.warn("ignoring forward: missing e.evt", { pre, topic });
+      this.#log?.warn("ignoring forward: missing e.evt", { pre, topic });
       return;
     }
 
     const evtCouple = message.attachments.PathedMaterialCouples.find((c) => c.path === "-e-evt");
     const innerMessage = new Message(evtBody, evtCouple?.attachments);
 
-    this.#log.debug("saving mailbox entry", { pre, topic });
+    this.#log?.debug("saving mailbox entry", { pre, topic });
     this.#storage.saveMailboxEntry(pre, topic, innerMessage);
   }
 
@@ -128,11 +128,11 @@ export class Mailbox {
     };
 
     if (!i || !topics) {
-      this.#log.warn("ignoring query: missing q.i or q.topics");
+      this.#log?.warn("ignoring query: missing q.i or q.topics");
       return;
     }
 
-    this.#log.debug("querying mailbox", { aid: i, topics });
+    this.#log?.debug("querying mailbox", { aid: i, topics });
     for (const [topicPath, offset] of Object.entries(topics)) {
       const storageTopic = topicPath.replace(/^\//, "");
       for (const entry of this.#storage.getMailboxEntries(i, storageTopic, offset)) {

@@ -1,10 +1,10 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
 import type { KeyEvent, KeyEventBody } from "#keri/core";
-import { normalizeLogger, type PartialLogger } from "#keri/logging";
+import type { Logger } from "#keri/logging";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 export interface RouterOptions {
-  logger?: PartialLogger;
+  logger?: Logger;
 }
 
 function createResponse(events: readonly WitnessEvent[]): Response {
@@ -27,12 +27,12 @@ function createResponse(events: readonly WitnessEvent[]): Response {
 }
 
 export function createRouter(witness: Witness, options: RouterOptions = {}): (request: Request) => Promise<Response> {
-  const log = normalizeLogger(options.logger);
+  const log = options.logger;
 
   async function handleReceiptRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");
     if (!atc) {
-      log.warn("rejecting POST /receipts: missing CESR-ATTACHMENT");
+      log?.warn("rejecting POST /receipts: missing CESR-ATTACHMENT");
       return Response.json({ error: "Bad Request" }, { status: 400 });
     }
 
@@ -45,14 +45,14 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {
-          log.warn("rejecting POST /receipts", { error: err.message });
+          log?.warn("rejecting POST /receipts", { error: err.message });
           return Response.json({ error: "Bad Request" }, { status: 400 });
         }
         throw err;
       }
     }
 
-    log.debug("POST /receipts: issued receipts", { count: receipts.length });
+    log?.debug("POST /receipts: issued receipts", { count: receipts.length });
     return createResponse(receipts);
   }
 
@@ -61,7 +61,7 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
     const aid = url.pathname.split("/")[2];
     let response: Response;
     if (aid === undefined || aid === witness.aid) {
-      log.debug("GET /oobi: serving self", { count: witness.events.length });
+      log?.debug("GET /oobi: serving self", { count: witness.events.length });
       response = createResponse(witness.events);
     } else {
       const events = Array.from(witness.getKeyEvents(aid)).map((event) => ({
@@ -69,10 +69,10 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
         timestamp: event.attachments.FirstSeenReplayCouples[0]?.dt ?? new Date(0),
       }));
       if (events.length === 0) {
-        log.debug("GET /oobi: not found", { aid });
+        log?.debug("GET /oobi: not found", { aid });
         response = new Response("Not Found", { status: 404 });
       } else {
-        log.debug("GET /oobi: serving events", { aid, count: events.length });
+        log?.debug("GET /oobi: serving events", { aid, count: events.length });
         response = createResponse(events);
       }
     }
@@ -83,7 +83,7 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
   async function handleMessageRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");
     if (!atc) {
-      log.warn("rejecting POST /: missing CESR-ATTACHMENT");
+      log?.warn("rejecting POST /: missing CESR-ATTACHMENT");
       return Response.json({ error: "Bad Request" }, { status: 400 });
     }
 
@@ -94,7 +94,7 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
       count++;
     }
 
-    log.debug("POST /: handled messages", { count });
+    log?.debug("POST /: handled messages", { count });
     return new Response(null, { status: 200 });
   }
 
