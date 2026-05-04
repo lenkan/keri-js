@@ -1,8 +1,8 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "#keri/core";
+import type { Logger } from "#keri/logging";
 import type { KeyEventStorage } from "#keri/storage";
-import { type Logger, noopLogger } from "./logger.ts";
 
 export interface WitnessOptions {
   privateKey?: Uint8Array;
@@ -24,7 +24,7 @@ export class Witness {
   readonly #storage: KeyEventStorage;
   readonly #privateKey: Uint8Array;
   readonly #kel: KeyEventLog;
-  readonly #log: Logger;
+  readonly #log: Logger | undefined;
 
   get aid() {
     return this.#kel.state.identifier;
@@ -48,7 +48,7 @@ export class Witness {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Witness.createKEL(this.#privateKey);
-    this.#log = options.logger ?? noopLogger;
+    this.#log = options.logger;
 
     const events: WitnessEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 
@@ -93,12 +93,12 @@ export class Witness {
     const body = message.body;
 
     if (typeof body.i !== "string" || typeof body.d !== "string" || typeof body.s !== "string") {
-      this.#log.warn("rejecting receipt: missing required fields i/d/s");
+      this.#log?.warn("rejecting receipt: missing required fields i/d/s");
       throw new WitnessError("Missing required fields i, d, s");
     }
 
     if (message.attachments.ControllerIdxSigs.length === 0) {
-      this.#log.warn("rejecting receipt: no controller signatures", { aid: body.i, s: body.s, d: body.d });
+      this.#log?.warn("rejecting receipt: no controller signatures", { aid: body.i, s: body.s, d: body.d });
       throw new WitnessError("Missing controller signatures");
     }
 
@@ -108,7 +108,7 @@ export class Witness {
       kel = kel.append(message, { allowPartiallyWitnessed: true });
     } catch (error) {
       if (error instanceof Error) {
-        this.#log.warn("rejecting receipt: KEL append failed", {
+        this.#log?.warn("rejecting receipt: KEL append failed", {
           aid: body.i,
           s: body.s,
           d: body.d,
@@ -118,7 +118,7 @@ export class Witness {
       }
     }
 
-    this.#log.debug("issuing receipt", { aid: body.i, s: body.s, d: body.d });
+    this.#log?.debug("issuing receipt", { aid: body.i, s: body.s, d: body.d });
 
     const sig = this.#sign(message);
     const witnessIndex = kel.state.backers.indexOf(this.aid);
@@ -145,12 +145,12 @@ export class Witness {
     const body = message.body as KeyEventBody;
 
     if (body.t !== "rct") {
-      this.#log.debug("ignoring message: only rct handled", { t: body.t });
+      this.#log?.debug("ignoring message: only rct handled", { t: body.t });
       return;
     }
 
     if (typeof body.i !== "string" || typeof body.d !== "string") {
-      this.#log.warn("ignoring receipt: missing i/d");
+      this.#log?.warn("ignoring receipt: missing i/d");
       return;
     }
 
@@ -160,13 +160,13 @@ export class Witness {
     });
 
     if (!kel.state.backers.includes(this.aid)) {
-      this.#log.debug("ignoring receipt: not a backer", { aid: body.i, d: body.d });
+      this.#log?.debug("ignoring receipt: not a backer", { aid: body.i, d: body.d });
       return;
     }
 
     const storedEvent = kel.events.find((event) => event.body.d === body.d);
     if (!storedEvent) {
-      this.#log.debug("ignoring receipt: no matching stored event", { aid: body.i, d: body.d });
+      this.#log?.debug("ignoring receipt: no matching stored event", { aid: body.i, d: body.d });
       return;
     }
 
@@ -191,7 +191,7 @@ export class Witness {
       FirstSeenReplayCouples: storedEvent.attachments.FirstSeenReplayCouples,
     });
 
-    this.#log.debug("merged witness sigs", { aid: body.i, d: body.d, count: existingWigsByIndex.size });
+    this.#log?.debug("merged witness sigs", { aid: body.i, d: body.d, count: existingWigsByIndex.size });
     this.#storage.saveMessage(new Message(storedEvent.body, mergedAttachments));
   }
 
