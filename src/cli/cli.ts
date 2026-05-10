@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI */
-import { encodeText, parse } from "#keri/cesr";
+import { encodeText, parse } from "../cesr/main.ts";
 
 interface Arguments {
   options: Record<string, string | boolean>;

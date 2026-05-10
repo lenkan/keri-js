@@ -1,6 +1,6 @@
 import type { IncomingMessage, RequestListener } from "node:http";
 import { Readable } from "node:stream";
-import { KeriLogger, type Logger } from "#keri/logging";
+import { KeriLogger, type Logger } from "../logging/main.ts";
 
 export interface ListenerOptions {
   logger?: Logger;

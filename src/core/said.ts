@@ -1,5 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { encodeText, Matter } from "#keri/cesr";
+import { encodeText, Matter } from "../cesr/main.ts";
 
 function calculateSaid(event: Record<string, unknown>): string {
   const digest = encodeText(

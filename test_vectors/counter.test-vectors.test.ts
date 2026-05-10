@@ -2,9 +2,9 @@ import assert from "node:assert";
 import { Buffer } from "node:buffer";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { encodeBinary, encodeText } from "#keri/cesr";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
 import { Counter } from "../src/cesr/counter.ts";
+import { encodeBinary, encodeText } from "../src/cesr/main.ts";
 
 describe(path.parse(import.meta.url).base, () => {
   for (const entry of vectors.filter((v) => v.type === "counter_10" || v.type === "counter_20")) {

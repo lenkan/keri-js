@@ -8,62 +8,20 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --conditions keri-source --no-warnings 'src/**/*.test.ts'",
-    "test:interop": "node --test --conditions keri-source --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
-    "test:vector": "node --test --conditions keri-source --no-warnings 'test_vectors/**/*.test.ts'",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
+    "test": "node --test --no-warnings 'src/**/*.test.ts'",
+    "test:interop": "node --test --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
+    "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
+    "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
+    "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
     "check": "tsc --noEmit",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "docs:build": "typedoc",
     "docs:serve": "concurrently \"serve docs\" \"typedoc --watch --preserveWatchOutput\""
   },
-  "imports": {
-    "#keri": {
-      "keri-source": "./src/main.ts",
-      "default": "./dist/main.js"
-    },
-    "#keri/encoding": {
-      "keri-source": "./src/encoding/main.ts",
-      "default": "./dist/encoding/main.js"
-    },
-    "#keri/cesr": {
-      "keri-source": "./src/cesr/__main__.ts",
-      "default": "./dist/cesr/__main__.js"
-    },
-    "#keri/core": {
-      "keri-source": "./src/core/main.ts",
-      "default": "./dist/core/main.js"
-    },
-    "#keri/logging": {
-      "keri-source": "./src/logging/main.ts",
-      "default": "./dist/logging/main.js"
-    },
-    "#keri/storage": {
-      "keri-source": "./src/storage/main.ts",
-      "default": "./dist/storage/main.js"
-    },
-    "#keri/storage/sqlite": {
-      "keri-source": "./src/storage/sqlite/storage-sqlite.ts",
-      "default": "./dist/storage/sqlite/storage-sqlite.js"
-    },
-    "#keri/witness": {
-      "keri-source": "./src/witness/main.ts",
-      "default": "./dist/witness/main.js"
-    },
-    "#keri/mailbox": {
-      "keri-source": "./src/mailbox/main.ts",
-      "default": "./dist/mailbox/main.js"
-    },
-    "#keri/nodejs-utils": {
-      "keri-source": "./src/nodejs-utils/main.ts",
-      "default": "./dist/nodejs-utils/main.js"
-    }
-  },
   "exports": {
     ".": "./dist/main.js",
-    "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",
+    "./sqlite-storage": "./dist/sqlite-storage/main.js",
     "./witness": "./dist/witness/main.js",
     "./nodejs-utils": "./dist/nodejs-utils/main.js"
   },

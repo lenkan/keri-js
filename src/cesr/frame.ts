@@ -5,7 +5,7 @@ import {
   encodeBase64Int,
   encodeBase64Url,
   encodeUtf8,
-} from "#keri/encoding";
+} from "../encoding/main.ts";
 import { prepad, toArray } from "./array-utils.ts";
 import { lshift } from "./shifting.ts";
 

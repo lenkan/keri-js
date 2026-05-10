@@ -1,4 +1,4 @@
-import { Message } from "#keri/cesr";
+import { Message } from "../cesr/main.ts";
 import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
 
 export interface IssueEventInit {

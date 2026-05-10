@@ -1,4 +1,4 @@
-import { encodeText, Matter, type Message, parse } from "#keri/cesr";
+import { encodeText, Matter, type Message, parse } from "../cesr/main.ts";
 import type { KeyEventBody } from "./key-event.ts";
 import type { ReceiptEvent } from "./receipt-event.ts";
 import { verifySignature } from "./verify.ts";

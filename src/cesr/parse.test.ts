@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { decodeUtf8, encodeUtf8 } from "#keri/encoding";
+import { decodeUtf8, encodeUtf8 } from "../encoding/main.ts";
 import { concat } from "./array-utils.ts";
 import { encodeText } from "./frame.ts";
 import { Genus } from "./genus.ts";

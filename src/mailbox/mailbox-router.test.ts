@@ -2,10 +2,10 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
-import { Attachments, encodeText, parse } from "#keri/cesr";
-import type { Message } from "#keri/core";
-import { generateKeyPair, keri } from "#keri/core";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
+import { Attachments, encodeText, parse } from "../cesr/main.ts";
+import type { Message } from "../core/main.ts";
+import { generateKeyPair, keri } from "../core/main.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 

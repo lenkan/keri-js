@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Matter } from "#keri/cesr";
+import { Matter } from "../cesr/main.ts";
 import { incept } from "./registry-event.ts";
 
 describe(basename(import.meta.url), () => {

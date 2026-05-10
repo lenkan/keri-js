@@ -1,4 +1,4 @@
-import { encodeText, Indexer, Matter, parse } from "#keri/cesr";
+import { encodeText, Indexer, Matter, parse } from "../cesr/main.ts";
 import {
   Attachments,
   type CredentialBody,
@@ -21,13 +21,13 @@ import {
   resolveLocation,
   sign,
   submitToWitnesses,
-} from "#keri/core";
-import { decodeBase64Url, encodeBase64Url } from "#keri/encoding";
-import { KeriLogger, type Logger } from "#keri/logging";
-import type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "#keri/storage";
+} from "../core/main.ts";
+import { decodeBase64Url, encodeBase64Url } from "../encoding/main.ts";
+import { KeriLogger, type Logger } from "../logging/main.ts";
+import type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "../storage/main.ts";
 import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";
 
-export type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "#keri/storage";
+export type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "../storage/main.ts";
 export type { Encrypter } from "./encrypt.ts";
 
 export type ControllerStorage = KeyEventStorage & PrivateKeyStorage & CredentialStorage & MailboxStorage;

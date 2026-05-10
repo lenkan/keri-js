@@ -1,5 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter } from "#keri/cesr";
+import { encodeText, Indexer, Matter } from "../cesr/main.ts";
 
 export interface SignOptions {
   key: Uint8Array;

@@ -15,6 +15,8 @@ KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure
 - **`storage/`** — Storage backends (e.g. SQLite)
 - **`witness/`** — Witness node implementation
 
+Each submodule has a `main.ts` that defines its public surface. Cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
+
 ## Commands
 
 ```sh

@@ -4,7 +4,7 @@ import type { Database, Params, Row } from "./sqlite-database.ts";
 export { NodeSqliteDatabase } from "./node-sqlite.ts";
 export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
 
-import { encodeText, type MessageBody } from "#keri/cesr";
+import { encodeText, type MessageBody } from "../cesr/main.ts";
 import {
   Attachments,
   type CredentialBody,
@@ -15,12 +15,15 @@ import {
   type RegistryInceptEventBody,
   type ReplyEventBody,
   type RevokeEvent,
-} from "#keri/core";
-import type { CredentialStorage } from "../credential-storage.ts";
-import type { KeyEventStorage } from "../key-event-storage.ts";
-import type { MailboxEntry, MailboxServerStorage } from "../mailbox-server-storage.ts";
-import type { MailboxStorage } from "../mailbox-storage.ts";
-import type { PrivateKeyStorage } from "../private-key-storage.ts";
+} from "../core/main.ts";
+import type {
+  CredentialStorage,
+  KeyEventStorage,
+  MailboxEntry,
+  MailboxServerStorage,
+  MailboxStorage,
+  PrivateKeyStorage,
+} from "../storage/main.ts";
 
 function parseRow<T extends MessageBody>(result: Row): Message<T> {
   if (!("event_json" in result) || typeof result.event_json !== "string") {

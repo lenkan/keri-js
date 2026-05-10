@@ -2,9 +2,9 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
-import type { Message } from "#keri/cesr";
-import { generateKeyPair, keri } from "#keri/core";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
+import type { Message } from "../cesr/main.ts";
+import { generateKeyPair, keri } from "../core/main.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Mailbox } from "./mailbox.ts";
 
 function makeMailbox() {
