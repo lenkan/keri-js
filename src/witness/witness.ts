@@ -1,8 +1,8 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "#keri/cesr";
 import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "#keri/core";
+import { KeriLogger, type Logger } from "#keri/logging";
 import type { KeyEventStorage } from "#keri/storage";
-import { type Logger, noopLogger } from "./logger.ts";
 
 export interface WitnessOptions {
   privateKey?: Uint8Array;
@@ -24,7 +24,7 @@ export class Witness {
   readonly #storage: KeyEventStorage;
   readonly #privateKey: Uint8Array;
   readonly #kel: KeyEventLog;
-  readonly #log: Logger;
+  readonly #log: KeriLogger;
 
   get aid() {
     return this.#kel.state.identifier;
@@ -48,7 +48,7 @@ export class Witness {
     this.#storage = options.storage;
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Witness.createKEL(this.#privateKey);
-    this.#log = options.logger ?? noopLogger;
+    this.#log = new KeriLogger(options.logger);
 
     const events: WitnessEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
 

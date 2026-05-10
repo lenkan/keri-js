@@ -1,6 +1,6 @@
 import { Attachments, encodeText, parse } from "#keri/cesr";
 import type { KeyEvent, KeyEventBody } from "#keri/core";
-import { type Logger, noopLogger } from "./logger.ts";
+import { KeriLogger, type Logger } from "#keri/logging";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 export interface RouterOptions {
@@ -27,7 +27,7 @@ function createResponse(events: readonly WitnessEvent[]): Response {
 }
 
 export function createRouter(witness: Witness, options: RouterOptions = {}): (request: Request) => Promise<Response> {
-  const log = options.logger ?? noopLogger;
+  const log = new KeriLogger(options.logger);
 
   async function handleReceiptRequest(request: Request): Promise<Response> {
     const atc = request.headers.get("CESR-ATTACHMENT");

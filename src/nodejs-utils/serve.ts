@@ -1,6 +1,6 @@
 import type { IncomingMessage, RequestListener } from "node:http";
 import { Readable } from "node:stream";
-import { type Logger, noopLogger } from "./logger.ts";
+import { KeriLogger, type Logger } from "#keri/logging";
 
 export interface ListenerOptions {
   logger?: Logger;
@@ -42,7 +42,7 @@ export function createListener(
   handler: (request: Request) => Promise<Response>,
   options: ListenerOptions = {},
 ): RequestListener {
-  const log = options.logger ?? noopLogger;
+  const log = new KeriLogger(options.logger);
 
   return async (req, res) => {
     const start = Date.now();

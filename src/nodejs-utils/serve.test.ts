@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import type { Logger } from "./logger.ts";
+import type { Logger } from "#keri/logging";
 import { createListener, type ListenerOptions } from "./serve.ts";
 
 interface TestServer {
@@ -34,7 +34,6 @@ function makeRecordingLogger(): { logger: Logger; entries: { level: string; msg:
   return {
     entries,
     logger: {
-      trace: make("trace"),
       debug: make("debug"),
       info: make("info"),
       warn: make("warn"),

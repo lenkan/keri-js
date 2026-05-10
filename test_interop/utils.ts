@@ -44,7 +44,6 @@ function findFreePort(): Promise<number> {
 }
 
 const serverLogger: Logger = {
-  trace: (msg, meta) => console.log(`[server] ${msg}`, meta ?? ""),
   debug: (msg, meta) => console.log(`[server] ${msg}`, meta ?? ""),
   info: (msg, meta) => console.log(`[server] ${msg}`, meta ?? ""),
   warn: (msg, meta) => console.warn(`[server] ${msg}`, meta ?? ""),
