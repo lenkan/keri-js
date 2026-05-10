@@ -43,6 +43,7 @@ Curated, implementation-focused summaries of the protocols this codebase impleme
 
 - [`docs/specs/cesr.md`](docs/specs/cesr.md) — CESR encoding, code tables, stream parsing
 - [`docs/specs/keri.md`](docs/specs/keri.md) — KERI events, SAIDs, seals, witnesses
+- [`docs/specs/acdc.md`](docs/specs/acdc.md) — ACDC structure, sections (schema/attribute/aggregate/edge/rule), IPEX, TEL registries
 - [`docs/kawa.md`](docs/kawa.md) — KAWA witness-agreement protocol detail
 
 For anything not covered in the curated docs, fall back to the upstream specs linked at the top of each file.

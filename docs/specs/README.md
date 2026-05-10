@@ -6,7 +6,7 @@ Implementation-focused summaries of the protocol specs that this codebase implem
 | --- | --- | --- |
 | CESR | [`cesr.md`](./cesr.md) | [trustoverip/kswg-cesr-specification](https://github.com/trustoverip/kswg-cesr-specification) |
 | KERI | [`keri.md`](./keri.md) | [trustoverip/kswg-keri-specification](https://github.com/trustoverip/kswg-keri-specification) |
-| ACDC | _not yet curated_ | [trustoverip/kswg-acdc-specification](https://github.com/trustoverip/kswg-acdc-specification) |
+| ACDC | [`acdc.md`](./acdc.md) | [trustoverip/kswg-acdc-specification](https://github.com/trustoverip/kswg-acdc-specification) |
 
 These are the canonical in-repo references for protocol-level questions. They cover:
 
