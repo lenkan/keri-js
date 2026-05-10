@@ -1,4 +1,4 @@
-import type { Message } from "#keri/cesr";
+import type { Message } from "../cesr/main.ts";
 
 export interface MailboxEntry {
   id: number;

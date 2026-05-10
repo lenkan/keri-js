@@ -1,9 +1,9 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter, Message, type MessageBody } from "#keri/cesr";
-import type { ExchangeEventBody, QueryEventBody } from "#keri/core";
-import { KeyEventLog, keri } from "#keri/core";
-import { KeriLogger, type Logger } from "#keri/logging";
-import type { MailboxServerStorage } from "#keri/storage";
+import { encodeText, Indexer, Matter, Message, type MessageBody } from "../cesr/main.ts";
+import type { ExchangeEventBody, QueryEventBody } from "../core/main.ts";
+import { KeyEventLog, keri } from "../core/main.ts";
+import { KeriLogger, type Logger } from "../logging/main.ts";
+import type { MailboxServerStorage } from "../storage/main.ts";
 
 export interface MailboxOptions {
   storage: MailboxServerStorage;

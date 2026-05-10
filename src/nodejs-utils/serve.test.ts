@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import type { Logger } from "#keri/logging";
+import type { Logger } from "../logging/main.ts";
 import { createListener, type ListenerOptions } from "./serve.ts";
 
 interface TestServer {

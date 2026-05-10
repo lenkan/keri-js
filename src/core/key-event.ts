@@ -1,4 +1,4 @@
-import { Matter, Message } from "#keri/cesr";
+import { Matter, Message } from "../cesr/main.ts";
 import { DUMMY_VERSION, encodeEvent } from "./events.ts";
 import type { Threshold } from "./threshold.ts";
 

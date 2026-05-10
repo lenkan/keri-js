@@ -3,9 +3,9 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter, Message } from "#keri/cesr";
-import { generateKeyPair, KeyEventLog, keri, verifySignature } from "#keri/core";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "#keri/storage/sqlite";
+import { encodeText, Indexer, Matter, Message } from "../cesr/main.ts";
+import { generateKeyPair, KeyEventLog, keri, verifySignature } from "../core/main.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
 import { Witness, WitnessError } from "./witness.ts";
 
 function makeWitness(seed = "test-witness") {

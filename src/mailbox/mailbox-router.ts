@@ -1,5 +1,5 @@
-import { Attachments, encodeText, parse } from "#keri/cesr";
-import { KeriLogger, type Logger } from "#keri/logging";
+import { Attachments, encodeText, parse } from "../cesr/main.ts";
+import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { Mailbox, MailboxEvent, MailboxReply } from "./mailbox.ts";
 
 const RETRY_MS = 5000;

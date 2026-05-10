@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
 import { inspect } from "node:util";
-import { decodeUtf8, encodeUtf8 } from "#keri/encoding";
+import { decodeUtf8, encodeUtf8 } from "../encoding/main.ts";
 import { Attachments } from "./attachments.ts";
 import { encodeText } from "./frame.ts";
 import { Indexer } from "./indexer.ts";

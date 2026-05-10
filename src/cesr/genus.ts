@@ -1,4 +1,4 @@
-import { decodeBase64Int, encodeBase64Int } from "#keri/encoding";
+import { decodeBase64Int, encodeBase64Int } from "../encoding/main.ts";
 import { decodeText, type Frame, type FrameSize } from "./frame.ts";
 
 export interface GenusInit {

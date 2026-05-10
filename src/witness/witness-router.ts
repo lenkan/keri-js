@@ -1,6 +1,6 @@
-import { Attachments, encodeText, parse } from "#keri/cesr";
-import type { KeyEvent, KeyEventBody } from "#keri/core";
-import { KeriLogger, type Logger } from "#keri/logging";
+import { Attachments, encodeText, parse } from "../cesr/main.ts";
+import type { KeyEvent, KeyEventBody } from "../core/main.ts";
+import { KeriLogger, type Logger } from "../logging/main.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
 export interface RouterOptions {

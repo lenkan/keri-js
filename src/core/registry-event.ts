@@ -1,4 +1,4 @@
-import { Message } from "#keri/cesr";
+import { Message } from "../cesr/main.ts";
 import { DUMMY_VERSION, encodeEvent, randomNonce } from "./events.ts";
 
 export interface RegistryInceptEventInit {

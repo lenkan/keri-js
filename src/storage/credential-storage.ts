@@ -1,4 +1,4 @@
-import type { CredentialBody, IssueEvent, Message, RegistryInceptEventBody, RevokeEvent } from "#keri/core";
+import type { CredentialBody, IssueEvent, Message, RegistryInceptEventBody, RevokeEvent } from "../core/main.ts";
 
 export interface CredentialStorage {
   getCredentialEvents(id: string): Generator<Message<IssueEvent | RevokeEvent>>;

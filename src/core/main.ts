@@ -24,7 +24,7 @@ export {
   type TransIdxSigGroup,
   type TransLastIdxSigGroup,
   VersionString,
-} from "#keri/cesr";
+} from "../cesr/main.ts";
 export type {
   Credential,
   CredentialBody,

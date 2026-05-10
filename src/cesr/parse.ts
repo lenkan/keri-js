@@ -1,4 +1,4 @@
-import { encodeUtf8 } from "#keri/encoding";
+import { encodeUtf8 } from "../encoding/main.ts";
 import { concat } from "./array-utils.ts";
 import type { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";

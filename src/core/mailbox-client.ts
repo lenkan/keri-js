@@ -1,4 +1,4 @@
-import { encodeText, type Message, parse } from "#keri/cesr";
+import { encodeText, type Message, parse } from "../cesr/main.ts";
 
 async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Message[]> {
   const reader = body.getReader();

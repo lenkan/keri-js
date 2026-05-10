@@ -1,4 +1,4 @@
-import { encodeText, Indexer, Matter, Message } from "#keri/cesr";
+import { encodeText, Indexer, Matter, Message } from "../cesr/main.ts";
 import type { KeyEventBody } from "./key-event.ts";
 import { MailboxClient } from "./mailbox-client.ts";
 import { WitnessClient } from "./witness-client.ts";

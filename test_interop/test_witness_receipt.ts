@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "#keri/cesr";
-import { keri, submitToWitnesses } from "#keri/core";
+import { parse } from "../src/cesr/main.ts";
+import { keri, submitToWitnesses } from "../src/core/main.ts";
 import { collectAsync, createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 let wan: Endpoint;

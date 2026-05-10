@@ -1,4 +1,4 @@
-import { decodeUtf8 } from "#keri/encoding";
+import { decodeUtf8 } from "../encoding/main.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { decodeText, type Frame, type FrameSize, peekText, type ReadResult } from "./frame.ts";
 

@@ -4,7 +4,7 @@ import type { Database, Params, Row } from "./sqlite-database.ts";
 export { NodeSqliteDatabase } from "./node-sqlite.ts";
 export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
 
-import { encodeText, type MessageBody } from "#keri/cesr";
+import { encodeText, type MessageBody } from "../../cesr/main.ts";
 import {
   Attachments,
   type CredentialBody,
@@ -15,7 +15,7 @@ import {
   type RegistryInceptEventBody,
   type ReplyEventBody,
   type RevokeEvent,
-} from "#keri/core";
+} from "../../core/main.ts";
 import type { CredentialStorage } from "../credential-storage.ts";
 import type { KeyEventStorage } from "../key-event-storage.ts";
 import type { MailboxEntry, MailboxServerStorage } from "../mailbox-server-storage.ts";
