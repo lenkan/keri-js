@@ -1,209 +1,132 @@
 # CESR — Curated Spec Reference
 
-> Curated reference for the **Composable Event Streaming Representation** (CESR) specification, written for AI assistants and human implementers working in this repo. Distilled from the upstream spec, with links back to the source for anything not covered here.
+> Implementation-focused reference for the **Composable Event Streaming Representation** (CESR) specification.
 
-**Upstream:** https://github.com/trustoverip/kswg-cesr-specification
-**Spec body:** [`spec/spec-body.md`](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md)
+**Upstream:** https://github.com/trustoverip/kswg-cesr-specification ([spec body](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md))
 
-This file is the canonical place to look up CESR encoding rules, code tables, and parsing logic when working on `src/cesr/`. It is **not exhaustive** — for edge cases, always cross-check the upstream spec.
+This codebase supports **both CESR v1 and v2**. KERI/ACDC events default to v1 (legacy version strings, `vcp`/`iss`/`rev` TEL types) but the parser, counter, and indexer accept either version. Pick the version per stream via the genus header (`-_AAABAA` = v1, `-_AAACAA` = v2).
 
----
+## 1. Where things live
 
-## 1. What CESR is
-
-CESR is a self-describing, **dual-domain** encoding for cryptographic primitives and structured streams.
-
-- **Text ('T') domain:** Base64URL-safe characters. Human-inspectable, copy-pasteable.
-- **Binary ('B') domain:** raw bytes. Compact, suitable for transport and storage.
-- A third **annotated text** domain exists for human-readable / debug streams.
-
-Every primitive has a stable type code prefixed to the value. Type codes are themselves Base64URL characters in T-domain and bit-packed in B-domain.
-
-### Composability (the defining property)
-
-CESR is "composable": **concatenating individually-encoded primitives yields the same byte sequence as encoding their concatenation as a whole**. This holds in both domains, so streams round-trip losslessly between T and B without re-padding.
-
-To make composability work:
-- The encoding aligns to **24-bit boundaries** (LCM of 6-bit Base64 chars and 8-bit bytes).
-- T-domain primitives are integer multiples of **4 Base64 chars**.
-- B-domain primitives are integer multiples of **3 bytes**.
-- Pads are pre-pended (as zero bytes / extra code chars) — never appended (no trailing `=`).
-
-Pad size formula: `ps = (3 - (N mod 3)) mod 3`, where `N` is the raw binary length.
-
-Implementation: `src/cesr/matter.ts`, `src/cesr/shifting.ts`.
-
----
-
-## 2. Code tables and selectors
-
-The first character of a T-domain code (or first 3 bits — a **tritet** — in B-domain) selects the table that decodes the rest.
-
-### Selector assignments
-
-| Selector char | Table |
+| Concern | File(s) |
 | --- | --- |
-| `A`–`Z`, `a`–`z` | 1-char fixed-size codes (52 types, pad size 1) |
-| `0` | 2-char fixed-size codes (64 types, pad size 2) |
-| `1`, `2`, `3` | Large fixed-size codes — 4-char code, 0/1/2 lead bytes |
-| `4`, `5`, `6` | Small variable-size codes — 4-char code, 2-char size, 0/1/2 lead bytes |
-| `7`, `8`, `9` | Large variable-size codes — 8-char code, 4-char size, 0/1/2 lead bytes |
+| Code table constants (auto-generated) | `src/cesr/codes.ts` |
+| Primitive (matter) encode/decode | `src/cesr/matter.ts` |
+| Indexed signature encode/decode | `src/cesr/indexer.ts` |
+| Count code framing (v1 + v2 registries) | `src/cesr/counter.ts`, `src/cesr/frame.ts` |
+| Pad / lead-byte shifting | `src/cesr/shifting.ts` |
+| Stream parser (cold-start) | `src/cesr/parse.ts` |
+| Attachment groups | `src/cesr/attachments.ts`, `src/cesr/attachments-reader.ts`, `src/cesr/groups/` |
+| Version string | `src/cesr/version-string.ts` |
+| Protocol genus/version | `src/cesr/genus.ts` |
+| Message framing | `src/cesr/message.ts` |
+
+## 2. What CESR is
+
+A self-describing, **dual-domain** encoding for cryptographic primitives and structured streams.
+
+- **Text ('T') domain:** Base64URL chars. Inspectable, copy-pasteable.
+- **Binary ('B') domain:** raw bytes. Compact.
+
+Every primitive carries a stable type code as a prefix.
+
+### Composability
+
+Concatenating individually-encoded primitives equals encoding their concatenation as a whole — in both domains. Streams round-trip T ↔ B losslessly without re-padding. To make this work the encoding aligns to **24-bit boundaries** (LCM of 6-bit chars and 8-bit bytes): T-domain primitives are multiples of 4 chars, B-domain multiples of 3 bytes. Pads are pre-pended (zero bytes / extra code chars), never appended.
+
+Pad size: `ps = (3 - (N mod 3)) mod 3`, `N` = raw length.
+
+## 3. Code-table selectors
+
+The first T-domain character (or first 3 bits — a **tritet** — in B-domain) selects the table:
+
+| Selector | Table |
+| --- | --- |
+| `A`–`Z`, `a`–`z` | 1-char fixed-size codes |
+| `0` | 2-char fixed-size codes |
+| `1`, `2`, `3` | Large fixed-size — 4-char code, 0/1/2 lead bytes |
+| `4`, `5`, `6` | Small variable-size — 4-char code, 2-char size |
+| `7`, `8`, `9` | Large variable-size — 8-char code, 4-char size |
 | `-` | Count code (group framing) |
 | `_` | Op code (reserved) |
 
-Implementation: `src/cesr/codes.ts`.
+Min code length follows pad size: pad 0 → 4 chars, pad 1 → 1 char, pad 2 → 2 chars. Lead bytes pad raw values that aren't a multiple of 3 bytes.
 
-### Parsing pattern
-
-1. Read the **stable** (hardened) portion using the first character.
-2. Use the parse-size table to learn how many code chars, size chars, and value chars/bytes follow.
-3. For variable-size codes, decode the size field to get the value length.
-4. Consume value; emit primitive; resume.
-
-Implementation: `src/cesr/parse.ts`.
-
----
-
-## 3. Cold-start parsing — top-level tritet table
-
-The first 3 bits of a stream tell a parser what serialization is starting. This is how a parser cold-starts or re-syncs after a buffer flush.
+## 4. Cold-start tritet table
 
 | Tritet | Format | First T-domain char |
 | :---: | --- | :---: |
-| `0b000` | Annotated 'T' domain | (whitespace) |
+| `0b000` | Annotated 'T' (whitespace) | (whitespace) |
 | `0b001` | CESR 'T' Count Code | `-` |
 | `0b010` | CESR 'T' Op Code | `_` |
 | `0b011` | JSON map | `{` |
 | `0b100` | MGPK FixMap | — |
 | `0b101` | CBOR map (Major Type 5) | — |
 | `0b110` | MGPK Map16 / Map32 | — |
-| `0b111` | CESR 'B' domain Count or Op Code | — |
+| `0b111` | CESR 'B' Count or Op Code | — |
 
-Once the stream type is known, the parser:
-- For JSON / CBOR / MGPK: parse the message body, including the **version string** field `v` to identify the protocol genus, version, and total body length.
-- For CESR Count Codes: read the count to learn the group's quadlet/triplet size, then descend into the group.
+The actual parser (`src/cesr/parse.ts`) dispatches on the first T-domain character (`{`, `-`, `_`, …) rather than tritet bits, but the semantics are equivalent.
 
-Implementation: `src/cesr/parse.ts`, `src/cesr/version-string.ts`, `src/cesr/genus.ts`.
+For JSON / CBOR / MGPK messages the `v` (version string) field carries protocol genus, version, and body length. For CESR groups, the count code declares the quadlet/triplet count.
 
----
+## 5. Count codes
 
-## 4. Count codes (group framing)
+Count codes are non-primitive — they declare how many quadlets (T) / triplets (B) follow.
 
-Count codes are **non-primitive** — they don't carry a value, they declare how many quadlets (4-char T-domain units) or triplets (3-byte B-domain units) follow as a group.
+| Form | Format | Range |
+| --- | --- | --- |
+| Small | `-[A-Z,a-z]##` | 0–4,095 (1-char selector + 2-char count) |
+| Large | `--[A-Z,a-z]#####` | 0–1,073,741,823 (1-char selector + 5-char count) |
 
-### Small Count Code table
-
-| Code | Meaning |
-| --- | --- |
-| `-[A-Z,a-z]##` | Count code with 1-char type selector and 2-char Base64 count (0–4,095). Total length 4 chars. |
-
-### Large Count Code table
-
-| Code | Meaning |
-| --- | --- |
-| `--[A-Z,a-z]#####` | 1-char type with 5-char Base64 count (0–1,073,741,823). Total length 8 chars. |
-
-### Common count codes (KERI/ACDC genus `-_AAACAA`)
+Common groups for KERI/ACDC streams:
 
 | Code | Group |
 | --- | --- |
 | `-A##` | Generic pipeline group |
 | `-B##` | Message + attachments group |
-| `--A#####` | Generic pipeline group, large variant |
-| `-_AAABAA` | Protocol genus/version: KERI/ACDC v1.00 |
-| `-_AAACAA` | Protocol genus/version: KERI/ACDC v2.00 |
+| `--A#####` | Generic pipeline, large variant |
+| `-_AAABAA` | Genus header — KERI/ACDC v1 |
+| `-_AAACAA` | Genus header — KERI/ACDC v2 |
 
-Many more attachment-specific count codes exist (controller signatures, witness receipts, seal source couples, etc.) — see Annex A of the upstream spec for the full master code table.
+`Counter.v1` and `Counter.v2` (`src/cesr/counter.ts`) hold the per-version code tables. Parser version is selectable via `parse(input, { version: 1 | 2 })`; default is v1.
 
-Implementation: `src/cesr/counter.ts`, `src/cesr/frame.ts`, `src/cesr/groups/`.
+For attachment-specific count codes (controller signatures, witness receipts, seal source couples, pathed material, etc.) see `Counter.v1` / `Counter.v2` entries — they map directly onto the upstream Annex A tables.
 
----
+## 6. Indexed codes (signatures)
 
-## 5. Indexed codes (signatures)
+Signatures attach with an **index** identifying which key in `k` they signed for, optionally an **ondex** (other index) for prior key state.
 
-Signatures attach to events with an **index** identifying which key in `k` produced them, and optionally an **ondex** (other index) for prior key state.
-
-| Selector | Type | Index | Ondex | Code size | Lead | Pad | Format |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | --- |
-| `A`–`Z`,`a`–`z` | 1 | 1 | 0 | 2 | 0 | 2 | `$#&&` |
-| `0` | 1 | 1 | 1 | 4 | 0 | 0 | `0$##&&&&` |
-| `2` | 1 | 2 | 2 | 6 | 0 | 2 | `2$####&&&&` |
-| `3` | 1 | 3 | 3 | 6 | 0 | 0 | `3$######&&&&` |
+| Selector | Index chars | Ondex chars | Code chars | Format |
+| :---: | :---: | :---: | :---: | --- |
+| `A`–`Z`,`a`–`z` | 1 | 0 | 2 | `$#&&` |
+| `0` | 1 | 1 | 4 | `0$##&&&&` |
+| `2` | 2 | 2 | 6 | `2$####&&&&` |
+| `3` | 3 | 3 | 6 | `3$######&&&&` |
 
 Legend: `$` = type, `#` = index/ondex chars, `&` = value chars.
 
-Implementation: `src/cesr/indexer.ts`.
-
----
-
-## 6. Text-code-size rules
-
-The minimum code length is determined by the pad size of the underlying raw value:
-
-| Pad size | Min code chars |
-| :---: | :---: |
-| 0 | 4 |
-| 1 | 1 |
-| 2 | 2 |
-
-This rule keeps the value bits naturally aligned in both domains: a code of pad-correct length leaves the value portion byte-aligned in B-domain and char-aligned in T-domain.
-
-For raw values that aren't a multiple of 3 bytes, **lead bytes** (zero bytes prepended to the raw) take up the slack so the code+value composes into a 24-bit-aligned unit. Tables for "0 / 1 / 2 lead bytes" exist for each fixed/variable size class.
-
----
-
-## 7. Stream parsing algorithm
+## 7. Stream parsing
 
 ```
 loop:
-  peek first tritet of stream
-  switch tritet:
-    case CESR-T Count or Op Code (`-` / `_`):
-      parse count code → get group quadlet count
-      recurse into group; consume `count` quadlets
-    case CESR-B Count or Op Code:
-      same but in binary domain
-    case JSON / CBOR / MGPK:
-      parse version string field `v` → get protocol genus, version, body length
-      consume body
-      look for following attachment group (`-A##` / `-B##`)
-    case annotated text:
-      skip whitespace, retry
+  peek first char
+  case '{'    → parse JSON message; read `v` for size; look for trailing -A/-B group
+  case '-'    → parse count code; descend into group of `count` quadlets
+  case '_'    → op code (reserved)
+  case ws     → skip
+  // CBOR / MGPK paths similar but via tritet on raw bytes
 ```
 
-Each group recursion is itself a tritet check on its first member, so a nested group can mix domains and serializations as long as composability rules hold.
+Group recursion is tritet-checked on each member, so groups can mix domains and serializations as long as composability holds.
 
-Implementation: `src/cesr/parse.ts`, `src/cesr/attachments.ts`, `src/cesr/attachments-reader.ts`, `src/cesr/message.ts`.
+## 8. When to consult the upstream spec
 
----
-
-## 8. Where things live in this repo
-
-| Concern | File(s) |
-| --- | --- |
-| Code table constants | `src/cesr/codes.ts` |
-| Primitive (matter) encode/decode | `src/cesr/matter.ts` |
-| Indexed signature encode/decode | `src/cesr/indexer.ts` |
-| Count code framing | `src/cesr/counter.ts`, `src/cesr/frame.ts` |
-| Pad / lead-byte shifting | `src/cesr/shifting.ts` |
-| Stream parser | `src/cesr/parse.ts` |
-| Attachment groups | `src/cesr/attachments.ts`, `src/cesr/groups/` |
-| Version string | `src/cesr/version-string.ts` |
-| Protocol genus/version | `src/cesr/genus.ts` |
-| Message framing | `src/cesr/message.ts` |
-
----
-
-## 9. When to consult the upstream spec
-
-Use the upstream spec directly when:
-
-- Looking up an exact code in the **master code table** (Annex A) — full table is large and not reproduced here.
-- Implementing a **new primitive type** (cipher, encrypter, salt, etc.) not yet handled in `matter.ts`.
-- Reasoning about **op codes** (selector `_`) — reserved space, mostly unspecified.
-- Cross-checking **edge cases in pad-size / lead-byte arithmetic** — the spec has worked examples.
+- Looking up a code not surfaced through `MatterTable` / `Counter` registries.
+- Implementing a new primitive (cipher, encrypter, salt, …) not yet in `matter.ts`.
+- Op codes (selector `_`) — reserved space, mostly unspecified.
+- Pad-size / lead-byte edge cases — the spec has worked examples.
 
 Direct links:
-- Composability and pad-size theory: [§ "Composability and Domain Representations"](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#composability-and-domain-representations)
-- Master code table: [§ "Annex A → KERI/ACDC Protocol Stack Tables"](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#annex-a)
-- Stream parsing rules: [§ "Cold start Stream parsing problem"](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#cold-start-stream-parsing-problem)
+- [Composability and pad-size theory](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#composability-and-domain-representations)
+- [Master code table (Annex A)](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#annex-a)
+- [Cold-start parsing](https://github.com/trustoverip/kswg-cesr-specification/blob/main/spec/spec-body.md#cold-start-stream-parsing-problem)
