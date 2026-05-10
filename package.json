@@ -13,7 +13,7 @@
     "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && node --no-warnings scripts/check-imports.ts",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "docs:build": "typedoc",
