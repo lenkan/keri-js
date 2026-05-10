@@ -5,7 +5,7 @@ import { describe, test } from "node:test";
 import { Attachments, encodeText, parse } from "../cesr/main.ts";
 import type { Message } from "../core/main.ts";
 import { generateKeyPair, keri } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 

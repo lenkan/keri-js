@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import type { Message } from "../cesr/main.ts";
 import { generateKeyPair, keri } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Mailbox } from "./mailbox.ts";
 
 function makeMailbox() {

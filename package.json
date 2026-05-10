@@ -11,9 +11,9 @@
     "test": "node --test --no-warnings 'src/**/*.test.ts'",
     "test:interop": "node --test --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
     "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "check": "tsc --noEmit && node --no-warnings scripts/check-imports.ts",
+    "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
+    "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
+    "check": "tsc --noEmit",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "docs:build": "typedoc",
@@ -21,7 +21,7 @@
   },
   "exports": {
     ".": "./dist/main.js",
-    "./sqlite-storage": "./dist/storage/sqlite/storage-sqlite.js",
+    "./sqlite-storage": "./dist/sqlite-storage/main.js",
     "./witness": "./dist/witness/main.js",
     "./nodejs-utils": "./dist/nodejs-utils/main.js"
   },

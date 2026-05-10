@@ -5,7 +5,7 @@ import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { Attachments, encodeText, Matter } from "../cesr/main.ts";
 import { type EndRoleRecord, keri, type LocationRecord } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../storage/sqlite/storage-sqlite.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Controller } from "./controller.ts";
 
 class TestController extends Controller {

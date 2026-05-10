@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createMailboxRouter, Mailbox } from "../src/mailbox/main.ts";
 import { Controller } from "../src/main.ts";
 import { createListener, type Logger } from "../src/nodejs-utils/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/storage/sqlite/storage-sqlite.ts";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/sqlite-storage/main.ts";
 import { createRouter, Witness } from "../src/witness/main.ts";
 import { KERIPy } from "./keripy.ts";
 
