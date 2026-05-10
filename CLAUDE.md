@@ -38,3 +38,14 @@ Tests use the native Node.js test runner. Unit test files live alongside source 
 - Build output goes to `dist/`
 - Biome handles linting and formatting (`biome.json` at root)
 - Cryptography uses `@noble/*` libraries exclusively
+
+## Spec references
+
+Curated, implementation-focused summaries of the protocols this codebase implements live under `docs/specs/`. Consult them before diving into upstream specs — they cover field labels, code tables, parsing logic, and cross-references to `src/`:
+
+- [`docs/specs/cesr.md`](docs/specs/cesr.md) — CESR encoding, code tables, stream parsing (v1 + v2)
+- [`docs/specs/keri.md`](docs/specs/keri.md) — KERI events, SAIDs, seals, witnesses (v1)
+- [`docs/specs/acdc.md`](docs/specs/acdc.md) — ACDC body, schema/attribute/edge/rule sections, IPEX, TEL registries (v1)
+- [`docs/kawa.md`](docs/kawa.md) — KAWA witness-agreement protocol detail
+
+For anything not covered in the curated docs, fall back to the upstream specs linked at the top of each file.
