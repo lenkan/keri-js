@@ -33,10 +33,18 @@ function makeWitness(): Witness {
 class TestContext {
   app: (request: Request) => Promise<Response>;
   witness: Witness;
+  icp: KeyEvent<InceptEventBody>;
+  sigs: string[];
 
   constructor() {
     this.witness = makeWitness();
     this.app = createRouter(this.witness);
+    this.icp = keri.incept({
+      signingKeys: [pubKey0],
+      nextKeys: [pubKey1],
+      wits: [this.witness.aid],
+    });
+    this.sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(this.icp.raw, privateKey0), 0)].map(encodeText);
   }
 
   async fetch(input: Request): Promise<Response> {
@@ -61,13 +69,6 @@ class TestContext {
 
 const { privateKey: privateKey0, publicKey: pubKey0 } = generateKeyPair();
 const { publicKey: pubKey1 } = generateKeyPair();
-
-const icp = keri.incept({
-  signingKeys: [pubKey0],
-  nextKeys: [pubKey1],
-});
-
-const sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey0), 0)].map(encodeText);
 
 describe(basename(import.meta.url), () => {
   describe("oobi request", () => {
@@ -118,7 +119,7 @@ describe(basename(import.meta.url), () => {
       const response = await context.fetch(
         request("/", {
           method: "POST",
-          body: new TextDecoder().decode(icp.raw),
+          body: new TextDecoder().decode(context.icp.raw),
           headers: { "Content-Type": "application/json" },
         }),
       );
@@ -127,9 +128,9 @@ describe(basename(import.meta.url), () => {
 
     test("should return 200 for a valid rct message", async () => {
       const context = new TestContext();
-      await context.receipt(icp, sigs);
+      await context.receipt(context.icp, context.sigs);
 
-      const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: "0" });
+      const rct = keri.receipt({ d: context.icp.body.d, i: context.icp.body.i, s: "0" });
       const rctAtc = new Attachments({ NonTransReceiptCouples: [] });
 
       const response = await context.fetch(
@@ -185,7 +186,7 @@ describe(basename(import.meta.url), () => {
     test("should reply with valid http response", async () => {
       const context = new TestContext();
 
-      const response = await context.receipt(icp, sigs);
+      const response = await context.receipt(context.icp, context.sigs);
 
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
@@ -193,13 +194,13 @@ describe(basename(import.meta.url), () => {
 
     test("should reply with valid witness receipt", async () => {
       const context = new TestContext();
-      const response = await context.receipt(icp, sigs);
+      const response = await context.receipt(context.icp, context.sigs);
 
       const messages = await collect(response.body);
 
       assert(messages.length > 0);
       assert.strictEqual(messages[0].body.t, "rct");
-      assert.strictEqual(messages[0].body.d, icp.body.d);
+      assert.strictEqual(messages[0].body.d, context.icp.body.d);
 
       const couples = messages[0].attachments.NonTransReceiptCouples;
       assert.strictEqual(couples.length, 1);
@@ -207,13 +208,13 @@ describe(basename(import.meta.url), () => {
       const couple = couples[0];
       const sigMatter = Matter.parse(couple.sig);
       const keyMatter = Matter.parse(couple.prefix);
-      assert(ed25519.verify(sigMatter.raw, icp.raw, keyMatter.raw));
+      assert(ed25519.verify(sigMatter.raw, context.icp.raw, keyMatter.raw));
     });
 
     test("should respond on oobi request for the new identifier", async () => {
       const context = new TestContext();
-      await context.receipt(icp, sigs);
-      const oobiResponse = await context.fetch(request(`/oobi/${icp.body.i}`, { method: "GET" }));
+      await context.receipt(context.icp, context.sigs);
+      const oobiResponse = await context.fetch(request(`/oobi/${context.icp.body.i}`, { method: "GET" }));
       assert.strictEqual(oobiResponse.status, 200);
       assert.strictEqual(oobiResponse.headers.get("Content-Type"), "application/json+cesr");
 
@@ -222,7 +223,7 @@ describe(basename(import.meta.url), () => {
       assert(messages.length > 0);
       assert.partialDeepStrictEqual(messages[0].body, {
         t: "icp",
-        i: icp.body.i,
+        i: context.icp.body.i,
         s: "0",
       });
 

@@ -2,11 +2,13 @@ import { encodeText, Indexer, Matter, parse } from "../cesr/main.ts";
 import {
   Attachments,
   type CredentialBody,
+  type DipEventBody,
   type Endpoint,
   type ExchangeEventBody,
   type InceptEventBody,
   type InteractEventBody,
   type IssueEvent,
+  isKelEventType,
   type KeyEvent,
   type KeyEventBody,
   KeyEventLog,
@@ -62,6 +64,17 @@ export interface ControllerInceptArgs {
 export interface InceptResult {
   id: string;
   event: InceptEventBody;
+}
+
+export interface ControllerDelegatedInceptArgs {
+  delegator: string;
+  wits?: string[];
+  toad?: number;
+}
+
+export interface DelegatedInceptResult {
+  id: string;
+  event: KeyEvent<DipEventBody>;
 }
 
 export interface AnchorResult {
@@ -144,29 +157,32 @@ export class Controller {
       throw new Error(`No body in response`);
     }
 
-    let log = KeyEventLog.empty();
-    let messages = 0;
+    const kelMessages: Message<KeyEventBody>[] = [];
+    const otherMessages: Message[] = [];
 
     for await (const message of parse(response.body)) {
-      switch (message.body.t) {
-        case "dip":
-        case "icp":
-        case "rot":
-        case "ixn": {
-          log = log.append(message as Message<KeyEventBody>);
-          await this.processMessage(message);
-          messages++;
-          break;
-        }
-        case "rpy": {
-          await this.processMessage(new Message(message.body as ReplyEventBody));
-          messages++;
-          break;
-        }
+      if (isKelEventType(message.body.t)) {
+        kelMessages.push(message as Message<KeyEventBody>);
+      } else if (message.body.t === "rpy") {
+        otherMessages.push(new Message(message.body as ReplyEventBody));
       }
     }
 
-    this.#log.debug("introduce: complete", { aid: log.state.identifier, messages });
+    // Validate the full KEL chain (multi-AID + delegator-anchor verification)
+    // before persisting any of it. `fromMessages` returns the leaf AID's log.
+    const log = KeyEventLog.fromMessages(kelMessages, { allowPartiallyWitnessed: true });
+
+    for (const message of kelMessages) {
+      await this.processMessage(message);
+    }
+    for (const message of otherMessages) {
+      await this.processMessage(message);
+    }
+
+    this.#log.debug("introduce: complete", {
+      aid: log.state.identifier,
+      messages: kelMessages.length + otherMessages.length,
+    });
     return log.state;
   }
 
@@ -231,6 +247,44 @@ export class Controller {
     };
   }
 
+  /**
+   * Builds a delegated inception event (dip) without submitting it to witnesses.
+   *
+   * The caller must:
+   *  1. pass `event.body` (or `{i, s, d}`) to the delegator so it can create
+   *     an interaction event anchoring this dip;
+   *  2. attach the resulting SealSourceCouple to `event.attachments.SealSourceCouples`;
+   *  3. call `controller.commit(KeyEventLog.empty(), event)` to publish.
+   *
+   * Witnesses won't accept the dip until it carries a SealSourceCouple proving
+   * the delegator anchored it, so this method intentionally stops short of
+   * submission.
+   */
+  async delegatedIncept(args: ControllerDelegatedInceptArgs): Promise<DelegatedInceptResult> {
+    const publicKey = await this.generateKey();
+    const nextPublicKey = await this.generateKey();
+    const nextPublicKeyDigest = keri.utils.digest(nextPublicKey);
+
+    const event = keri.delegatedIncept({
+      signingKeys: [publicKey],
+      nextKeys: [nextPublicKeyDigest],
+      wits: args.wits ?? [],
+      toad: args.toad,
+      delegator: args.delegator,
+    });
+
+    this.#log.debug("delegatedIncept: created", {
+      aid: event.body.i,
+      delegator: args.delegator,
+      wits: event.body.b?.length ?? 0,
+    });
+
+    return {
+      id: event.body.i,
+      event,
+    };
+  }
+
   async processMessage(message: Message): Promise<void> {
     if (message.version.protocol === "ACDC") {
       // TODO: verify ACDC credential SAID and anchors in TEL or KEL
@@ -242,7 +296,9 @@ export class Controller {
     switch (message.body.t) {
       case "icp":
       case "rot":
-      case "ixn": {
+      case "ixn":
+      case "dip":
+      case "drt": {
         const body = message.body as KeyEventBody;
         const log = KeyEventLog.from(this.#storage.getKeyEvents(body.i));
 
@@ -278,8 +334,9 @@ export class Controller {
 
   async commit(log: KeyEventLog, event: KeyEvent): Promise<void> {
     const body = event.body as KeyEventBody;
-    const signingKeys = event.body.t === "icp" ? (event.body as InceptEventBody).k : log.state.signingKeys;
-    const backers = event.body.t === "icp" ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
+    const isInception = body.t === "icp" || body.t === "dip";
+    const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
+    const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
     const sigs = await this.sign(event.raw, signingKeys);
     event.attachments.ControllerIdxSigs.push(...sigs);
     this.#log.debug("commit: submitting to witnesses", {

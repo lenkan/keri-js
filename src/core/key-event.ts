@@ -11,6 +11,7 @@ export interface KeyState {
   backerThreshold: string;
   backers: string[];
   configTraits: string[];
+  delegator?: string;
   lastEvent: {
     i: string;
     s: string;
@@ -44,6 +45,12 @@ export interface RotateArgs {
   ba?: string[];
   bt?: string;
 }
+
+export interface DelegatedInceptArgs extends InceptArgs {
+  delegator: string;
+}
+
+export type DelegatedRotateArgs = RotateArgs;
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type InceptEventBody = {
@@ -89,6 +96,10 @@ export type RotateEventBody = {
   c: string[];
   a: Record<string, unknown>[];
 };
+
+export type DipEventBody = Omit<InceptEventBody, "t"> & { t: "dip"; di: string };
+
+export type DrtEventBody = Omit<RotateEventBody, "t"> & { t: "drt"; di: string };
 
 function isTransferable(key: string) {
   const raw = Matter.parse(key);
@@ -196,6 +207,83 @@ export function rotate(state: KeyState, args: RotateArgs): KeyEvent<RotateEventB
       ba: args.ba ?? ([] as string[]),
       c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
+    },
+    { labels: ["d"], legacy: true },
+  );
+
+  return new Message(body);
+}
+
+export function delegatedIncept(args: DelegatedInceptArgs): KeyEvent<DipEventBody> {
+  const keys = args.signingKeys;
+  if (keys.length === 0) {
+    throw new Error("No keys provided in inception event");
+  }
+
+  const wits = args.wits ?? [];
+
+  let bt: string;
+  if (args.toad !== undefined) {
+    bt = args.toad.toString();
+  } else if (wits.length === 0) {
+    bt = "0";
+  } else if (wits.length === 1) {
+    bt = "1";
+  } else {
+    bt = (wits.length - 1).toString();
+  }
+
+  const body = encodeEvent<DipEventBody>(
+    {
+      v: DUMMY_VERSION,
+      t: "dip" as const,
+      d: "",
+      i: "",
+      s: "0",
+      kt: keys.length.toString() as Threshold,
+      k: keys,
+      nt: args.nextKeys.length.toString() as Threshold,
+      n: args.nextKeys,
+      bt,
+      b: wits,
+      c: [] as string[],
+      a: [] as Record<string, unknown>[],
+      di: args.delegator,
+    },
+    { labels: ["d", "i"], legacy: true },
+  );
+
+  return new Message(body);
+}
+
+export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): KeyEvent<DrtEventBody> {
+  if (state.delegator === undefined) {
+    throw new Error(`State for id ${state.identifier} has no delegator; cannot delegated-rotate`);
+  }
+
+  const keyDigest = state.nextKeyDigests[0];
+  if (!keyDigest) {
+    throw new Error(`State for id ${state.identifier} does not contain pre-committed next key digest`);
+  }
+
+  const body = encodeEvent<DrtEventBody>(
+    {
+      v: DUMMY_VERSION,
+      t: "drt" as const,
+      d: "",
+      i: state.identifier,
+      s: (parseInt(state.lastEvent.s, 16) + 1).toString(16),
+      p: state.lastEvent.d,
+      kt: "1",
+      k: args.signingKeys,
+      nt: "1",
+      n: args.nextKeyDigests,
+      bt: args.bt ?? "0",
+      br: args.br ?? ([] as string[]),
+      ba: args.ba ?? ([] as string[]),
+      c: [] as string[],
+      a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
+      di: state.delegator,
     },
     { labels: ["d"], legacy: true },
   );

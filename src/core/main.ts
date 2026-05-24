@@ -2,7 +2,7 @@ import { createCredential } from "./credential.ts";
 import { issue, revoke } from "./credential-event.ts";
 import { digest } from "./digest.ts";
 import { formatDate } from "./events.ts";
-import { incept, interact, rotate } from "./key-event.ts";
+import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
 import { generateKeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
 import { incept as registry } from "./registry-event.ts";
@@ -45,6 +45,10 @@ export { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
 export type { WitnessEndpoint } from "./kawa.ts";
 export { submitToWitnesses } from "./kawa.ts";
 export type {
+  DelegatedInceptArgs,
+  DelegatedRotateArgs,
+  DipEventBody,
+  DrtEventBody,
   InceptArgs,
   InceptEventBody,
   InteractArgs,
@@ -55,7 +59,8 @@ export type {
   RotateArgs,
   RotateEventBody,
 } from "./key-event.ts";
-export { KeyEventLog } from "./key-event-log.ts";
+export { delegatedIncept, delegatedRotate } from "./key-event.ts";
+export { isKelEventType, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
 
@@ -82,6 +87,8 @@ export const keri = {
   incept,
   interact,
   rotate,
+  delegatedIncept,
+  delegatedRotate,
   // Registry
   registry,
   issue,

@@ -66,7 +66,9 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
   switch (message.body.t) {
     case "icp":
     case "rot":
-    case "ixn": {
+    case "ixn":
+    case "dip":
+    case "drt": {
       const body = message.body as unknown as KeyEventBody;
       return {
         event_id: body.d,
@@ -213,7 +215,7 @@ export class SqliteControllerStorage
       "SELECT event_json, attachments",
       "FROM event",
       "WHERE json_extract(event_json, '$.i') = $prefix",
-      "AND type in ('icp', 'rot', 'ixn')",
+      "AND type in ('icp', 'rot', 'ixn', 'dip', 'drt')",
       "ORDER BY sn ASC",
     ].join("\n");
 

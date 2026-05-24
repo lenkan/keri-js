@@ -145,6 +145,61 @@ describe(basename(import.meta.url), () => {
     });
   });
 
+  describe("delegatedIncept", () => {
+    test("should create dip event with delegator AID in di", async () => {
+      const controller = createController();
+      const delegatorAid = "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+      const result = await controller.delegatedIncept({ delegator: delegatorAid });
+
+      assert.strictEqual(result.event.body.t, "dip");
+      assert.strictEqual(result.event.body.di, delegatorAid);
+      assert.strictEqual(result.event.body.s, "0");
+      assert.strictEqual(result.event.body.i, result.id);
+    });
+
+    test("should forward wits and toad to the dip event body", async () => {
+      const controller = createController();
+      const w0 = "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha";
+      const w1 = "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM";
+
+      const result = await controller.delegatedIncept({
+        delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        wits: [w0, w1],
+        toad: 2,
+      });
+
+      assert.deepStrictEqual(result.event.body.b, [w0, w1]);
+      assert.strictEqual(result.event.body.bt, "2");
+    });
+
+    test("should persist signing key so subsequent commit() can sign", async () => {
+      const controller = createController();
+
+      const result = await controller.delegatedIncept({
+        delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      });
+      const signingKey = result.event.body.k[0];
+
+      // saveKey was called for the signing key — storage lookup must succeed.
+      assert.doesNotThrow(() => controller.storage.getEncryptedPrivateKey(signingKey));
+    });
+
+    test("should not submit the dip to witnesses", async () => {
+      const controller = createController();
+      const callsBefore = controller.fetch.mock.calls.length;
+
+      await controller.delegatedIncept({
+        delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        wits: ["BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"],
+      });
+
+      // Caller has to commit later with a SealSourceCouple; delegatedIncept
+      // intentionally stops short of witness submission.
+      assert.strictEqual(controller.fetch.mock.calls.length, callsBefore);
+    });
+  });
+
   describe("registry", () => {
     test("should list registries by owner", async () => {
       const controller = createController();
