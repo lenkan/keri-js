@@ -118,17 +118,21 @@ export class Witness {
       }
     }
 
+    const witnessIndex = kel.state.backers.indexOf(this.aid);
+    if (witnessIndex < 0) {
+      this.#log.warn("rejecting receipt: not a backer for this AID", { aid: body.i, s: body.s, d: body.d });
+      throw new WitnessError("Witness is not a backer for this AID");
+    }
+
     this.#log.debug("issuing receipt", { aid: body.i, s: body.s, d: body.d });
 
     const sig = this.#sign(message);
-    const witnessIndex = kel.state.backers.indexOf(this.aid);
-
     const receipt = keri.receipt({ d: message.body.d, i: message.body.i, s: message.body.s });
     receipt.attachments = {
       NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig }],
     };
 
-    const WitnessIdxSigs = witnessIndex >= 0 ? [encodeText(Indexer.convert(Matter.parse(sig), witnessIndex))] : [];
+    const WitnessIdxSigs = [encodeText(Indexer.convert(Matter.parse(sig), witnessIndex))];
 
     const storedMessage = new Message(message.body, {
       ControllerIdxSigs: message.attachments.ControllerIdxSigs,
@@ -158,6 +162,11 @@ export class Witness {
       // TODO: This should only be for the event that is this receit
       allowPartiallyWitnessed: true,
     });
+
+    if (kel.events.length === 0) {
+      this.#log.debug("ignoring receipt: no events stored for aid", { aid: body.i, d: body.d });
+      return;
+    }
 
     if (!kel.state.backers.includes(this.aid)) {
       this.#log.debug("ignoring receipt: not a backer", { aid: body.i, d: body.d });

@@ -85,14 +85,22 @@ export class KERIPy {
   }
 
   async incept(
-    opts: { wits?: string[]; toad?: number; receiptEndpoint?: boolean; transferable?: boolean } = {},
+    opts: {
+      alias?: string;
+      wits?: string[];
+      toad?: number;
+      receiptEndpoint?: boolean;
+      transferable?: boolean;
+      delpre?: string;
+      proxy?: string;
+    } = {},
   ): Promise<void> {
     const args: string[] = [
       "incept",
       "--name",
       this.name,
       "--alias",
-      this.name,
+      opts.alias ?? this.name,
       ...this.baseArgs,
       "--icount",
       "1",
@@ -117,22 +125,28 @@ export class KERIPy {
     if (opts.receiptEndpoint) {
       args.push("--receipt-endpoint");
     }
+    if (opts.delpre) {
+      args.push("--delpre", opts.delpre);
+    }
+    if (opts.proxy) {
+      args.push("--proxy", opts.proxy);
+    }
     await this.run(args);
   }
 
-  async aid(): Promise<string> {
-    return this.run(["aid", "--name", this.name, "--alias", this.name, ...this.baseArgs]);
+  async aid(opts: { alias?: string } = {}): Promise<string> {
+    return this.run(["aid", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }
 
   ends = {
-    add: async (opts: { eid: string; role?: string }): Promise<void> => {
+    add: async (opts: { alias?: string; eid: string; role?: string }): Promise<void> => {
       await this.run([
         "ends",
         "add",
         "--name",
         this.name,
         "--alias",
-        this.name,
+        opts.alias ?? this.name,
         ...this.baseArgs,
         "--role",
         opts.role ?? "mailbox",
@@ -218,6 +232,19 @@ export class KERIPy {
   async query(opts: { prefix: string }): Promise<void> {
     await this.run(["query", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--prefix", opts.prefix]);
   }
+
+  delegate = {
+    confirm: async (opts: { alias?: string; interact?: boolean; auto?: boolean } = {}): Promise<void> => {
+      const args = ["delegate", "confirm", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs];
+      if (opts.interact !== false) {
+        args.push("--interact");
+      }
+      if (opts.auto !== false) {
+        args.push("--auto");
+      }
+      await this.run(args);
+    },
+  };
 
   challenge = {
     generate: async (): Promise<string[]> => {

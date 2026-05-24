@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "../cesr/main.ts";
-import { incept, interact, type KeyEvent, rotate } from "./key-event.ts";
+import { delegatedIncept, delegatedRotate, incept, interact, type KeyEvent, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { sign as _sign } from "./sign.ts";
@@ -332,6 +332,137 @@ describe(basename(import.meta.url), () => {
       });
       assert.equal(event.body.s, "1");
       assert.equal(event.body.p, log.state.lastEvent.d);
+    });
+  });
+
+  describe("delegatedIncept", () => {
+    const delegator = "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    test("should throw when no keys are provided", () => {
+      assert.throws(() => delegatedIncept({ signingKeys: [], nextKeys: [], delegator }), {
+        message: "No keys provided in inception event",
+      });
+    });
+
+    test("should produce t=dip with di field", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const event = delegatedIncept({
+        signingKeys: [key0.publicKey],
+        nextKeys: [key1.publicKeyDigest],
+        delegator,
+      });
+      assert.equal(event.body.t, "dip");
+      assert.equal(event.body.di, delegator);
+    });
+
+    test("should have fields in spec order ending with di", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const event = delegatedIncept({
+        signingKeys: [key0.publicKey],
+        nextKeys: [key1.publicKeyDigest],
+        delegator,
+      });
+      assert.deepEqual(Object.keys(event.body), [
+        "v",
+        "t",
+        "d",
+        "i",
+        "s",
+        "kt",
+        "k",
+        "nt",
+        "n",
+        "bt",
+        "b",
+        "c",
+        "a",
+        "di",
+      ]);
+    });
+
+    test("should have equal d and i for self-addressing delegated AID", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const event = delegatedIncept({
+        signingKeys: [key0.publicKey],
+        nextKeys: [key1.publicKeyDigest],
+        delegator,
+      });
+      assert.equal(event.body.d, event.body.i);
+    });
+  });
+
+  describe("delegatedRotate", () => {
+    const delegator = "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    function delegatedInceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
+      const event = delegatedIncept({
+        signingKeys: [key.publicKey],
+        nextKeys: [nextKey.publicKeyDigest],
+        delegator,
+      });
+      const sigs = sign(event, [key]);
+      return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
+    }
+
+    test("should throw when state has no delegator", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const log = inceptLog(key0, key1);
+      assert.throws(
+        () =>
+          delegatedRotate(log.state, {
+            signingKeys: [key1.publicKey],
+            nextKeyDigests: [key0.publicKeyDigest],
+          }),
+        { message: /has no delegator/ },
+      );
+    });
+
+    test("should produce t=drt with di carried from state", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const key2 = generateKeyPair({ seed: "k2" });
+      const log = delegatedInceptLog(key0, key1);
+      const event = delegatedRotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+      });
+      assert.equal(event.body.t, "drt");
+      assert.equal(event.body.di, delegator);
+      assert.equal(event.body.s, "1");
+      assert.equal(event.body.p, log.state.lastEvent.d);
+    });
+
+    test("should have fields in spec order ending with di", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const key2 = generateKeyPair({ seed: "k2" });
+      const log = delegatedInceptLog(key0, key1);
+      const event = delegatedRotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+      });
+      assert.deepEqual(Object.keys(event.body), [
+        "v",
+        "t",
+        "d",
+        "i",
+        "s",
+        "p",
+        "kt",
+        "k",
+        "nt",
+        "n",
+        "bt",
+        "br",
+        "ba",
+        "c",
+        "a",
+        "di",
+      ]);
     });
   });
 });
