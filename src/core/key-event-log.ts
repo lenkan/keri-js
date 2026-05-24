@@ -114,8 +114,8 @@ export class KeyEventLog {
 
     const referencedAsDelegator = new Set<string>();
     for (const events of byAid.values()) {
-      const dip = events.find((e) => e.body.t === "dip");
-      if (dip && dip.body.t === "dip") {
+      const dip = events.find((e): e is Message<DipEventBody> => e.body.t === "dip");
+      if (dip) {
         referencedAsDelegator.add(dip.body.di);
       }
     }
@@ -226,15 +226,15 @@ export class KeyEventLog {
         }
         break;
       }
+      default: {
+        const _exhaustive: never = body;
+        throw new Error(`Unsupported event type: ${(_exhaustive as { t: string }).t}`);
+      }
     }
 
     const newState = reduceKeyState(this.#state, body);
     return new KeyEventLog([...this.#events, message], newState, delegator ?? null);
   }
-}
-
-export function isKelEventType(t: unknown): boolean {
-  return t === "icp" || t === "ixn" || t === "rot" || t === "dip" || t === "drt";
 }
 
 interface KeyEventSeal {
@@ -267,7 +267,7 @@ function verifyDelegationAnchor(
   // format relies on the verifier deriving the anchor from the delegator's
   // KEL directly when the couple isn't transmitted.
   const matchingSeal = (event: KeyEvent) => {
-    const anchors = (event.body.a ?? []) as KeyEventSeal[];
+    const anchors = event.body.a as KeyEventSeal[];
     return anchors.some((seal) => seal.i === body.i && seal.s === body.s && seal.d === body.d);
   };
 
@@ -359,5 +359,9 @@ function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
         lastEvent: { i: body.i, s: body.s, d: body.d },
         lastEstablishment: { i: body.i, s: body.s, d: body.d },
       });
+    default: {
+      const _exhaustive: never = body;
+      throw new Error(`Unsupported event type: ${(_exhaustive as { t: string }).t}`);
+    }
   }
 }

@@ -338,7 +338,9 @@ export class Controller {
       signingKeys = log.state.signingKeys;
       backers = log.state.backers ?? [];
     }
+
     const sigs = await this.sign(event.raw, signingKeys);
+
     event.attachments.ControllerIdxSigs.push(...sigs);
     this.#log.debug("commit: submitting to witnesses", {
       t: body.t,

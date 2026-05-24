@@ -5,6 +5,7 @@ import { encodeText, Message } from "../cesr/main.ts";
 import { incept, type KeyEvent } from "./key-event.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { receipt } from "./receipt-event.ts";
+import { reply } from "./routed-event.ts";
 import { sign } from "./sign.ts";
 import { WitnessClient } from "./witness-client.ts";
 
@@ -83,6 +84,19 @@ describe(basename(import.meta.url), () => {
 
       const client = new WitnessClient("ftp://witness.example", async () => new Response(""));
       await assert.rejects(() => client.receipt(event), /Invalid protocol/);
+    });
+
+    test("should pick the rct out of a mixed-message response stream", async () => {
+      const { event, witnessKey } = makeEvent();
+      const rpyMsg = reply({ r: "/loc/scheme", a: { foo: "bar" } });
+      const rpyBody = JSON.stringify(rpyMsg.body) + encodeText(rpyMsg.attachments.frames());
+      const rctBody = makeReceiptResponse(event, witnessKey);
+
+      const client = new WitnessClient("http://witness.example", async () => new Response(rpyBody + rctBody));
+      const rct = await client.receipt(event);
+
+      assert.strictEqual(rct.body.t, "rct");
+      assert.strictEqual(rct.body.d, event.body.d);
     });
   });
 });

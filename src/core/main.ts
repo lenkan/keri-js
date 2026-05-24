@@ -60,7 +60,7 @@ export type {
   RotateEventBody,
 } from "./key-event.ts";
 export { delegatedIncept, delegatedRotate, isKeyEvent } from "./key-event.ts";
-export { isKelEventType, KeyEventLog } from "./key-event-log.ts";
+export { KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
 

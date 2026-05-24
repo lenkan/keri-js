@@ -517,6 +517,41 @@ describe(basename(import.meta.url), () => {
     });
   });
 
+  describe("processMessage", () => {
+    test("should route a mixed stream of icp, rpy, and vcp to the correct storage paths", async () => {
+      const producer = createController();
+      const consumer = createController();
+
+      // Produce a real signed icp from the producer's KEL.
+      const icp = await producer.incept();
+      const [icpMessage] = Array.from(producer.storage.getKeyEvents(icp.id));
+      assert.ok(icpMessage, "expected producer to have stored the icp");
+
+      const rpy = keri.reply({
+        r: "/loc/scheme",
+        a: { eid: icp.id, scheme: "http", url: "http://example.com" },
+      });
+
+      const vcp = keri.registry({ ii: icp.id });
+
+      await consumer.processMessage(icpMessage);
+      await consumer.processMessage(rpy);
+      await consumer.processMessage(vcp);
+
+      const storedKel = Array.from(consumer.storage.getKeyEvents(icp.id));
+      assert.equal(storedKel.length, 1, "icp should be stored under its AID");
+      assert.equal(storedKel[0].body.d, icp.event.d);
+
+      const storedReplies = Array.from(consumer.storage.getReplies({ route: "/loc/scheme" }));
+      assert.equal(storedReplies.length, 1, "rpy should be stored");
+      assert.equal(storedReplies[0].body.d, rpy.body.d);
+
+      const storedRegistry = consumer.storage.getRegistry(vcp.body.i);
+      assert.ok(storedRegistry, "vcp should be retrievable as a registry");
+      assert.equal(storedRegistry.body.d, vcp.body.d);
+    });
+  });
+
   describe("endpoint", () => {
     test("should resolve mailbox client", () => {
       const cid = "AID_CONTACT_1";

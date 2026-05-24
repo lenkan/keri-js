@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "../cesr/main.ts";
-import { delegatedIncept, delegatedRotate, incept, interact, type KeyEvent, rotate } from "./key-event.ts";
+import { delegatedIncept, delegatedRotate, incept, interact, isKeyEvent, type KeyEvent, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { sign as _sign } from "./sign.ts";
@@ -391,6 +391,52 @@ describe(basename(import.meta.url), () => {
         delegator,
       });
       assert.equal(event.body.d, event.body.i);
+    });
+  });
+
+  describe("isKeyEvent", () => {
+    const delegator = "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    test("should return true for icp", () => {
+      const key = generateKeyPair({ seed: "k0" });
+      assert.equal(isKeyEvent(incept({ signingKeys: [key.publicKey], nextKeys: [] })), true);
+    });
+
+    test("should return true for ixn, rot, dip, drt", () => {
+      const key0 = generateKeyPair({ seed: "k0" });
+      const key1 = generateKeyPair({ seed: "k1" });
+      const key2 = generateKeyPair({ seed: "k2" });
+      const log = inceptLog(key0, key1);
+
+      const ixn = interact(log.state);
+      assert.equal(isKeyEvent(ixn), true);
+
+      const rot = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key2.publicKeyDigest] });
+      assert.equal(isKeyEvent(rot), true);
+
+      const dip = delegatedIncept({
+        signingKeys: [key0.publicKey],
+        nextKeys: [key1.publicKeyDigest],
+        delegator,
+      });
+      assert.equal(isKeyEvent(dip), true);
+
+      const dipEvent = new Message(dip.body, { ControllerIdxSigs: sign(dip, [key0]) });
+      const dipLog = KeyEventLog.empty().append(dipEvent);
+      const drt = delegatedRotate(dipLog.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+      });
+      assert.equal(isKeyEvent(drt), true);
+    });
+
+    test("should return false for non-KEL message types", () => {
+      const stub = (t: string) => new Message({ v: "KERI10JSON000000_", t, d: "", i: "" } as never);
+      assert.equal(isKeyEvent(stub("rct")), false);
+      assert.equal(isKeyEvent(stub("rpy")), false);
+      assert.equal(isKeyEvent(stub("qry")), false);
+      assert.equal(isKeyEvent(stub("exn")), false);
+      assert.equal(isKeyEvent(stub("vcp")), false);
     });
   });
 

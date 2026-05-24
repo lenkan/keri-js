@@ -211,6 +211,25 @@ describe(basename(import.meta.url), () => {
       assert(ed25519.verify(sigMatter.raw, context.icp.raw, keyMatter.raw));
     });
 
+    test("should return 400 when POSTed body is not a key event", async () => {
+      const context = new TestContext();
+      const rpy = keri.reply({ r: "/loc/scheme", a: { eid: "EFAKE", scheme: "http", url: "http://example" } });
+      const atc = new Attachments({});
+
+      const response = await context.fetch(
+        request("/receipts", {
+          method: "POST",
+          body: new TextDecoder().decode(rpy.raw),
+          headers: {
+            "Content-Type": "application/json",
+            "CESR-ATTACHMENT": encodeText(atc.frames()),
+          },
+        }),
+      );
+
+      assert.strictEqual(response.status, 400);
+    });
+
     test("should respond on oobi request for the new identifier", async () => {
       const context = new TestContext();
       await context.receipt(context.icp, context.sigs);
