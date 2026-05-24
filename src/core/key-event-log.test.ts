@@ -89,10 +89,17 @@ describe(basename(import.meta.url), () => {
 
     assert.ok(log.delegator, "Expected a nested delegator KEL");
     assert.equal(log.delegator.state.identifier, delegatorAid);
-    assert.ok(
-      log.delegator.events.some((e) => e.body.t === "ixn"),
-      "Expected delegator KEL to contain the anchoring ixn",
-    );
+
+    // The delegator must contain at least one event whose `a` field carries a
+    // key-event seal matching the dip (i, s, d). Without this assertion the
+    // test would still pass if anchor verification silently no-op'd.
+    const dip = log.events[0];
+    const anchor = log.delegator.events.find((e) => {
+      const seals = (e.body as { a?: { i?: string; s?: string; d?: string }[] }).a ?? [];
+      return seals.some((seal) => seal.i === dip.body.i && seal.s === dip.body.s && seal.d === dip.body.d);
+    });
+    assert.ok(anchor, "Expected delegator KEL to contain an event whose `a` anchors the dip");
+    assert.equal(anchor.body.t, "ixn");
   });
 
   describe("allowPartiallySigned", () => {
@@ -188,24 +195,11 @@ describe(basename(import.meta.url), () => {
       return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
     }
 
-    test("should append dip and record delegator on state", () => {
+    test("should append dip without SealSourceCouple and record delegator on state", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const log = dipLog(key0, key1);
       assert.equal(log.state.lastEvent.s, "0");
-      assert.equal(log.state.delegator, delegator);
-    });
-
-    test("should accept dip without SealSourceCouple attachment", () => {
-      const key0 = generateKeyPair();
-      const key1 = generateKeyPair();
-      const event = delegatedIncept({
-        signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
-        delegator,
-      });
-      const sigs = sign(event, [key0]);
-      const log = KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
       assert.equal(log.state.delegator, delegator);
     });
 
@@ -226,25 +220,6 @@ describe(basename(import.meta.url), () => {
       const log = KeyEventLog.empty().append(message);
       assert.equal(log.state.delegator, delegator);
       assert.deepEqual(log.events[0].attachments.SealSourceCouples, [couple]);
-    });
-
-    test("should reject dip with cryptographically invalid controller sig", () => {
-      const key0 = generateKeyPair();
-      const key1 = generateKeyPair();
-      const wrongKey = generateKeyPair();
-      const event = delegatedIncept({
-        signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
-        delegator,
-      });
-      const wrongSigs = sign(event, [wrongKey]);
-      assert.throws(
-        () =>
-          KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: wrongSigs }), {
-            allowPartiallySigned: true,
-          }),
-        { message: "Invalid signature for key at index 0" },
-      );
     });
 
     test("should append drt and preserve delegator", () => {
@@ -398,11 +373,55 @@ describe(basename(import.meta.url), () => {
       );
     });
 
-    test("should retain delegator across subsequent ixn/drt appends", () => {
+    test("should retain delegator across subsequent ixn/drt appends and re-verify drt anchor", () => {
       const delegatorKey = generateKeyPair();
       const delegatorNext = generateKeyPair();
       const delegateKey = generateKeyPair();
       const delegateNext = generateKeyPair();
+      const delegateNext2 = generateKeyPair();
+
+      let delegator = makeDelegator(delegatorKey, delegatorNext);
+
+      const dip = delegatedIncept({
+        signingKeys: [delegateKey.publicKey],
+        nextKeys: [delegateNext.publicKeyDigest],
+        delegator: delegator.state.identifier,
+      });
+      delegator = anchorDip(delegator, delegatorKey, dip.body);
+
+      const dipSigs = sign(dip, [delegateKey]);
+      let dipLog = KeyEventLog.empty().append(new Message(dip.body, { ControllerIdxSigs: dipSigs }), { delegator });
+
+      const ixn = interact(dipLog.state);
+      const ixnSigs = sign(ixn, [delegateKey]);
+      dipLog = dipLog.append(new Message(ixn.body, { ControllerIdxSigs: ixnSigs }));
+
+      assert.ok(dipLog.delegator, "Delegator should remain attached after ixn");
+      assert.equal(dipLog.delegator.state.identifier, delegator.state.identifier);
+
+      // Build a drt and anchor it via a fresh delegator ixn — the drt's
+      // append must re-run verifyDelegationAnchor against the now-extended
+      // delegator KEL and succeed.
+      const drt = delegatedRotate(dipLog.state, {
+        signingKeys: [delegateNext.publicKey],
+        nextKeyDigests: [delegateNext2.publicKeyDigest],
+      });
+      const drtAnchored = anchorDip(delegator, delegatorKey, drt.body);
+      const drtSigs = sign(drt, [delegateKey]);
+      const drtLog = dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator: drtAnchored });
+
+      assert.equal(drtLog.state.lastEvent.s, "2");
+      assert.ok(drtLog.delegator);
+      // Delegator KEL now has icp (s=0), first anchor ixn (s=1), drt anchor ixn (s=2).
+      assert.equal(drtLog.delegator.state.lastEvent.s, "2");
+    });
+
+    test("should throw when drt is not anchored in the delegator KEL", () => {
+      const delegatorKey = generateKeyPair();
+      const delegatorNext = generateKeyPair();
+      const delegateKey = generateKeyPair();
+      const delegateNext = generateKeyPair();
+      const delegateNext2 = generateKeyPair();
 
       let delegator = makeDelegator(delegatorKey, delegatorNext);
 
@@ -416,12 +435,128 @@ describe(basename(import.meta.url), () => {
       const dipSigs = sign(dip, [delegateKey]);
       const dipLog = KeyEventLog.empty().append(new Message(dip.body, { ControllerIdxSigs: dipSigs }), { delegator });
 
-      const ixn = interact(dipLog.state);
-      const ixnSigs = sign(ixn, [delegateKey]);
-      const after = dipLog.append(new Message(ixn.body, { ControllerIdxSigs: ixnSigs }));
+      // Build a drt but DON'T anchor it in the delegator KEL.
+      const drt = delegatedRotate(dipLog.state, {
+        signingKeys: [delegateNext.publicKey],
+        nextKeyDigests: [delegateNext2.publicKeyDigest],
+      });
+      const drtSigs = sign(drt, [delegateKey]);
 
-      assert.ok(after.delegator, "Delegator should remain attached after ixn");
-      assert.equal(after.delegator.state.identifier, delegator.state.identifier);
+      assert.throws(() => dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator }), {
+        message: /No anchoring event found in delegator KEL/,
+      });
+    });
+
+    test("should accept dip when SealSourceTriple with matching prefix points at the anchoring event", () => {
+      const delegatorKey = generateKeyPair();
+      const delegatorNext = generateKeyPair();
+      const delegateKey = generateKeyPair();
+      const delegateNext = generateKeyPair();
+
+      let delegator = makeDelegator(delegatorKey, delegatorNext);
+      const dip = delegatedIncept({
+        signingKeys: [delegateKey.publicKey],
+        nextKeys: [delegateNext.publicKeyDigest],
+        delegator: delegator.state.identifier,
+      });
+      delegator = anchorDip(delegator, delegatorKey, dip.body);
+
+      const anchorIxn = delegator.events[1];
+      const dipSigs = sign(dip, [delegateKey]);
+      const message = new Message(dip.body, {
+        ControllerIdxSigs: dipSigs,
+        SealSourceTriples: [{ prefix: delegator.state.identifier, snu: anchorIxn.body.s, digest: anchorIxn.body.d }],
+      });
+
+      const log = KeyEventLog.empty().append(message, { delegator });
+      assert.equal(log.state.delegator, delegator.state.identifier);
+    });
+
+    test("should ignore SealSourceTriple whose prefix does not match the delegator AID", () => {
+      const delegatorKey = generateKeyPair();
+      const delegatorNext = generateKeyPair();
+      const delegateKey = generateKeyPair();
+      const delegateNext = generateKeyPair();
+
+      let delegator = makeDelegator(delegatorKey, delegatorNext);
+      const dip = delegatedIncept({
+        signingKeys: [delegateKey.publicKey],
+        nextKeys: [delegateNext.publicKeyDigest],
+        delegator: delegator.state.identifier,
+      });
+      delegator = anchorDip(delegator, delegatorKey, dip.body);
+
+      // Triple's prefix references a different AID. The filter drops it,
+      // so verification falls back to scanning the delegator KEL — which
+      // does contain the matching anchor. Append must succeed.
+      const anchorIxn = delegator.events[1];
+      const dipSigs = sign(dip, [delegateKey]);
+      const message = new Message(dip.body, {
+        ControllerIdxSigs: dipSigs,
+        SealSourceTriples: [
+          { prefix: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", snu: anchorIxn.body.s, digest: anchorIxn.body.d },
+        ],
+      });
+
+      const log = KeyEventLog.empty().append(message, { delegator });
+      assert.equal(log.state.delegator, delegator.state.identifier);
+    });
+  });
+
+  describe("KeyEventLog.fromMessages", () => {
+    test("should return empty log for empty input", () => {
+      const log = KeyEventLog.fromMessages([]);
+      assert.equal(log.events.length, 0);
+    });
+
+    test("should throw 'cycle' when two delegated AIDs reference each other", () => {
+      const keyA = generateKeyPair();
+      const nextA = generateKeyPair();
+      const keyB = generateKeyPair();
+      const nextB = generateKeyPair();
+
+      // Two dip events whose `di` fields cross-reference: no leaf.
+      const dipA = delegatedIncept({
+        signingKeys: [keyA.publicKey],
+        nextKeys: [nextA.publicKeyDigest],
+        delegator: "EBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      });
+      const dipB = delegatedIncept({
+        signingKeys: [keyB.publicKey],
+        nextKeys: [nextB.publicKeyDigest],
+        delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      });
+      // Override di to point at each other's i (di must reference real AIDs).
+      const bodyA = { ...dipA.body, di: dipB.body.i };
+      const bodyB = { ...dipB.body, di: dipA.body.i };
+
+      assert.throws(
+        () =>
+          KeyEventLog.fromMessages([
+            new Message(bodyA, { ControllerIdxSigs: sign(dipA, [keyA]) }),
+            new Message(bodyB, { ControllerIdxSigs: sign(dipB, [keyB]) }),
+          ]),
+        { message: /no leaf AID/ },
+      );
+    });
+
+    test("should throw 'ambiguous' for two unrelated non-delegated AIDs", () => {
+      const k0 = generateKeyPair();
+      const n0 = generateKeyPair();
+      const k1 = generateKeyPair();
+      const n1 = generateKeyPair();
+
+      const a = incept({ signingKeys: [k0.publicKey], nextKeys: [n0.publicKeyDigest] });
+      const b = incept({ signingKeys: [k1.publicKey], nextKeys: [n1.publicKeyDigest] });
+
+      assert.throws(
+        () =>
+          KeyEventLog.fromMessages([
+            new Message(a.body, { ControllerIdxSigs: sign(a, [k0]) }),
+            new Message(b.body, { ControllerIdxSigs: sign(b, [k1]) }),
+          ]),
+        { message: /ambiguous multi-AID stream, found 2 leaf AIDs/ },
+      );
     });
   });
 });

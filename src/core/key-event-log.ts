@@ -22,6 +22,14 @@ export interface AppendOptions {
    * via an `ixn` whose `a` field carries a matching key-event seal. The
    * returned KEL retains the delegator so subsequent `ixn`/`rot`/`drt` appends
    * carry the same verified anchor chain.
+   *
+   * Omitting this option for a delegated event is a deliberate "skip
+   * delegator-anchor verification" choice. Callers that load delegated KELs
+   * from storage (`KeyEventLog.from(storage.getKeyEvents(...))`) without
+   * re-supplying the delegator KEL will not re-verify the anchor at load time.
+   *
+   * When both `SealSourceCouples` and `SealSourceTriples` are attached, every
+   * referenced entry must validate — any single broken hint fails the append.
    */
   delegator?: KeyEventLog;
 }
@@ -56,22 +64,41 @@ export class KeyEventLog {
     return log;
   }
 
+  /**
+   * Parse a CESR byte stream of KEL events into a verified KeyEventLog.
+   *
+   * Non-KEL messages in the stream are ignored. For multi-AID streams (e.g.
+   * an OOBI response for a delegated AID that returns both the delegator's
+   * KEL and the delegate's), the leaf AID — one not referenced as `di` by
+   * any other dip — is selected and the delegator chain is built bottom-up
+   * so the dip's anchor can be verified against the delegator's KEL.
+   *
+   * Throws on a multi-AID stream that has no leaf (cycle) or more than one
+   * leaf (ambiguous — e.g. two unrelated AIDs).
+   */
   static async parse(stream: AsyncIterable<Uint8Array>, options?: AppendOptions): Promise<KeyEventLog> {
-    const byAid = new Map<string, Message<KeyEventBody>[]>();
-    const order: string[] = [];
-
+    const messages: Message<KeyEventBody>[] = [];
     for await (const message of parse(stream)) {
       // TODO: Verify that the message is a valid KeyEventBody before casting
-      if (!isKelEventType(message.body.t)) {
-        continue;
+      if (isKelEventType(message.body.t)) {
+        messages.push(message as Message<KeyEventBody>);
       }
-      const m = message as Message<KeyEventBody>;
-      const aid = m.body.i;
-      let list = byAid.get(aid);
+    }
+    return KeyEventLog.fromMessages(messages, options);
+  }
+
+  /**
+   * Same multi-AID handling as `parse`, but operates on pre-collected
+   * messages — useful when the caller has already consumed the stream
+   * (e.g. to split KEL events from `rpy` messages in the same response).
+   */
+  static fromMessages(messages: Iterable<Message<KeyEventBody>>, options?: AppendOptions): KeyEventLog {
+    const byAid = new Map<string, Message<KeyEventBody>[]>();
+    for (const m of messages) {
+      let list = byAid.get(m.body.i);
       if (!list) {
         list = [];
-        byAid.set(aid, list);
-        order.push(aid);
+        byAid.set(m.body.i, list);
       }
       list.push(m);
     }
@@ -83,10 +110,6 @@ export class KeyEventLog {
       return KeyEventLog.from(byAid.values().next().value as Message<KeyEventBody>[], options);
     }
 
-    // Multi-AID stream: typical OOBI for a delegated AID returns the delegator
-    // chain plus the delegate. Pick the leaf (an AID not referenced as `di` by
-    // any other AID's dip) and build the chain bottom-up so dip verification
-    // sees a complete delegator KEL.
     const referencedAsDelegator = new Set<string>();
     for (const events of byAid.values()) {
       const dip = events.find((e) => e.body.t === "dip");
@@ -95,12 +118,12 @@ export class KeyEventLog {
       }
     }
 
-    const leaves = order.filter((aid) => !referencedAsDelegator.has(aid));
+    const leaves = Array.from(byAid.keys()).filter((aid) => !referencedAsDelegator.has(aid));
     if (leaves.length === 0) {
-      throw new Error("KeyEventLog.parse: no leaf AID in multi-AID stream (cycle?)");
+      throw new Error("KeyEventLog.fromMessages: no leaf AID in multi-AID stream (cycle?)");
     }
     if (leaves.length > 1) {
-      throw new Error(`KeyEventLog.parse: ambiguous multi-AID stream, found ${leaves.length} leaf AIDs`);
+      throw new Error(`KeyEventLog.fromMessages: ambiguous multi-AID stream, found ${leaves.length} leaf AIDs`);
     }
 
     const buildFor = (aid: string): KeyEventLog => {
@@ -159,14 +182,14 @@ export class KeyEventLog {
 
         verifySigning(bodyRaw, {
           keys: icp.k,
-          threshold: icp.kt as string[] | string,
+          threshold: icp.kt,
           sigs,
         });
 
         if (icp.b && Array.isArray(icp.b) && icp.b.length > 0) {
           verifyWitness(bodyRaw, {
             keys: icp.b,
-            threshold: icp.bt as string[] | string,
+            threshold: icp.bt,
             sigs: wigs,
           });
         }
@@ -211,7 +234,7 @@ export class KeyEventLog {
   }
 }
 
-function isKelEventType(t: unknown): boolean {
+export function isKelEventType(t: unknown): boolean {
   return t === "icp" || t === "ixn" || t === "rot" || t === "dip" || t === "drt";
 }
 

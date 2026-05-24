@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { describe, test } from "node:test";
+import { describe, mock, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message } from "../cesr/main.ts";
 import { generateKeyPair, KeyEventLog, keri, verifySignature } from "../core/main.ts";
@@ -55,6 +55,7 @@ describe(basename(import.meta.url), () => {
       const msg = createInceptEvent(); // no witnesses listed
 
       assert.throws(() => witness.receipt(msg), WitnessError);
+      assert.strictEqual(Array.from(witness.getKeyEvents(msg.body.i)).length, 0);
     });
 
     test("should throw WitnessError when no controller signatures are present", () => {
@@ -144,6 +145,35 @@ describe(basename(import.meta.url), () => {
 
       const stored = Array.from(witness.getKeyEvents(icp.body.i));
       assert.strictEqual(stored.length, 0);
+    });
+
+    test("should be a no-op for rct when witness is not in the AID's backer list", () => {
+      const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+      const { privateKey: ctlKey, publicKey: ctlPub } = generateKeyPair();
+      const { privateKey: otherKey, publicKey: otherPub } = generateKeyPair({
+        seed: "other-witness",
+        nonTransferable: true,
+      });
+      const icp = keri.incept({ signingKeys: [ctlPub], nextKeys: [], wits: [otherPub] });
+      const icpSig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, ctlKey), 0));
+      storage.saveMessage(new Message(icp.body, { ControllerIdxSigs: [icpSig] }));
+
+      const witness = new Witness({
+        privateKey: generateKeyPair({ seed: "test-witness" }).privateKey,
+        storage,
+      });
+
+      const saveSpy = mock.method(storage, "saveMessage");
+
+      const otherSig = encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: ed25519.sign(icp.raw, otherKey) }));
+      const rct = keri.receipt({ d: icp.body.d, i: icp.body.i, s: icp.body.s });
+      const rctMsg = new Message(rct.body, {
+        NonTransReceiptCouples: [{ prefix: otherPub, sig: otherSig }],
+      });
+
+      witness.handleMessage(rctMsg);
+
+      assert.strictEqual(saveSpy.mock.callCount(), 0);
     });
 
     test("should merge NonTransReceiptCouples from another witness", () => {

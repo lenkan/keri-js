@@ -10,9 +10,9 @@ This codebase implements **KERI v1** (legacy version strings). Witness-agreement
 
 | Concern | File(s) |
 | --- | --- |
-| Event construction (`icp`/`rot`/`ixn`) | `src/core/key-event.ts` |
+| Event construction (`icp`/`rot`/`ixn`/`dip`/`drt`) | `src/core/key-event.ts` |
 | Event encoding / SAID prep | `src/core/events.ts` |
-| KEL replay, sequence/prior-digest validation, state transitions | `src/core/key-event-log.ts` |
+| KEL replay, sequence/prior-digest validation, state transitions, delegator-anchor verification | `src/core/key-event-log.ts` |
 | Signature & threshold verification | `src/core/verify.ts` |
 | Signing | `src/core/sign.ts`, `src/core/keys.ts` |
 | SAID computation | `src/core/said.ts` |
@@ -24,7 +24,7 @@ This codebase implements **KERI v1** (legacy version strings). Witness-agreement
 | Identifier controller | `src/controller/` |
 | Credentials (ACDC-adjacent) | `src/core/credential.ts`, `src/core/credential-event.ts`, `src/core/registry-event.ts` |
 
-**Implementation status:** establishment events are limited to `icp`, `rot`, `ixn`, and `rct`. Delegated events (`dip`, `drt`) are described in §3 for completeness but are **not implemented as creation/replay paths** — `key-event-log.ts` only accepts `icp`/`ixn`/`rot`. `controller.ts` recognises `dip` during OOBI parsing but does not validate delegation.
+**Implementation status:** establishment events implemented are `icp`, `rot`, `ixn`, `rct`, `dip`, and `drt`. Delegated events are parsed by `KeyEventLog`, builders (`delegatedIncept` / `delegatedRotate`) live in `key-event.ts`, and the controller exposes `Controller.delegatedIncept`. When the delegator's KEL is supplied via `AppendOptions.delegator`, dip/drt anchor seals are verified against it; `KeyEventLog.parse` (and `fromMessages`) does this automatically for multi-AID streams by selecting the leaf AID and chaining the delegator log bottom-up.
 
 ## 2. Concepts
 
@@ -93,9 +93,18 @@ Field order: `[v, t, d, i, s]`.
 
 Body is just a reference to a key event; the signatures are attached via CESR groups. Witness receipts use the `NonTransReceiptCouples` group (count code `C` in v1, `M` in v2) carrying `(prefix, signature)` couples; the signature primitive is Ed25519 (`0B`) or ECDSA-256k1 (`0C`). Transferable signers use indexed signatures instead.
 
-### Delegation (`dip` / `drt`) — spec, not implemented
+### Delegation (`dip` / `drt`)
 
-For completeness: `dip` is `icp` plus a `di` field naming the delegator; the delegator's KEL must contain a seal anchoring the delegated inception. `drt` mirrors `rot` and inherits the delegator from its matching `dip`. Neither is wired into `key-event-log.ts` today.
+`dip` is `icp` plus a `di` field naming the delegator AID. `drt` mirrors `rot` and inherits the delegator from its matching `dip`. The delegator's KEL must carry an event (typically an `ixn`) whose `a` field anchors the delegated event via a key-event seal `{i, s, d}` — `i` being the delegate's AID, `s`/`d` the delegated event's sequence and SAID.
+
+Two attachment groups can carry a *hint* about which delegator event holds the anchor:
+
+| Group | Fields | Meaning |
+| --- | --- | --- |
+| `SealSourceCouples` | `(snu, digest)` | Delegator event's sequence + SAID. Used when delegator is implied. |
+| `SealSourceTriples` | `(prefix, snu, digest)` | Same, plus explicit delegator prefix. Filtered on `prefix == body.di`. |
+
+`KeyEventLog.append` (via `verifyDelegationAnchor` in `key-event-log.ts`) treats every attached hint as required — all referenced delegator events must exist and must contain a matching seal. If no hint is attached, the verifier scans the delegator's KEL for any event whose `a` field anchors the dip/drt (the wire-form keripy uses when transmitting only the delegator KEL). Verification is **opt-in**: callers must pass `AppendOptions.delegator`; `KeyEventLog.from(storage.getKeyEvents(...))` does not re-verify by default.
 
 ## 4. SAID
 
@@ -127,12 +136,13 @@ Seals appear in the `a` field of events and bind external data into the KEL.
 
 Replaying a KEL from `icp` forward yields deterministic state. Per-event flow lives in `KeyEventLog.append` (`src/core/key-event-log.ts`):
 
-1. Validate structure and event type (`icp`/`ixn`/`rot` only).
+1. Validate structure and event type (`icp`/`ixn`/`rot`/`dip`/`drt`).
 2. Verify SAID — recompute and compare `d`.
 3. For non-inception events, verify sequence continuity (`s == prev.s + 1`) and prior digest chaining (`p == prev.d`).
 4. Verify threshold of valid signatures (delegated to `verify.ts`).
 5. For rotations, verify each new key's digest appears in prior `n`.
-6. Apply state transition.
+6. For `dip`/`drt` with a delegator KEL in scope, verify the delegator-anchor seal (see Delegation above).
+7. Apply state transition.
 
 Resulting state shape:
 
@@ -170,7 +180,7 @@ Implementation notes (deviations from spec) live in [`../kawa.md`](../kawa.md).
 ## 9. When to consult the upstream spec
 
 - Implementing fractional / weighted thresholds (`kt` / `nt` non-integer cases).
-- Implementing **delegation** end-to-end (`dip`/`drt` anchoring, delegated rotation rules).
+- Multisig delegated rotation (`drt` with `kt`/`nt` other than `"1"`) — `delegatedRotate` hardcodes single-sig thresholds.
 - Configuration traits (`c` field) beyond `NB` / `DID`.
 - New event types not in the core (`icp`/`rot`/`ixn`/`rct`/`qry`/`rpy`/`exn`).
 

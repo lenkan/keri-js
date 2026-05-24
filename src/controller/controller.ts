@@ -8,6 +8,7 @@ import {
   type InceptEventBody,
   type InteractEventBody,
   type IssueEvent,
+  isKelEventType,
   type KeyEvent,
   type KeyEventBody,
   KeyEventLog,
@@ -156,29 +157,32 @@ export class Controller {
       throw new Error(`No body in response`);
     }
 
-    let log = KeyEventLog.empty();
-    let messages = 0;
+    const kelMessages: Message<KeyEventBody>[] = [];
+    const otherMessages: Message[] = [];
 
     for await (const message of parse(response.body)) {
-      switch (message.body.t) {
-        case "dip":
-        case "icp":
-        case "rot":
-        case "ixn": {
-          log = log.append(message as Message<KeyEventBody>);
-          await this.processMessage(message);
-          messages++;
-          break;
-        }
-        case "rpy": {
-          await this.processMessage(new Message(message.body as ReplyEventBody));
-          messages++;
-          break;
-        }
+      if (isKelEventType(message.body.t)) {
+        kelMessages.push(message as Message<KeyEventBody>);
+      } else if (message.body.t === "rpy") {
+        otherMessages.push(new Message(message.body as ReplyEventBody));
       }
     }
 
-    this.#log.debug("introduce: complete", { aid: log.state.identifier, messages });
+    // Validate the full KEL chain (multi-AID + delegator-anchor verification)
+    // before persisting any of it. `fromMessages` returns the leaf AID's log.
+    const log = KeyEventLog.fromMessages(kelMessages, { allowPartiallyWitnessed: true });
+
+    for (const message of kelMessages) {
+      await this.processMessage(message);
+    }
+    for (const message of otherMessages) {
+      await this.processMessage(message);
+    }
+
+    this.#log.debug("introduce: complete", {
+      aid: log.state.identifier,
+      messages: kelMessages.length + otherMessages.length,
+    });
     return log.state;
   }
 
