@@ -1,5 +1,5 @@
 import { Attachments, encodeText, parse } from "../cesr/main.ts";
-import type { KeyEvent, KeyEventBody } from "../core/main.ts";
+import { isKeyEvent } from "../core/main.ts";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
@@ -10,11 +10,12 @@ export interface RouterOptions {
 function createResponse(events: readonly WitnessEvent[]): Response {
   const body = events
     .flatMap(({ message, timestamp }) => {
+      const sn = isKeyEvent(message) ? message.body.s : "0";
       const atc = new Attachments({
         ControllerIdxSigs: message.attachments.ControllerIdxSigs,
         WitnessIdxSigs: message.attachments.WitnessIdxSigs,
         NonTransReceiptCouples: message.attachments.NonTransReceiptCouples,
-        FirstSeenReplayCouples: [{ fnu: String((message.body as KeyEventBody).s ?? "0"), dt: timestamp }],
+        FirstSeenReplayCouples: [{ fnu: sn, dt: timestamp }],
       });
       return [new TextDecoder().decode(message.raw), encodeText(atc.frames())];
     })
@@ -40,8 +41,12 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
     const receipts: WitnessEvent[] = [];
 
     for await (const witnessEvent of parse(bodyText + atc)) {
+      if (!isKeyEvent(witnessEvent)) {
+        log.warn("rejecting POST /receipts: not a key event", { t: witnessEvent.body.t });
+        return Response.json({ error: "Bad Request" }, { status: 400 });
+      }
       try {
-        const receipt = witness.receipt(witnessEvent as KeyEvent);
+        const receipt = witness.receipt(witnessEvent);
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {

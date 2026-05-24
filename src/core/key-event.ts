@@ -113,16 +113,18 @@ function isTransferable(key: string) {
   }
 }
 
-export type KeyEventBody = {
-  v: string;
-  t: string;
-  d: string;
-  i: string;
-  s: string;
-  [key: string]: unknown;
-};
+export type KeyEventBody = InceptEventBody | RotateEventBody | InteractEventBody | DipEventBody | DrtEventBody;
 
 export type KeyEvent<T extends KeyEventBody = KeyEventBody> = Message<T>;
+
+// Shallow type guard: matches on `t` only. Does not verify structural validity
+// of the rest of the body (required fields, SAID, etc.) — those checks happen
+// later in `KeyEventLog.append` or in a parser layer. Use this at the boundary
+// between untyped `Message` and typed `KeyEvent` to drop redundant casts.
+export function isKeyEvent(m: Message): m is KeyEvent {
+  const t = m.body.t;
+  return t === "icp" || t === "rot" || t === "ixn" || t === "dip" || t === "drt";
+}
 
 export function incept(args: InceptArgs): KeyEvent<InceptEventBody> {
   const keys = args.signingKeys;

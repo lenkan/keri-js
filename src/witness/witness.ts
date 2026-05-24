@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "../cesr/main.ts";
-import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "../core/main.ts";
+import { isReceipt, type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "../core/main.ts";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { KeyEventStorage } from "../storage/main.ts";
 
@@ -146,17 +146,12 @@ export class Witness {
   }
 
   handleMessage(message: Message): void {
-    const body = message.body as KeyEventBody;
-
-    if (body.t !== "rct") {
-      this.#log.debug("ignoring message: only rct handled", { t: body.t });
+    if (!isReceipt(message)) {
+      this.#log.debug("ignoring message: only rct handled", { t: message.body.t });
       return;
     }
 
-    if (typeof body.i !== "string" || typeof body.d !== "string") {
-      this.#log.warn("ignoring receipt: missing i/d");
-      return;
-    }
+    const body = message.body;
 
     const kel = KeyEventLog.from(this.#storage.getKeyEvents(body.i), {
       // TODO: This should only be for the event that is this receit

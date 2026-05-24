@@ -19,15 +19,13 @@ export type RegistryInceptEventBody = {
   n: string;
 };
 
-export type RegistryEventBody = {
-  v: string;
-  t: string;
-  d: string;
-  i: string;
-  [key: string]: unknown;
-};
+export type RegistryEventBody = RegistryInceptEventBody;
 
 export type RegistryEvent = Message<RegistryEventBody>;
+
+export function isRegistryInception(m: Message): m is Message<RegistryInceptEventBody> {
+  return m.body.t === "vcp";
+}
 
 export function incept(args: RegistryInceptEventInit): Message<RegistryInceptEventBody> {
   const body = encodeEvent<RegistryInceptEventBody>(

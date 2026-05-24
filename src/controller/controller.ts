@@ -4,20 +4,19 @@ import {
   type CredentialBody,
   type DipEventBody,
   type Endpoint,
-  type ExchangeEventBody,
   type InceptEventBody,
   type InteractEventBody,
   type IssueEvent,
-  isKelEventType,
+  isExchange,
+  isKeyEvent,
+  isReply,
   type KeyEvent,
-  type KeyEventBody,
   KeyEventLog,
   type KeyState,
   keri,
   MailboxClient,
   Message,
   type RegistryInceptEventBody,
-  type ReplyEventBody,
   type RotateEventBody,
   resolveEndRole,
   resolveLocation,
@@ -157,14 +156,14 @@ export class Controller {
       throw new Error(`No body in response`);
     }
 
-    const kelMessages: Message<KeyEventBody>[] = [];
+    const kelMessages: KeyEvent[] = [];
     const otherMessages: Message[] = [];
 
     for await (const message of parse(response.body)) {
-      if (isKelEventType(message.body.t)) {
-        kelMessages.push(message as Message<KeyEventBody>);
-      } else if (message.body.t === "rpy") {
-        otherMessages.push(new Message(message.body as ReplyEventBody));
+      if (isKeyEvent(message)) {
+        kelMessages.push(message);
+      } else if (isReply(message)) {
+        otherMessages.push(new Message(message.body));
       }
     }
 
@@ -237,13 +236,12 @@ export class Controller {
       toad: args.toad,
     });
 
-    const body = event.body as InceptEventBody;
-    this.#log.debug("incept: created", { aid: body.i, wits: body.b?.length ?? 0 });
+    this.#log.debug("incept: created", { aid: event.body.i, wits: event.body.b?.length ?? 0 });
     await this.commit(KeyEventLog.empty(), event);
 
     return {
-      id: body.i,
-      event: body,
+      id: event.body.i,
+      event: event.body,
     };
   }
 
@@ -293,25 +291,22 @@ export class Controller {
       return;
     }
 
-    switch (message.body.t) {
-      case "icp":
-      case "rot":
-      case "ixn":
-      case "dip":
-      case "drt": {
-        const body = message.body as KeyEventBody;
-        const log = KeyEventLog.from(this.#storage.getKeyEvents(body.i));
+    if (isKeyEvent(message)) {
+      const { t, i, s, d } = message.body;
+      const log = KeyEventLog.from(this.#storage.getKeyEvents(i));
 
-        // TODO: Detect duplicituous key events
-        if (!log.events.find((event) => event.body.d === message.body.d)) {
-          log.append(message as Message<KeyEventBody>); // throws if verification fails
-          this.#storage.saveMessage(message);
-          this.#log.debug("processMessage: appended key event", { t: body.t, aid: body.i, s: body.s, d: body.d });
-        } else {
-          this.#log.debug("processMessage: duplicate key event ignored", { t: body.t, aid: body.i, d: body.d });
-        }
-        break;
+      // TODO: Detect duplicituous key events
+      if (!log.events.find((event) => event.body.d === d)) {
+        log.append(message); // throws if verification fails
+        this.#storage.saveMessage(message);
+        this.#log.debug("processMessage: appended key event", { t, aid: i, s, d });
+      } else {
+        this.#log.debug("processMessage: duplicate key event ignored", { t, aid: i, d });
       }
+      return;
+    }
+
+    switch (message.body.t) {
       case "vcp":
       case "iss":
       case "rev":
@@ -333,10 +328,16 @@ export class Controller {
   }
 
   async commit(log: KeyEventLog, event: KeyEvent): Promise<void> {
-    const body = event.body as KeyEventBody;
-    const isInception = body.t === "icp" || body.t === "dip";
-    const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
-    const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
+    const body = event.body;
+    let signingKeys: string[];
+    let backers: string[];
+    if (body.t === "icp" || body.t === "dip") {
+      signingKeys = body.k;
+      backers = body.b ?? [];
+    } else {
+      signingKeys = log.state.signingKeys;
+      backers = log.state.backers ?? [];
+    }
     const sigs = await this.sign(event.raw, signingKeys);
     event.attachments.ControllerIdxSigs.push(...sigs);
     this.#log.debug("commit: submitting to witnesses", {
@@ -356,12 +357,12 @@ export class Controller {
     const log = await this.loadEventLog(id);
     const event = keri.interact(log.state, { data: anchor.data });
 
-    this.#log.debug("anchor: created interaction", { aid: id, s: (event.body as InteractEventBody).s });
+    this.#log.debug("anchor: created interaction", { aid: id, s: event.body.s });
     await this.commit(log, event);
 
     return {
-      id: (event.body as InteractEventBody).i,
-      event: event.body as InteractEventBody,
+      id: event.body.i,
+      event: event.body,
     };
   }
 
@@ -380,12 +381,12 @@ export class Controller {
       data: args.data,
     });
 
-    this.#log.debug("rotate: created rotation", { aid: id, s: (event.body as RotateEventBody).s });
+    this.#log.debug("rotate: created rotation", { aid: id, s: event.body.s });
     await this.commit(log, event);
 
     return {
-      id: (event.body as RotateEventBody).i,
-      event: event.body as RotateEventBody,
+      id: event.body.i,
+      event: event.body,
     };
   }
 
@@ -609,8 +610,8 @@ export class Controller {
     return iss;
   }
 
-  private getAnchorFromSeal(aid: string, digest: string): Message<KeyEventBody> {
-    const log = KeyEventLog.from(this.#storage.getKeyEvents(aid) as Iterable<Message<KeyEventBody>>);
+  private getAnchorFromSeal(aid: string, digest: string): KeyEvent {
+    const log = KeyEventLog.from(this.#storage.getKeyEvents(aid));
     const anchor = log.events.find((message) => message.body.d === digest);
 
     if (!anchor) {
@@ -842,10 +843,10 @@ export class Controller {
     const credentials: CredentialBody[] = [];
 
     for (const message of messages) {
-      const body = message.body as ExchangeEventBody;
-      if (body.t !== "exn" || body.r !== "/ipex/grant") {
+      if (!isExchange(message) || message.body.r !== "/ipex/grant") {
         continue;
       }
+      const body = message.body;
 
       const acdcBody = body.e?.acdc as CredentialBody | undefined;
       const issBody = body.e?.iss as IssueEvent | undefined;

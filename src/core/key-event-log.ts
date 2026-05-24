@@ -1,12 +1,14 @@
 import { type Attachments, Message, parse } from "../cesr/main.ts";
-import type {
-  DipEventBody,
-  DrtEventBody,
-  InceptEventBody,
-  InteractEventBody,
-  KeyEventBody,
-  KeyState,
-  RotateEventBody,
+import {
+  type DipEventBody,
+  type DrtEventBody,
+  type InceptEventBody,
+  type InteractEventBody,
+  isKeyEvent,
+  type KeyEvent,
+  type KeyEventBody,
+  type KeyState,
+  type RotateEventBody,
 } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 
@@ -56,7 +58,7 @@ export class KeyEventLog {
     return new KeyEventLog([], null);
   }
 
-  static from(events: Iterable<Message<KeyEventBody>>, options?: AppendOptions): KeyEventLog {
+  static from(events: Iterable<KeyEvent>, options?: AppendOptions): KeyEventLog {
     let log = KeyEventLog.empty();
     for (const event of events) {
       log = log.append(event, options);
@@ -77,11 +79,11 @@ export class KeyEventLog {
    * leaf (ambiguous — e.g. two unrelated AIDs).
    */
   static async parse(stream: AsyncIterable<Uint8Array>, options?: AppendOptions): Promise<KeyEventLog> {
-    const messages: Message<KeyEventBody>[] = [];
+    const messages: KeyEvent[] = [];
     for await (const message of parse(stream)) {
-      // TODO: Verify that the message is a valid KeyEventBody before casting
-      if (isKelEventType(message.body.t)) {
-        messages.push(message as Message<KeyEventBody>);
+      // Shallow guard: matches on `t`. Structural + SAID validation is done later in append().
+      if (isKeyEvent(message)) {
+        messages.push(message);
       }
     }
     return KeyEventLog.fromMessages(messages, options);
@@ -92,8 +94,8 @@ export class KeyEventLog {
    * messages — useful when the caller has already consumed the stream
    * (e.g. to split KEL events from `rpy` messages in the same response).
    */
-  static fromMessages(messages: Iterable<Message<KeyEventBody>>, options?: AppendOptions): KeyEventLog {
-    const byAid = new Map<string, Message<KeyEventBody>[]>();
+  static fromMessages(messages: Iterable<KeyEvent>, options?: AppendOptions): KeyEventLog {
+    const byAid = new Map<string, KeyEvent[]>();
     for (const m of messages) {
       let list = byAid.get(m.body.i);
       if (!list) {
@@ -107,14 +109,14 @@ export class KeyEventLog {
       return KeyEventLog.empty();
     }
     if (byAid.size === 1) {
-      return KeyEventLog.from(byAid.values().next().value as Message<KeyEventBody>[], options);
+      return KeyEventLog.from(byAid.values().next().value as KeyEvent[], options);
     }
 
     const referencedAsDelegator = new Set<string>();
     for (const events of byAid.values()) {
       const dip = events.find((e) => e.body.t === "dip");
-      if (dip && typeof (dip.body as DipEventBody).di === "string") {
-        referencedAsDelegator.add((dip.body as DipEventBody).di);
+      if (dip && dip.body.t === "dip") {
+        referencedAsDelegator.add(dip.body.di);
       }
     }
 
@@ -131,7 +133,7 @@ export class KeyEventLog {
       let delegator: KeyEventLog | undefined;
       const first = events[0];
       if (first && first.body.t === "dip") {
-        const delegatorAid = (first.body as DipEventBody).di;
+        const delegatorAid = first.body.di;
         if (byAid.has(delegatorAid)) {
           delegator = buildFor(delegatorAid);
         }
@@ -175,27 +177,26 @@ export class KeyEventLog {
           throw new Error("State already initialized");
         }
 
-        const icp = body as InceptEventBody;
-        if (!icp.k || !Array.isArray(icp.k) || icp.k.length === 0) {
+        if (!body.k || !Array.isArray(body.k) || body.k.length === 0) {
           throw new Error("Inception event must have at least one key");
         }
 
         verifySigning(bodyRaw, {
-          keys: icp.k,
-          threshold: icp.kt,
+          keys: body.k,
+          threshold: body.kt,
           sigs,
         });
 
-        if (icp.b && Array.isArray(icp.b) && icp.b.length > 0) {
+        if (body.b && Array.isArray(body.b) && body.b.length > 0) {
           verifyWitness(bodyRaw, {
-            keys: icp.b,
-            threshold: icp.bt,
+            keys: body.b,
+            threshold: body.bt,
             sigs: wigs,
           });
         }
 
         if (body.t === "dip" && delegator) {
-          verifyDelegationAnchor(body as DipEventBody, message.attachments, delegator);
+          verifyDelegationAnchor(body, message.attachments, delegator);
         }
         break;
       }
@@ -221,12 +222,10 @@ export class KeyEventLog {
         }
 
         if (body.t === "drt" && delegator) {
-          verifyDelegationAnchor(body as DrtEventBody, message.attachments, delegator);
+          verifyDelegationAnchor(body, message.attachments, delegator);
         }
         break;
       }
-      default:
-        throw new Error(`Unsupported event type: ${body.t}`);
     }
 
     const newState = reduceKeyState(this.#state, body);
@@ -267,8 +266,8 @@ function verifyDelegationAnchor(
   // for any event whose `a` field anchors this dip/drt — keripy's wire
   // format relies on the verifier deriving the anchor from the delegator's
   // KEL directly when the couple isn't transmitted.
-  const matchingSeal = (event: Message<KeyEventBody>) => {
-    const anchors = (event.body as { a?: KeyEventSeal[] }).a ?? [];
+  const matchingSeal = (event: KeyEvent) => {
+    const anchors = (event.body.a ?? []) as KeyEventSeal[];
     return anchors.some((seal) => seal.i === body.i && seal.s === body.s && seal.d === body.d);
   };
 
@@ -317,58 +316,48 @@ function merge(a: KeyState, b: Partial<KeyState>): KeyState {
 
 function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
   switch (body.t) {
-    case "icp": {
-      const icp = body as InceptEventBody;
+    case "icp":
       return {
-        identifier: icp.i,
-        signingThreshold: icp.kt,
-        signingKeys: icp.k,
-        nextThreshold: icp.nt,
-        nextKeyDigests: icp.n,
-        backerThreshold: icp.bt,
-        backers: icp.b,
-        configTraits: icp.c,
-        lastEvent: { i: icp.i, s: icp.s, d: icp.d },
-        lastEstablishment: { i: icp.i, s: icp.s, d: icp.d },
+        identifier: body.i,
+        signingThreshold: body.kt,
+        signingKeys: body.k,
+        nextThreshold: body.nt,
+        nextKeyDigests: body.n,
+        backerThreshold: body.bt,
+        backers: body.b,
+        configTraits: body.c,
+        lastEvent: { i: body.i, s: body.s, d: body.d },
+        lastEstablishment: { i: body.i, s: body.s, d: body.d },
       };
-    }
-    case "dip": {
-      const dip = body as DipEventBody;
+    case "dip":
       return {
-        identifier: dip.i,
-        signingThreshold: dip.kt,
-        signingKeys: dip.k,
-        nextThreshold: dip.nt,
-        nextKeyDigests: dip.n,
-        backerThreshold: dip.bt,
-        backers: dip.b,
-        configTraits: dip.c,
-        delegator: dip.di,
-        lastEvent: { i: dip.i, s: dip.s, d: dip.d },
-        lastEstablishment: { i: dip.i, s: dip.s, d: dip.d },
+        identifier: body.i,
+        signingThreshold: body.kt,
+        signingKeys: body.k,
+        nextThreshold: body.nt,
+        nextKeyDigests: body.n,
+        backerThreshold: body.bt,
+        backers: body.b,
+        configTraits: body.c,
+        delegator: body.di,
+        lastEvent: { i: body.i, s: body.s, d: body.d },
+        lastEstablishment: { i: body.i, s: body.s, d: body.d },
       };
-    }
-    case "ixn": {
+    case "ixn":
       assertDefined(state);
-      const ixn = body as InteractEventBody;
-      return merge(state, { lastEvent: { i: ixn.i, s: ixn.s, d: ixn.d } });
-    }
+      return merge(state, { lastEvent: { i: body.i, s: body.s, d: body.d } });
     case "rot":
-    case "drt": {
+    case "drt":
       assertDefined(state);
-      const rot = body as RotateEventBody | DrtEventBody;
       return merge(state, {
-        backers: state.backers.filter((b) => !rot.br.includes(b)).concat(rot.ba),
-        backerThreshold: rot.bt,
-        signingKeys: rot.k,
-        signingThreshold: rot.kt,
-        nextKeyDigests: rot.n,
-        nextThreshold: rot.nt,
-        lastEvent: { i: rot.i, s: rot.s, d: rot.d },
-        lastEstablishment: { i: rot.i, s: rot.s, d: rot.d },
+        backers: state.backers.filter((b) => !body.br.includes(b)).concat(body.ba),
+        backerThreshold: body.bt,
+        signingKeys: body.k,
+        signingThreshold: body.kt,
+        nextKeyDigests: body.n,
+        nextThreshold: body.nt,
+        lastEvent: { i: body.i, s: body.s, d: body.d },
+        lastEstablishment: { i: body.i, s: body.s, d: body.d },
       });
-    }
-    default:
-      throw new Error(`Unsupported event type: ${body.t}`);
   }
 }

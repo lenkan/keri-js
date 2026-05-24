@@ -18,6 +18,10 @@ export type ReceiptEventBody = {
 
 export type ReceiptEvent = Message<ReceiptEventBody>;
 
+export function isReceipt(m: Message): m is ReceiptEvent {
+  return m.body.t === "rct";
+}
+
 export function receipt(args: ReceiptEventInit): ReceiptEvent {
   const body = encodeEvent<ReceiptEventBody>(
     {

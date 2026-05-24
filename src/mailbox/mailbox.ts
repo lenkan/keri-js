@@ -1,7 +1,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message, type MessageBody } from "../cesr/main.ts";
 import type { ExchangeEventBody, QueryEventBody } from "../core/main.ts";
-import { KeyEventLog, keri } from "../core/main.ts";
+import { isExchange, isQuery, KeyEventLog, keri } from "../core/main.ts";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { MailboxServerStorage } from "../storage/main.ts";
 
@@ -81,21 +81,19 @@ export class Mailbox {
   }
 
   async *handleMessage(message: Message): AsyncGenerator<MailboxReply> {
-    const { t, r } = message.body as { t?: string; r?: string };
-
-    if (t === "exn" && r === "/fwd") {
+    if (isExchange(message) && message.body.r === "/fwd") {
       this.#log.debug("handling exn /fwd");
-      this.#handleForward(message as Message<ExchangeEventBody>);
+      this.#handleForward(message);
       return;
     }
 
-    if (t === "qry" && r === "mbx") {
+    if (isQuery(message) && message.body.r === "mbx") {
       this.#log.debug("handling qry mbx");
-      yield* this.#handleQuery(message as Message<QueryEventBody>);
+      yield* this.#handleQuery(message);
       return;
     }
 
-    this.#log.debug("ignoring message", { t, r });
+    this.#log.debug("ignoring message", { t: message.body.t });
   }
 
   #handleForward(message: Message<ExchangeEventBody>): void {

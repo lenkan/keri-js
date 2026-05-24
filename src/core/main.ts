@@ -59,15 +59,22 @@ export type {
   RotateArgs,
   RotateEventBody,
 } from "./key-event.ts";
-export { delegatedIncept, delegatedRotate } from "./key-event.ts";
+export { delegatedIncept, delegatedRotate, isKeyEvent } from "./key-event.ts";
 export { isKelEventType, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
 
 export type { MailboxClientOptions } from "./mailbox-client.ts";
 export { MailboxClient } from "./mailbox-client.ts";
-export type { ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
-export type { RegistryInceptEventBody, RegistryInceptEventInit } from "./registry-event.ts";
+export type { ReceiptEvent, ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
+export { isReceipt } from "./receipt-event.ts";
+export type {
+  RegistryEvent,
+  RegistryEventBody,
+  RegistryInceptEventBody,
+  RegistryInceptEventInit,
+} from "./registry-event.ts";
+export { isRegistryInception } from "./registry-event.ts";
 export type {
   ExchangeEventBody,
   ExchangeEventInit,
@@ -75,7 +82,10 @@ export type {
   QueryEventInit,
   ReplyEventBody,
   ReplyEventInit,
+  RoutedEvent,
+  RoutedEventBody,
 } from "./routed-event.ts";
+export { isExchange, isQuery, isReply, isRoutedEvent } from "./routed-event.ts";
 export type { SignOptions } from "./sign.ts";
 export { sign } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";

@@ -1,6 +1,6 @@
 import { encodeText, Matter, type Message, parse } from "../cesr/main.ts";
 import type { KeyEventBody } from "./key-event.ts";
-import type { ReceiptEvent } from "./receipt-event.ts";
+import { isReceipt, type ReceiptEvent } from "./receipt-event.ts";
 import { verifySignature } from "./verify.ts";
 
 export class WitnessClient {
@@ -33,14 +33,14 @@ export class WitnessClient {
     }
 
     for await (const incoming of parse(fetchResponse.body)) {
-      if (incoming.body.t === "rct" && incoming.body.d === event.body.d) {
+      if (isReceipt(incoming) && incoming.body.d === event.body.d) {
         for (const couple of incoming.attachments.NonTransReceiptCouples) {
           if (!verifySignature(event.raw, Matter.parse(couple.prefix), Matter.parse(couple.sig).raw)) {
             throw new Error(`Invalid witness signature from ${couple.prefix}`);
           }
         }
 
-        return incoming as ReceiptEvent;
+        return incoming;
       }
     }
 

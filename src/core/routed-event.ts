@@ -34,15 +34,27 @@ export type ReplyEventBody = {
   a: Record<string, unknown>;
 };
 
-export type RoutedEventBody = {
-  v: string;
-  t: string;
-  d: string;
-  r: string;
-  [key: string]: unknown;
-};
+export type RoutedEventBody = QueryEventBody | ReplyEventBody | ExchangeEventBody;
 
 export type RoutedEvent = Message<RoutedEventBody>;
+
+// Shallow type guards: match on `t` only. Structural validation (required
+// fields, SAID, signature verification against signer's KEL) happens later.
+export function isQuery(m: Message): m is Message<QueryEventBody> {
+  return m.body.t === "qry";
+}
+
+export function isReply(m: Message): m is Message<ReplyEventBody> {
+  return m.body.t === "rpy";
+}
+
+export function isExchange(m: Message): m is Message<ExchangeEventBody> {
+  return m.body.t === "exn";
+}
+
+export function isRoutedEvent(m: Message): m is RoutedEvent {
+  return isQuery(m) || isReply(m) || isExchange(m);
+}
 
 export function query(args: QueryEventInit): Message<QueryEventBody> {
   const body = encodeEvent<QueryEventBody>({
