@@ -176,6 +176,17 @@ describe(basename(import.meta.url), () => {
       assert.strictEqual(saveSpy.mock.callCount(), 0);
     });
 
+    test("should be a no-op for a malformed rct missing i/d", () => {
+      const witness = makeWitness();
+      // `i` omitted: without the presence guard this reaches getKeyEvents(undefined),
+      // which node:sqlite rejects as an unsupported bind type.
+      const rctMsg = new Message({ v: "KERI10JSON000000_", t: "rct", d: "", s: "0" } as never, {
+        NonTransReceiptCouples: [],
+      });
+
+      assert.doesNotThrow(() => witness.handleMessage(rctMsg));
+    });
+
     test("should merge NonTransReceiptCouples from another witness", () => {
       const witness = makeWitness();
       const { privateKey: otherKey, publicKey: otherPub } = generateKeyPair({

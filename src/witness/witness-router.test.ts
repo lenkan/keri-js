@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, type Message, parse } from "../cesr/main.ts";
-import { generateKeyPair, type InceptEventBody, type KeyEvent, keri } from "../core/main.ts";
+import { generateKeyPair, type InceptEventBody, type KeyEvent, KeyEventLog, keri } from "../core/main.ts";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
 import { Witness } from "./witness.ts";
 import { createRouter } from "./witness-router.ts";
@@ -209,6 +209,33 @@ describe(basename(import.meta.url), () => {
       const sigMatter = Matter.parse(couple.sig);
       const keyMatter = Matter.parse(couple.prefix);
       assert(ed25519.verify(sigMatter.raw, context.icp.raw, keyMatter.raw));
+    });
+
+    test("should report the receipted event's sequence number in FirstSeenReplayCouples", async () => {
+      const context = new TestContext();
+      await context.receipt(context.icp, context.sigs);
+
+      // Receipt a non-inception event (ixn at s=1) — fnu must reflect its real
+      // sequence number, not a hardcoded "0".
+      const state = KeyEventLog.from(context.witness.getKeyEvents(context.icp.body.i)).state;
+      const ixn = keri.interact(state);
+      const ixnSig = encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(ixn.raw, privateKey0), 0));
+
+      const response = await context.fetch(
+        request("/receipts", {
+          method: "POST",
+          body: new TextDecoder().decode(ixn.raw),
+          headers: {
+            "Content-Type": "application/json",
+            "CESR-ATTACHMENT": encodeText(new Attachments({ ControllerIdxSigs: [ixnSig] }).frames()),
+          },
+        }),
+      );
+
+      const messages = await collect(response.body);
+      assert.strictEqual(messages[0].body.t, "rct");
+      assert.strictEqual(messages[0].body.s, "1");
+      assert.strictEqual(messages[0].attachments.FirstSeenReplayCouples[0].fnu, "1");
     });
 
     test("should return 400 when POSTed body is not a key event", async () => {

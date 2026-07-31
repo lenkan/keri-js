@@ -153,6 +153,11 @@ export class Witness {
 
     const body = message.body;
 
+    if (typeof body.i !== "string" || typeof body.d !== "string") {
+      this.#log.warn("ignoring receipt: missing i/d");
+      return;
+    }
+
     const kel = KeyEventLog.from(this.#storage.getKeyEvents(body.i), {
       // TODO: This should only be for the event that is this receit
       allowPartiallyWitnessed: true,

@@ -267,7 +267,7 @@ function verifyDelegationAnchor(
   // format relies on the verifier deriving the anchor from the delegator's
   // KEL directly when the couple isn't transmitted.
   const matchingSeal = (event: KeyEvent) => {
-    const anchors = event.body.a as KeyEventSeal[];
+    const anchors = (event.body.a ?? []) as KeyEventSeal[];
     return anchors.some((seal) => seal.i === body.i && seal.s === body.s && seal.d === body.d);
   };
 

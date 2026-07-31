@@ -10,7 +10,7 @@ export interface RouterOptions {
 function createResponse(events: readonly WitnessEvent[]): Response {
   const body = events
     .flatMap(({ message, timestamp }) => {
-      const sn = isKeyEvent(message) ? message.body.s : "0";
+      const sn = String((message.body as { s?: string }).s ?? "0");
       const atc = new Attachments({
         ControllerIdxSigs: message.attachments.ControllerIdxSigs,
         WitnessIdxSigs: message.attachments.WitnessIdxSigs,
