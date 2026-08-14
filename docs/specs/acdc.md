@@ -12,12 +12,12 @@ Builds on [`./cesr.md`](./cesr.md) (encoding) and [`./keri.md`](./keri.md) (KELs
 
 | Concern | File(s) |
 | --- | --- |
-| ACDC construction (`createCredential`) | `src/core/credential.ts` |
-| Credential events (`iss` / `rev`) | `src/core/credential-event.ts` |
-| TEL registry events (`vcp`) | `src/core/registry-event.ts` |
-| Routed `exn` envelopes (IPEX carriers) | `src/core/routed-event.ts` |
-| Mailbox / endpoints (presentation transport) | `src/core/mailbox-client.ts`, `src/core/endpoint-discovery.ts` |
-| SAID computation | `src/core/said.ts` |
+| ACDC construction (`createCredential`) | `packages/keri/src/core/credential.ts` |
+| Credential events (`iss` / `rev`) | `packages/keri/src/core/credential-event.ts` |
+| TEL registry events (`vcp`) | `packages/keri/src/core/registry-event.ts` |
+| Routed `exn` envelopes (IPEX carriers) | `packages/keri/src/core/routed-event.ts` |
+| Mailbox / endpoints (presentation transport) | `packages/keri/src/core/mailbox-client.ts`, `packages/keri/src/core/endpoint-discovery.ts` |
+| SAID computation | `packages/keri/src/core/said.ts` |
 | KERI seals | see [`./keri.md`](./keri.md) §5 |
 
 ## 2. What an ACDC is
@@ -32,7 +32,7 @@ ACDCs may be chained via **edges** (each edge points to another ACDC's SAID), fo
 
 ## 3. ACDC body (this implementation)
 
-`createCredential` (`src/core/credential.ts`) emits:
+`createCredential` (`packages/keri/src/core/credential.ts`) emits:
 
 ```ts
 {
@@ -120,9 +120,9 @@ ACDC dynamic state lives in a **Transaction Event Log** (TEL) — a hash-chained
 
 | Type | Purpose | File |
 | :---: | --- | --- |
-| `vcp` | Registry inception | `src/core/registry-event.ts` |
-| `iss` | Credential issuance | `src/core/credential-event.ts` |
-| `rev` | Credential revocation | `src/core/credential-event.ts` |
+| `vcp` | Registry inception | `packages/keri/src/core/registry-event.ts` |
+| `iss` | Credential issuance | `packages/keri/src/core/credential-event.ts` |
+| `rev` | Credential revocation | `packages/keri/src/core/credential-event.ts` |
 
 ### Registry inception (`vcp`)
 
@@ -164,7 +164,7 @@ ACDC dynamic state lives in a **Transaction Event Log** (TEL) — a hash-chained
 
 ## 6. IPEX (Issuance and Presentation Exchange)
 
-A uniform exchange protocol for both issuance and presentation, modeled as **disclosure from a Discloser to a Disclosee**. Carried over KERI **routed exchange (`exn`) messages** (`src/core/routed-event.ts`); the `r` route field selects the IPEX message type.
+A uniform exchange protocol for both issuance and presentation, modeled as **disclosure from a Discloser to a Disclosee**. Carried over KERI **routed exchange (`exn`) messages** (`packages/keri/src/core/routed-event.ts`); the `r` route field selects the IPEX message type.
 
 | Sender | Route | Purpose |
 | :---: | :---: | --- |

@@ -10,16 +10,16 @@ This codebase supports **both CESR v1 and v2**. KERI/ACDC events default to v1 (
 
 | Concern | File(s) |
 | --- | --- |
-| Code table constants (auto-generated) | `src/cesr/codes.ts` |
-| Primitive (matter) encode/decode | `src/cesr/matter.ts` |
-| Indexed signature encode/decode | `src/cesr/indexer.ts` |
-| Count code framing (v1 + v2 registries) | `src/cesr/counter.ts`, `src/cesr/frame.ts` |
-| Pad / lead-byte shifting | `src/cesr/shifting.ts` |
-| Stream parser (cold-start) | `src/cesr/parse.ts` |
-| Attachment groups | `src/cesr/attachments.ts`, `src/cesr/attachments-reader.ts`, `src/cesr/groups/` |
-| Version string | `src/cesr/version-string.ts` |
-| Protocol genus/version | `src/cesr/genus.ts` |
-| Message framing | `src/cesr/message.ts` |
+| Code table constants (auto-generated) | `packages/cesr/src/cesr/codes.ts` |
+| Primitive (matter) encode/decode | `packages/cesr/src/cesr/matter.ts` |
+| Indexed signature encode/decode | `packages/cesr/src/cesr/indexer.ts` |
+| Count code framing (v1 + v2 registries) | `packages/cesr/src/cesr/counter.ts`, `packages/cesr/src/cesr/frame.ts` |
+| Pad / lead-byte shifting | `packages/cesr/src/cesr/shifting.ts` |
+| Stream parser (cold-start) | `packages/cesr/src/cesr/parse.ts` |
+| Attachment groups | `packages/cesr/src/cesr/attachments.ts`, `packages/cesr/src/cesr/attachments-reader.ts`, `packages/cesr/src/cesr/groups/` |
+| Version string | `packages/cesr/src/cesr/version-string.ts` |
+| Protocol genus/version | `packages/cesr/src/cesr/genus.ts` |
+| Message framing | `packages/cesr/src/cesr/message.ts` |
 
 ## 2. What CESR is
 
@@ -65,7 +65,7 @@ Min code length follows pad size: pad 0 → 4 chars, pad 1 → 1 char, pad 2 →
 | `0b110` | MGPK Map16 / Map32 | — |
 | `0b111` | CESR 'B' Count or Op Code | — |
 
-The actual parser (`src/cesr/parse.ts`) dispatches on the first T-domain character (`{`, `-`, `_`, …) rather than tritet bits, but the semantics are equivalent.
+The actual parser (`packages/cesr/src/cesr/parse.ts`) dispatches on the first T-domain character (`{`, `-`, `_`, …) rather than tritet bits, but the semantics are equivalent.
 
 For JSON / CBOR / MGPK messages the `v` (version string) field carries protocol genus, version, and body length. For CESR groups, the count code declares the quadlet/triplet count.
 
@@ -88,7 +88,7 @@ Common groups for KERI/ACDC streams:
 | `-_AAABAA` | Genus header — KERI/ACDC v1 |
 | `-_AAACAA` | Genus header — KERI/ACDC v2 |
 
-`Counter.v1` and `Counter.v2` (`src/cesr/counter.ts`) hold the per-version code tables. Parser version is selectable via `parse(input, { version: 1 | 2 })`; default is v1.
+`Counter.v1` and `Counter.v2` (`packages/cesr/src/cesr/counter.ts`) hold the per-version code tables. Parser version is selectable via `parse(input, { version: 1 | 2 })`; default is v1.
 
 For attachment-specific count codes (controller signatures, witness receipts, seal source couples, pathed material, etc.) see `Counter.v1` / `Counter.v2` entries — they map directly onto the upstream Annex A tables.
 
