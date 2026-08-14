@@ -27,7 +27,7 @@
     "dev:verifier": "concurrently \"pnpm run dev\" \"pnpm --filter @keri-js/verifier run dev\"",
     "predocs:build": "pnpm run build",
     "docs:build": "typedoc",
-    "docs:serve": "concurrently \"serve api-docs\" \"typedoc --watch --preserveWatchOutput\""
+    "docs:serve": "pnpm run docs:build && serve api-docs"
   },
   "type": "module",
   "author": "Daniel Lenksjö",
