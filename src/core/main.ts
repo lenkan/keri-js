@@ -31,17 +31,27 @@ export type {
   CredentialBodyInit,
   CredentialEdges,
   CredentialRules,
+  CredentialSaidResult,
   CredentialSubject,
 } from "./credential.ts";
-export { createCredential } from "./credential.ts";
+export { createCredential, credentialIssuee, disclosedAttributes, verifyCredentialSaid } from "./credential.ts";
 export type {
   IssueEventBody as IssueEvent,
   IssueEventInit,
   RevokeEventBody as RevokeEvent,
   RevokeEventInit,
 } from "./credential-event.ts";
+export type {
+  CheckStatus,
+  CredentialCheck,
+  CredentialCheckId,
+  CredentialEdge,
+  CredentialVerification,
+} from "./credential-verification.ts";
+export { verifyCredential, verifyCredentials } from "./credential-verification.ts";
 export type { Endpoint, EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
 export { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
+export { EventIndex } from "./event-index.ts";
 export type { WitnessEndpoint } from "./kawa.ts";
 export { submitToWitnesses } from "./kawa.ts";
 export type {
@@ -79,6 +89,8 @@ export type {
 export type { SignOptions } from "./sign.ts";
 export { sign } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";
+export type { CredentialStatus, TransactionEventBody } from "./transaction-event-log.ts";
+export { isTelEventType, verifyTransactionEventAnchor, verifyTransactionEventSaid } from "./transaction-event-log.ts";
 export type { VerifyOptions, VerifyResult } from "./verify.ts";
 export { verifySignature } from "./verify.ts";
 

@@ -7,26 +7,32 @@ const SRC = resolve(ROOT, "src");
 const importRegex = /(?:from|import)\s+["']([^"']+)["']/g;
 const violations: string[] = [];
 
-for await (const file of glob("src/**/*.ts", { cwd: ROOT })) {
+// Apps consume the library from outside `src`, so they have no owning submodule
+// and must enter through an entry point like anyone else.
+for await (const file of glob(["src/**/*.ts", "apps/**/*.{ts,tsx}"], { cwd: ROOT })) {
   const absFile = resolve(ROOT, file);
-  const moduleOfFile = relative(SRC, absFile).split("/")[0];
+  const owner = relative(SRC, absFile).startsWith("..") ? null : relative(SRC, absFile).split("/")[0];
   const content = await readFile(absFile, "utf8");
+
   for (const match of content.matchAll(importRegex)) {
     const spec = match[1];
     if (!spec.startsWith(".")) {
       continue;
     }
-    const targetAbs = resolve(dirname(absFile), spec);
-    const relFromSrc = relative(SRC, targetAbs);
-    if (relFromSrc.startsWith("..")) {
+
+    const target = relative(SRC, resolve(dirname(absFile), spec));
+    if (target.startsWith("..")) {
       continue;
     }
-    const targetModule = relFromSrc.split("/")[0];
-    if (targetModule === moduleOfFile) {
+
+    const targetModule = target.split("/")[0];
+    if (owner !== null && targetModule === owner) {
       continue;
     }
-    if (relFromSrc !== `${targetModule}/main.ts`) {
-      violations.push(`${file}: imports "${spec}" — cross-submodule imports must target ../${targetModule}/main.ts`);
+
+    // Either the package entry (`src/main.ts`) or a submodule's (`src/<mod>/main.ts`).
+    if (target !== "main.ts" && target !== `${targetModule}/main.ts`) {
+      violations.push(`${file}: imports "${spec}" — must target src/main.ts or ../${targetModule}/main.ts`);
     }
   }
 }

@@ -244,6 +244,65 @@ interface KeyEventSeal {
   d?: string;
 }
 
+/** The `i`/`s`/`d` triple a seal in an anchoring event's `a` field must match. */
+export interface AnchorTarget {
+  i: string;
+  s: string;
+  d: string;
+}
+
+/** Why no anchoring event was accepted. Callers phrase their own error from it. */
+export type SealAnchorFailure =
+  | { kind: "hint-missing"; snu: string; digest: string }
+  | { kind: "hint-unanchored"; digest: string }
+  | { kind: "unanchored" };
+
+/**
+ * Find the event in `anchoring` whose `a` field carries a seal for `target`,
+ * returning null on success.
+ *
+ * A SealSourceCouple/Triple, when attached, names the anchoring event directly,
+ * and every attached one must resolve. keripy does not always transmit it, so
+ * with no hint the whole log is scanned instead.
+ *
+ * Shared by delegation (`dip`/`drt`) and registry (`vcp`/`iss`/`rev`) anchoring,
+ * which differ only in how they report failure.
+ */
+export function findSealAnchor(
+  target: AnchorTarget,
+  attachments: Attachments,
+  anchoring: { identifier: string; events: Message<KeyEventBody>[] },
+): SealAnchorFailure | null {
+  const hints = [
+    ...attachments.SealSourceCouples.map((c) => ({ snu: c.snu, digest: c.digest })),
+    ...attachments.SealSourceTriples.filter((t) => t.prefix === anchoring.identifier).map((t) => ({
+      snu: t.snu,
+      digest: t.digest,
+    })),
+  ];
+
+  const anchors = (event: Message<KeyEventBody>) => {
+    const seals = (event.body as { a?: KeyEventSeal[] }).a ?? [];
+    return seals.some((seal) => seal.i === target.i && seal.s === target.s && seal.d === target.d);
+  };
+
+  if (hints.length === 0) {
+    return anchoring.events.some(anchors) ? null : { kind: "unanchored" };
+  }
+
+  for (const hint of hints) {
+    const event = anchoring.events.find((e) => e.body.d === hint.digest && e.body.s === hint.snu);
+    if (!event) {
+      return { kind: "hint-missing", snu: hint.snu, digest: hint.digest };
+    }
+    if (!anchors(event)) {
+      return { kind: "hint-unanchored", digest: hint.digest };
+    }
+  }
+
+  return null;
+}
+
 function verifyDelegationAnchor(
   body: DipEventBody | DrtEventBody,
   attachments: Attachments,
@@ -255,41 +314,20 @@ function verifyDelegationAnchor(
     );
   }
 
-  const couples = attachments.SealSourceCouples ?? [];
-  const triples = attachments.SealSourceTriples ?? [];
-  const hints = [
-    ...couples.map((c) => ({ snu: c.snu, digest: c.digest })),
-    ...triples.filter((t) => t.prefix === body.di).map((t) => ({ snu: t.snu, digest: t.digest })),
-  ];
+  const failure = findSealAnchor(body, attachments, {
+    identifier: delegator.state.identifier,
+    events: delegator.events,
+  });
 
-  // If a SealSourceCouple/Triple is attached, use it as a hint about which
-  // delegator event carries the anchor. Otherwise scan the delegator's KEL
-  // for any event whose `a` field anchors this dip/drt — keripy's wire
-  // format relies on the verifier deriving the anchor from the delegator's
-  // KEL directly when the couple isn't transmitted.
-  const matchingSeal = (event: Message<KeyEventBody>) => {
-    const anchors = (event.body as { a?: KeyEventSeal[] }).a ?? [];
-    return anchors.some((seal) => seal.i === body.i && seal.s === body.s && seal.d === body.d);
-  };
-
-  if (hints.length > 0) {
-    for (const ref of hints) {
-      const event = delegator.events.find((e) => e.body.d === ref.digest && e.body.s === ref.snu);
-      if (!event) {
-        throw new Error(`Delegator anchor not found in KEL: s=${ref.snu} d=${ref.digest} (delegator=${body.di})`);
-      }
-      if (!matchingSeal(event)) {
-        throw new Error(
-          `Delegator event ${ref.digest} does not anchor ${body.t} ${body.d}: missing matching key-event seal in a[]`,
-        );
-      }
-    }
-    return;
-  }
-
-  const anchorEvent = delegator.events.find((e) => matchingSeal(e));
-  if (!anchorEvent) {
-    throw new Error(`No anchoring event found in delegator KEL for ${body.t} ${body.d} (delegator=${body.di})`);
+  switch (failure?.kind) {
+    case "hint-missing":
+      throw new Error(`Delegator anchor not found in KEL: s=${failure.snu} d=${failure.digest} (delegator=${body.di})`);
+    case "hint-unanchored":
+      throw new Error(
+        `Delegator event ${failure.digest} does not anchor ${body.t} ${body.d}: missing matching key-event seal in a[]`,
+      );
+    case "unanchored":
+      throw new Error(`No anchoring event found in delegator KEL for ${body.t} ${body.d} (delegator=${body.di})`);
   }
 }
 
