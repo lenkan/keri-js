@@ -37,8 +37,9 @@ jobs:
       - name: Build packages
         run: pnpm run build
 
+      # --base only here: Pages serves the app under /keri-js/, local dev serves it at the root.
       - name: Build verifier app
-        run: pnpm --filter @keri-js/verifier run build
+        run: pnpm --filter @keri-js/verifier run build --base=/keri-js/
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
