@@ -11,5 +11,8 @@
     "@noble/curves": "^2.0.0",
     "@noble/hashes": "^2.0.0",
     "keri": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30"
   }
 }

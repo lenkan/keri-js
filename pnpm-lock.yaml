@@ -44,6 +44,10 @@ importers:
       keri:
         specifier: workspace:*
         version: link:../../packages/keri
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.30
+        version: 22.20.1
 
   apps/verifier:
     dependencies:
@@ -81,6 +85,10 @@ importers:
       keri:
         specifier: workspace:*
         version: link:../../packages/keri
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.30
+        version: 22.20.1
 
   packages/cesr: {}
 

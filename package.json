@@ -9,6 +9,7 @@
   "packageManager": "pnpm@11.21.0",
   "scripts": {
     "build": "pnpm --filter \"./packages/*\" run build",
+    "prebuild:apps": "pnpm run build",
     "build:apps": "pnpm --filter \"./apps/*\" run build",
     "dev": "pnpm --filter \"./packages/*\" --parallel run dev",
     "pretest": "pnpm run build",
@@ -23,6 +24,7 @@
     "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
     "precheck": "pnpm run build",
     "check": "tsc --noEmit && pnpm --filter \"./packages/*\" --parallel run check",
+    "precheck:apps": "pnpm run build",
     "check:apps": "pnpm --filter \"./apps/*\" --parallel run check",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
