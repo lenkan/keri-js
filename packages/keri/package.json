@@ -1,0 +1,59 @@
+{
+  "name": "keri",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenkan/keri-js.git",
+    "directory": "packages/keri"
+  },
+  "type": "module",
+  "author": "Daniel Lenksjö",
+  "license": "Apache-2.0",
+  "description": "KERI for JavaScript",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "deno": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./sqlite-storage": {
+      "deno": "./src/sqlite-storage/main.ts",
+      "types": "./dist/sqlite-storage/main.d.ts",
+      "default": "./dist/sqlite-storage/main.js"
+    },
+    "./witness": {
+      "deno": "./src/witness/main.ts",
+      "types": "./dist/witness/main.d.ts",
+      "default": "./dist/witness/main.js"
+    },
+    "./mailbox": {
+      "deno": "./src/mailbox/main.ts",
+      "types": "./dist/mailbox/main.d.ts",
+      "default": "./dist/mailbox/main.js"
+    },
+    "./nodejs-utils": {
+      "deno": "./src/nodejs-utils/main.ts",
+      "types": "./dist/nodejs-utils/main.d.ts",
+      "default": "./dist/nodejs-utils/main.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0",
+    "cesr": "workspace:*"
+  }
+}

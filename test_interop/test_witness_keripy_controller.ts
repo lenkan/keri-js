@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "../src/cesr/main.ts";
+import { parse } from "cesr";
 import { KERIPy } from "./keripy.ts";
 import { collectAsync, type Endpoint, startKerijsWitness } from "./utils.ts";
 

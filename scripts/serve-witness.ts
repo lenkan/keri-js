@@ -3,9 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { styleText } from "node:util";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { scrypt } from "@noble/hashes/scrypt.js";
-import { createListener } from "../src/nodejs-utils/serve.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/sqlite-storage/main.ts";
-import { createRouter, Witness } from "../src/witness/main.ts";
+import { createListener } from "keri/nodejs-utils";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "keri/sqlite-storage";
+import { createRouter, Witness } from "keri/witness";
 
 const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
 

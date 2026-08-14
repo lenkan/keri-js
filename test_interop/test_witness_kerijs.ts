@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { parse } from "../src/cesr/main.ts";
+import { parse } from "cesr";
 import { collectAsync, createController, type Endpoint, startKerijsWitness } from "./utils.ts";
 
 let wan: Endpoint;

@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { keri } from "../src/core/main.ts";
+import { keri } from "keri";
 import { KERIPy } from "./keripy.ts";
 import { createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 

@@ -1,0 +1,39 @@
+{
+  "name": "cesr",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenkan/keri-js.git",
+    "directory": "packages/cesr"
+  },
+  "type": "module",
+  "author": "Daniel Lenksjö",
+  "license": "Apache-2.0",
+  "description": "Composable Event Streaming Representation for JavaScript",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "deno": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./encoding": {
+      "deno": "./src/encoding/main.ts",
+      "types": "./dist/encoding/main.d.ts",
+      "default": "./dist/encoding/main.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "check": "tsc --noEmit"
+  }
+}

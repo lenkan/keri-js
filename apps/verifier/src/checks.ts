@@ -1,4 +1,4 @@
-import type { CheckStatus, CredentialCheckId } from "../../../src/core/main.ts";
+import type { CheckStatus, CredentialCheckId } from "keri";
 
 export const CHECK_LABELS: Record<CredentialCheckId, string> = {
   "acdc-said": "Credential SAID",

@@ -1,5 +1,5 @@
-import type { CredentialVerification } from "../../../src/core/main.ts";
-import { disclosedAttributes } from "../../../src/core/main.ts";
+import type { CredentialVerification } from "keri";
+import { disclosedAttributes } from "keri";
 import { CHECK_LABELS, STATUS_MARKS } from "./checks.ts";
 
 function Claims({ result }: { result: CredentialVerification }) {

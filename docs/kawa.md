@@ -67,7 +67,7 @@ witness's receipt, forming a complete KERL entry.
 
 ## Implementation in this Library
 
-`src/core/kawa.ts` — `submitToWitnesses(event, endpoints)`
+`packages/keri/src/core/kawa.ts` — `submitToWitnesses(event, endpoints)`
 
 The event must already carry the controller's `ControllerIdxSigs` on its
 attachments before being passed to this function.

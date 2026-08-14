@@ -3,9 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { styleText } from "node:util";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { scrypt } from "@noble/hashes/scrypt.js";
-import { createMailboxRouter, Mailbox } from "../src/mailbox/main.ts";
-import { createListener } from "../src/nodejs-utils/serve.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/sqlite-storage/main.ts";
+import { createMailboxRouter, Mailbox } from "keri/mailbox";
+import { createListener } from "keri/nodejs-utils";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "keri/sqlite-storage";
 
 const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
 
