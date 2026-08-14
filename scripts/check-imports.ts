@@ -48,7 +48,14 @@ function submodule(location: Location): string {
 // Everything outside a package's `src` — apps, scripts, interop and consumer tests — consumes the
 // libraries as a published package would, so it must enter through a bare specifier.
 const files = glob(
-  ["packages/*/src/**/*.ts", "apps/**/*.{ts,tsx}", "scripts/**/*.ts", "test_interop/**/*.ts", "test_consumer/**/*.ts"],
+  [
+    "packages/*/src/**/*.ts",
+    "packages/*/test_vectors/**/*.ts",
+    "apps/**/*.{ts,tsx}",
+    "scripts/**/*.ts",
+    "test_interop/**/*.ts",
+    "test_consumer/**/*.ts",
+  ],
   { cwd: ROOT },
 );
 

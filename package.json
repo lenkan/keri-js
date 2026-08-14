@@ -25,6 +25,7 @@
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "dev:verifier": "concurrently \"pnpm run dev\" \"pnpm --filter @keri-js/verifier run dev\"",
+    "predocs:build": "pnpm run build",
     "docs:build": "typedoc",
     "docs:serve": "concurrently \"serve api-docs\" \"typedoc --watch --preserveWatchOutput\""
   },

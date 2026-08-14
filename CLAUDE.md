@@ -43,7 +43,7 @@ pnpm --filter @keri-js/verifier run check   # Type-check the app (needs a full `
 
 Tests use the native Node.js test runner. Unit test files live alongside source files.
 
-Jobs that do not build the verifier app install with `pnpm install --frozen-lockfile --filter "!@keri-js/verifier"`, which keeps React and Vite out of the store and the virtual store entirely.
+Jobs that do not build the verifier app install with `pnpm install --frozen-lockfile --filter "./packages/*"`, which keeps React and Vite out of the store and the virtual store entirely. The `verifier` job uses a bare `pnpm install`.
 
 pnpm's isolated `node_modules` means an undeclared dependency fails rather than resolving through hoisting. Anything imported from `scripts/`, `test_interop/` or `test_consumer/` must be declared in the root `package.json`.
 

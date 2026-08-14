@@ -21,56 +21,49 @@ export function createController(): Controller {
   return new Controller({ storage: storage() });
 }
 
-// The witness and mailbox sign their own location into the OOBI they serve, so the port has to be
-// known before the server is constructed.
-function findFreePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, () => {
-      const { port } = server.address() as AddressInfo;
-      server.close(() => resolve(port));
-    });
-  });
-}
+// The witness and mailbox sign their own location into the OOBI they serve, so the URL has to be
+// known before they are constructed. Bind first and read the port off the live server rather than
+// probing for a free one — releasing a probed port leaves a window for another listener to take it.
+type Router = (request: Request) => Promise<Response>;
 
-async function serve(router: (request: Request) => Promise<Response>, port: number, signal: AbortSignal) {
-  const server = createServer(createListener(router));
+async function listen(signal: AbortSignal): Promise<{ url: string; serve: (router: Router) => void }> {
+  const server = createServer();
 
-  await new Promise<void>((resolve, reject) => {
+  const port = await new Promise<number>((resolve, reject) => {
     const onError = (error: Error) => {
       server.off("listening", onListening);
       reject(error);
     };
     const onListening = () => {
       server.off("error", onError);
-      resolve();
+      resolve((server.address() as AddressInfo).port);
     };
 
     server.once("error", onError);
     server.once("listening", onListening);
-    server.listen(port);
+    server.listen(0);
   });
 
   signal.addEventListener("abort", () => server.close());
+
+  return {
+    url: `http://localhost:${port}`,
+    serve: (router) => server.on("request", createListener(router)),
+  };
 }
 
 export async function startWitness(signal: AbortSignal): Promise<Endpoint> {
-  const port = await findFreePort();
-  const url = `http://localhost:${port}`;
-
+  const { url, serve } = await listen(signal);
   const witness = new Witness({ storage: storage(), url });
-  await serve(createRouter(witness), port, signal);
+  serve(createRouter(witness));
 
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
 }
 
 export async function startMailbox(signal: AbortSignal): Promise<Endpoint> {
-  const port = await findFreePort();
-  const url = `http://localhost:${port}`;
-
+  const { url, serve } = await listen(signal);
   const mailbox = new Mailbox({ storage: storage(), url });
-  await serve(createMailboxRouter(mailbox), port, signal);
+  serve(createMailboxRouter(mailbox));
 
   return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
 }

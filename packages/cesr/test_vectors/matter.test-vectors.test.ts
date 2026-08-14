@@ -2,8 +2,8 @@ import assert from "node:assert";
 import { Buffer } from "node:buffer";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { encodeBinary, encodeText, Matter } from "cesr";
 import vectors from "../fixtures/cesr_test_vectors.json" with { type: "json" };
-import { encodeBinary, encodeText, Matter } from "../src/main.ts";
 
 describe(path.parse(import.meta.url).base, () => {
   for (const entry of vectors.filter((v) => v.type === "matter")) {

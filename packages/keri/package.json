@@ -42,12 +42,13 @@
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "src",
     "!src/**/*.test.ts"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "dev": "tsc -b tsconfig.build.json --watch",
+    "dev": "tsc -p tsconfig.build.json --watch",
     "check": "tsc --noEmit"
   },
   "dependencies": {
