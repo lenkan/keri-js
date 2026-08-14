@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noConsole: server entrypoint */
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { styleText } from "node:util";

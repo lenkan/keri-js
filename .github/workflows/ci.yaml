@@ -118,10 +118,10 @@ jobs:
         run: pnpm run build
 
       - name: Type check apps
-        run: pnpm --filter "./apps/*" run check
+        run: pnpm run check:apps
 
-      - name: Build verifier app
-        run: pnpm --filter @keri-js/verifier run build
+      - name: Build apps
+        run: pnpm run build:apps
 
   interop:
     runs-on: ubuntu-24.04

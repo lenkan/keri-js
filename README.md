@@ -40,16 +40,13 @@ pnpm run dev:verifier
 and manual testing. They store key events in memory, so nothing survives a restart.
 
 ```sh
-pnpm run serve:witness
-PORT=3001 pnpm run serve:mailbox
+pnpm run dev:witness
+PORT=3001 pnpm run dev:mailbox
 ```
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `3000` | Port to listen on |
-| `PASSPHRASE` | `password` | Passphrase the private key is derived from |
-| `SALT` | `salt` | Salt the private key is derived from |
+| `PASSPHRASE` | `password` | Passphrase the key is derived from; an unchanged passphrase and salt mean the same AID across restarts |
+| `SALT` | `salt` | Salt for the key derivation |
 | `WITNESS_URL` / `MAILBOX_URL` | `http://localhost:$PORT` | URL the server publishes in its OOBI |
-
-The key is derived from `PASSPHRASE` and `SALT` with scrypt, so a server keeps the same AID across
-restarts as long as both are unchanged.
