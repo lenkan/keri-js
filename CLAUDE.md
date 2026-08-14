@@ -53,7 +53,7 @@ pnpm's isolated `node_modules` means an undeclared dependency fails rather than 
 - Build output goes to `packages/*/dist`
 - Biome handles linting and formatting (`biome.json` at root)
 - Cryptography uses `@noble/*` libraries exclusively
-- `scripts/rewrite-declarations.ts` runs after `tsc -b`: `rewriteRelativeImportExtensions` leaves emitted declarations pointing at `.ts`, which TypeScript resolves but Deno does not
+- `scripts/postprocess-dist.ts` runs after `tsc -b` and does two things Deno needs. `rewriteRelativeImportExtensions` leaves emitted declarations pointing at `.ts`, which TypeScript resolves but Deno does not; and Deno follows the workspace symlink to a plain `file://` path, so it never applies the exports map and would type-check the emitted JavaScript instead of the declarations. The script rewrites those specifiers and adds a `@ts-self-types` pragma pointing each emitted file at its own `.d.ts`.
 
 ## Spec references
 

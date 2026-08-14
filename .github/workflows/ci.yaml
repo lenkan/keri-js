@@ -94,11 +94,8 @@ jobs:
         with:
           deno-version: "2"
 
-      # Deno resolves workspace-linked packages without applying their exports map, so its type
-      # checker cannot see the declarations here. Consumers installing the published tarballs are
-      # unaffected. This job is about whether the built library runs under Deno.
       - name: Run consumer tests in deno
-        run: deno test --allow-net --allow-read --no-check test_consumer
+        run: deno test --allow-net --allow-read test_consumer
 
   verifier:
     runs-on: ubuntu-24.04
