@@ -13,6 +13,34 @@ jobs:
   build:
     runs-on: ubuntu-24.04
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Type check
+        run: npm run check
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Run vector test
+        run: npm run test:vector
+
+  consumer:
+    runs-on: ubuntu-24.04
+
     strategy:
       matrix:
         node-version: [22, 24, 25]
@@ -28,27 +56,42 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
 
-      - name: Run linter
-        run: npm run lint
+      - name: Run consumer tests
+        run: npm run test:consumer
 
-      - name: Type check
-        run: npm run check
+  consumer-deno:
+    runs-on: ubuntu-24.04
 
-      - name: Type check verifier app
-        run: npm run check:verifier
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Run build
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+
+      - name: Build packages
         run: npm run build
 
-      - name: Run tests
-        run: npm run test
- 
-      - name: Run vector test
-        run: npm run test:vector
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2"
 
-  interop:
+      # Deno resolves workspace-symlinked packages without applying their exports map, so its type
+      # checker cannot see the declarations here. Consumers installing the published tarballs are
+      # unaffected. This job is about whether the built library runs under Deno.
+      - name: Run consumer tests in deno
+        run: deno test --allow-net --allow-read --no-check test_consumer
+
+  verifier:
     runs-on: ubuntu-24.04
 
     steps:
@@ -64,6 +107,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build packages
+        run: npm run build
+
+      - name: Type check verifier app
+        run: npm run check -w apps/verifier
+
+      - name: Build verifier app
+        run: npm run build -w apps/verifier
+
+  interop:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+
       - name: Setup python 3.13
         uses: actions/setup-python@v4
         with:
@@ -78,26 +146,3 @@ jobs:
 
       - name: Run interop tests
         run: npm run test:interop
-
-  deno:
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: "2"
-
-      - name: Install dependencies
-        run: deno install --frozen
- 
-      - name: Deno typecheck
-        run: deno check src
-
-
-      - name: Run test in deno
-        run: deno test --allow-net --allow-read src test_vectors
-

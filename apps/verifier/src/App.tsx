@@ -1,6 +1,6 @@
+import type { CredentialVerification } from "keri";
+import { EventIndex, verifyCredentials } from "keri";
 import { useCallback, useState } from "react";
-import type { CredentialVerification } from "../../../src/core/main.ts";
-import { EventIndex, verifyCredentials } from "../../../src/core/main.ts";
 import { CredentialResult } from "./CredentialResult.tsx";
 
 type State =

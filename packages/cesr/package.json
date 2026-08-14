@@ -14,8 +14,14 @@
     "node": ">=22"
   },
   "exports": {
-    ".": "./dist/main.js",
-    "./encoding": "./dist/encoding/main.js"
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./encoding": {
+      "types": "./dist/encoding/main.d.ts",
+      "default": "./dist/encoding/main.js"
+    }
   },
   "files": [
     "dist"

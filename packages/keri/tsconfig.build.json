@@ -7,7 +7,8 @@
     "noEmit": false,
     "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.ts"],

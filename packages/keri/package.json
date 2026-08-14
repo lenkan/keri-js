@@ -14,11 +14,26 @@
     "node": ">=22"
   },
   "exports": {
-    ".": "./dist/main.js",
-    "./sqlite-storage": "./dist/sqlite-storage/main.js",
-    "./witness": "./dist/witness/main.js",
-    "./mailbox": "./dist/mailbox/main.js",
-    "./nodejs-utils": "./dist/nodejs-utils/main.js"
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./sqlite-storage": {
+      "types": "./dist/sqlite-storage/main.d.ts",
+      "default": "./dist/sqlite-storage/main.js"
+    },
+    "./witness": {
+      "types": "./dist/witness/main.d.ts",
+      "default": "./dist/witness/main.js"
+    },
+    "./mailbox": {
+      "types": "./dist/mailbox/main.d.ts",
+      "default": "./dist/mailbox/main.js"
+    },
+    "./nodejs-utils": {
+      "types": "./dist/nodejs-utils/main.d.ts",
+      "default": "./dist/nodejs-utils/main.js"
+    }
   },
   "files": [
     "dist"

@@ -11,7 +11,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json",
+    "build": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json && node --no-warnings scripts/rewrite-declarations.ts",
     "dev": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json --watch",
     "pretest": "npm run build",
     "test": "node --test --no-warnings 'packages/*/src/**/*.test.ts'",
@@ -24,7 +24,7 @@
     "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
     "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
     "precheck": "npm run build",
-    "check": "tsc --noEmit && npm run check --workspaces --if-present",
+    "check": "tsc --noEmit && npm run check --workspace packages/cesr --workspace packages/keri",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "dev:verifier": "concurrently \"npm run dev\" \"npm run dev -w apps/verifier\"",
