@@ -1,0 +1,15 @@
+{
+  "name": "@keri-js/mailbox",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/main.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0",
+    "keri": "workspace:*"
+  }
+}

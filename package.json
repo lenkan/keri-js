@@ -25,6 +25,8 @@
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
     "dev:verifier": "concurrently \"pnpm run dev\" \"pnpm --filter @keri-js/verifier run dev\"",
+    "serve:witness": "pnpm --filter @keri-js/witness run dev",
+    "serve:mailbox": "pnpm --filter @keri-js/mailbox run dev",
     "predocs:build": "pnpm run build",
     "docs:build": "typedoc",
     "docs:serve": "pnpm run docs:build && serve api-docs"
@@ -45,8 +47,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@noble/curves": "^2.0.0",
-    "@noble/hashes": "^2.0.0",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
     "cesr": "workspace:*",

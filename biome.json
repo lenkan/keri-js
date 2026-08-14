@@ -33,7 +33,12 @@
   },
   "overrides": [
     {
-      "includes": ["**/scripts/**/*.ts", "**/test_interop/**/*.ts"],
+      "includes": [
+        "**/scripts/**/*.ts",
+        "**/test_interop/**/*.ts",
+        "**/apps/witness/**/*.ts",
+        "**/apps/mailbox/**/*.ts"
+      ],
       "linter": {
         "rules": {
           "suspicious": {

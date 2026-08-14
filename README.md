@@ -28,8 +28,28 @@ pnpm run test:interop    # Interop tests (requires .venv with KERIpy)
 `keri` resolves `cesr` through its built output, so the build runs before check and test. The
 `pretest` and `precheck` hooks handle this; `tsc -b` keeps it incremental.
 
+## Apps
+
 The verifier app lives in [`apps/verifier`](apps/verifier):
 
 ```sh
 pnpm run dev:verifier
 ```
+
+[`apps/witness`](apps/witness) and [`apps/mailbox`](apps/mailbox) are local servers for development
+and manual testing. They store key events in memory, so nothing survives a restart.
+
+```sh
+pnpm run serve:witness
+PORT=3001 pnpm run serve:mailbox
+```
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PORT` | `3000` | Port to listen on |
+| `PASSPHRASE` | `password` | Passphrase the private key is derived from |
+| `SALT` | `salt` | Salt the private key is derived from |
+| `WITNESS_URL` / `MAILBOX_URL` | `http://localhost:$PORT` | URL the server publishes in its OOBI |
+
+The key is derived from `PASSPHRASE` and `SALT` with scrypt, so a server keeps the same AID across
+restarts as long as both are unchanged.
