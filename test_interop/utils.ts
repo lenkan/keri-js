@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "keri";
 import { createMailboxRouter, Mailbox } from "keri/mailbox";
@@ -25,21 +26,17 @@ export function createController() {
   return controller;
 }
 
+// Only for `startKeripyWitness`: `kli` binds its own sockets in another process, so the port has to
+// be released before it can take it. Everything served in-process uses `listen` below instead, which
+// never releases the port and so cannot lose it to whatever binds next.
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
     server.listen(0, () => {
-      const address = server.address();
-      if (address && typeof address === "object") {
-        const port = address.port;
-        server.close(() => resolve(port));
-      } else {
-        server.close(() => reject(new Error("Failed to find free port")));
-      }
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
     });
-    server.on("error", (err) => {
-      reject(err);
-    });
+    server.on("error", reject);
   });
 }
 
@@ -50,57 +47,60 @@ const serverLogger: Logger = {
   error: (msg, meta) => console.error(`[server] ${msg}`, meta ?? ""),
 };
 
-async function serve(router: (request: Request) => Promise<Response>, port: number, signal?: AbortSignal) {
-  const server = createServer(createListener(router, { logger: serverLogger }));
+type Router = (request: Request) => Promise<Response>;
 
-  await new Promise<void>((resolve, reject) => {
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
+// Binds first and reads the port off the live server, so the caller can build a router that knows
+// its own URL without the port ever being unbound.
+async function listen(signal?: AbortSignal, port = 0): Promise<{ url: string; serve: (router: Router) => void }> {
+  const server = createServer();
+
+  const bound = await new Promise<number>((resolve, reject) => {
     const onError = (err: Error) => {
       server.off("listening", onListening);
       reject(err);
     };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve((server.address() as AddressInfo).port);
+    };
 
-    server.once("listening", onListening);
     server.once("error", onError);
+    server.once("listening", onListening);
     server.listen(port);
   });
 
   signal?.addEventListener("abort", () => {
     server.close();
   });
+
+  return {
+    url: `http://localhost:${bound}`,
+    serve: (router) => server.on("request", createListener(router, { logger: serverLogger })),
+  };
 }
 
 export async function startKerijsWitness(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
-  const port = opts.port ?? (await findFreePort());
-  const url = `http://localhost:${port}`;
+  const { url, serve } = await listen(opts.signal, opts.port);
 
   const witness = new Witness({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    url: `http://localhost:${port}`,
+    url,
   });
 
-  const router = createRouter(witness, { logger: serverLogger });
-
-  await serve(router, port, opts.signal);
+  serve(createRouter(witness, { logger: serverLogger }));
 
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
 }
 
 export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
-  const port = opts.port ?? (await findFreePort());
-  const url = `http://localhost:${port}`;
+  const { url, serve } = await listen(opts.signal, opts.port);
 
   const mailbox = new Mailbox({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    url: `http://localhost:${port}`,
+    url,
   });
 
-  const router = createMailboxRouter(mailbox, { logger: serverLogger });
-
-  await serve(router, port, opts.signal);
+  serve(createMailboxRouter(mailbox, { logger: serverLogger }));
 
   return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
 }
