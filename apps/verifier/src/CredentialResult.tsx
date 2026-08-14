@@ -1,6 +1,15 @@
-import type { CredentialVerification } from "keri";
+import type { CredentialStatus, CredentialVerification } from "keri";
 import { disclosedAttributes } from "keri";
-import { CHECK_LABELS, STATUS_MARKS } from "./checks.ts";
+import styles from "./CredentialResult.module.css";
+import { CHECK_LABELS } from "./checks.ts";
+import { cx } from "./components/class-names.ts";
+import { Badge, Card, CheckItem, CheckList, Field, FieldList, type Tone } from "./components/main.ts";
+
+const STATUS_TONES: Record<CredentialStatus, Tone> = {
+  issued: "ok",
+  revoked: "bad",
+  unknown: "neutral",
+};
 
 function Claims({ result }: { result: CredentialVerification }) {
   const claims = disclosedAttributes(result.credential.body);
@@ -9,79 +18,46 @@ function Claims({ result }: { result: CredentialVerification }) {
   }
 
   return (
-    <dl className="claims">
+    <FieldList>
       {claims.map(([key, value]) => (
-        <div key={key}>
-          <dt>{key}</dt>
-          <dd>{typeof value === "object" ? JSON.stringify(value) : String(value)}</dd>
-        </div>
+        <Field key={key} label={key}>
+          {typeof value === "object" ? JSON.stringify(value) : String(value)}
+        </Field>
       ))}
-    </dl>
+    </FieldList>
   );
 }
 
 export function CredentialResult({ result }: { result: CredentialVerification }) {
   return (
-    <article className="result">
-      <header className={`verdict verdict-${result.ok ? "ok" : "bad"}`}>
+    <Card>
+      <header className={cx(styles.verdict, result.ok ? styles.ok : styles.bad)}>
         <strong>{result.ok ? "Verified" : "Not verified"}</strong>
-        <span className={`status status-${result.status}`}>{result.status}</span>
+        <Badge tone={STATUS_TONES[result.status]}>{result.status}</Badge>
       </header>
 
       <Claims result={result} />
 
-      <dl className="identifiers">
-        <div>
-          <dt>Credential</dt>
-          <dd>{result.said}</dd>
-        </div>
-        <div>
-          <dt>Issuer</dt>
-          <dd>{result.issuer}</dd>
-        </div>
-        {result.issuee && (
-          <div>
-            <dt>Issued to</dt>
-            <dd>{result.issuee}</dd>
-          </div>
-        )}
-        <div>
-          <dt>Registry</dt>
-          <dd>{result.registry}</dd>
-        </div>
-        <div>
-          <dt>Schema</dt>
-          <dd>{result.schema}</dd>
-        </div>
-        {result.issuedAt && (
-          <div>
-            <dt>Issued</dt>
-            <dd>{result.issuedAt}</dd>
-          </div>
-        )}
-        {result.revokedAt && (
-          <div>
-            <dt>Revoked</dt>
-            <dd>{result.revokedAt}</dd>
-          </div>
-        )}
+      <FieldList mono>
+        <Field label="Credential">{result.said}</Field>
+        <Field label="Issuer">{result.issuer}</Field>
+        {result.issuee && <Field label="Issued to">{result.issuee}</Field>}
+        <Field label="Registry">{result.registry}</Field>
+        <Field label="Schema">{result.schema}</Field>
+        {result.issuedAt && <Field label="Issued">{result.issuedAt}</Field>}
+        {result.revokedAt && <Field label="Revoked">{result.revokedAt}</Field>}
         {result.edges.map((edge) => (
-          <div key={edge.label}>
-            <dt>{`↳ ${edge.label}`}</dt>
-            <dd className={edge.ok ? "edge-ok" : "edge-bad"}>{edge.said}</dd>
-          </div>
+          <Field key={edge.label} label={`↳ ${edge.label}`} tone={edge.ok ? "ok" : "bad"}>
+            {edge.said}
+          </Field>
         ))}
-      </dl>
+      </FieldList>
 
-      <ul className="checks">
+      <CheckList>
         {result.checks.map((check) => (
-          <li key={check.id} className={`check check-${check.status}`}>
-            <span className="mark">{STATUS_MARKS[check.status]}</span>
-            <span className="label">{CHECK_LABELS[check.id]}</span>
-            {check.detail && <span className="detail">{check.detail}</span>}
-          </li>
+          <CheckItem key={check.id} state={check.status} label={CHECK_LABELS[check.id]} detail={check.detail} />
         ))}
-      </ul>
-    </article>
+      </CheckList>
+    </Card>
   );
 }

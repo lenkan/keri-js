@@ -1,0 +1,44 @@
+.list {
+  margin: 0;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.field {
+  display: flex;
+  gap: 1rem;
+}
+
+.label {
+  min-width: 8rem;
+  color: var(--muted);
+}
+
+.value {
+  margin: 0;
+  font-weight: 600;
+}
+
+.mono {
+  gap: 0.4rem;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.mono .label {
+  min-width: 6rem;
+}
+
+.mono .value {
+  font-weight: 400;
+  word-break: break-all;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--bad);
+}

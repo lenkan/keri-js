@@ -1,4 +1,4 @@
-import type { CheckStatus, CredentialCheckId } from "keri";
+import type { CredentialCheckId } from "keri";
 
 export const CHECK_LABELS: Record<CredentialCheckId, string> = {
   "acdc-said": "Credential SAID",
@@ -11,12 +11,4 @@ export const CHECK_LABELS: Record<CredentialCheckId, string> = {
   "revocation-anchor": "Revocation",
   edges: "Linked credentials",
   schema: "Schema",
-};
-
-export const STATUS_MARKS: Record<CheckStatus, string> = {
-  passed: "✓",
-  failed: "✗",
-  skipped: "–",
-  "not-applicable": "–",
-  unchecked: "?",
 };
