@@ -30,10 +30,7 @@
     "predev:witness": "pnpm run build",
     "dev:witness": "pnpm --filter @keri-js/witness run dev",
     "predev:mailbox": "pnpm run build",
-    "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev",
-    "predocs:build": "pnpm run build",
-    "docs:build": "typedoc",
-    "docs:serve": "pnpm run docs:build && serve api-docs"
+    "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev"
   },
   "type": "module",
   "author": "Daniel Lenksjö",
@@ -57,8 +54,6 @@
     "concurrently": "^9.2.1",
     "debug": "^4.4.3",
     "keri": "workspace:*",
-    "serve": "^14.2.5",
-    "typedoc": "^0.28.14",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.2"
   }
 }
