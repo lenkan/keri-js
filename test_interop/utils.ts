@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
@@ -105,6 +106,16 @@ export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSi
   return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
 }
 
+const witnesses = new Set<ChildProcess>();
+
+// A witness that outlives the `after()` hook's SIGTERM holds its stdio pipes open, which keeps the
+// test process alive past the last test. SIGKILL is the only signal left once we are already exiting.
+process.on("exit", () => {
+  for (const child of witnesses) {
+    child.kill("SIGKILL");
+  }
+});
+
 export async function startKeripyWitness(
   opts: { port?: number; salt?: string; signal?: AbortSignal; logLevel?: string } = {},
 ): Promise<KeripyWitness> {
@@ -119,6 +130,9 @@ export async function startKeripyWitness(
   await keripy.ends.add({ eid: aid, role: "controller" });
   await keripy.location.add({ url });
   const child = keripy.witness.start({ http: httpPort, tcp: tcpPort, logLevel: opts.logLevel ?? "ERROR" });
+
+  witnesses.add(child);
+  child.once("exit", () => witnesses.delete(child));
 
   opts.signal?.addEventListener("abort", () => {
     child.kill();
@@ -141,6 +155,7 @@ export async function startKeripyWitness(
   }
 
   if (!ready) {
+    child.kill();
     throw new Error(`KERIpy witness at ${oobiUrl} did not become reachable within 30s`);
   }
 

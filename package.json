@@ -15,7 +15,7 @@
     "pretest:consumer": "pnpm run build",
     "test:consumer": "node --test --no-warnings 'test_consumer/**/*.test.ts'",
     "pretest:interop": "pnpm run build",
-    "test:interop": "node --test --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
+    "test:interop": "node --test --test-force-exit --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
     "pretest:vector": "pnpm run build",
     "test:vector": "node --test --no-warnings 'packages/cesr/test_vectors/**/*.test.ts'",
     "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
