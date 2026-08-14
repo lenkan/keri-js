@@ -1,5 +1,5 @@
 import type { Buffer } from "node:buffer";
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -173,7 +173,12 @@ export class KERIPy {
   };
 
   witness = {
-    start: (opts: { http: number; tcp: number; logLevel?: string; signal?: AbortSignal }): ChildProcess => {
+    start: (opts: {
+      http: number;
+      tcp: number;
+      logLevel?: string;
+      signal?: AbortSignal;
+    }): ChildProcessWithoutNullStreams => {
       const args = [
         "witness",
         "start",
