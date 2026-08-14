@@ -40,19 +40,10 @@ jobs:
 
       - run: pnpm run build
 
-      # pnpm pack resolves keri's `cesr: workspace:*` to the exact version being packed; npm
-      # publishes the resulting tarballs because pnpm publish cannot attach provenance.
-      - name: Pack packages
-        run: pnpm --filter "./packages/*" exec pnpm pack --pack-destination "$RUNNER_TEMP"
-
-      # cesr must exist on the registry before keri, which depends on this exact version, is
-      # published against it.
-      - name: Publish cesr
-        run: npm publish "$RUNNER_TEMP/cesr-${{ steps.vars.outputs.version }}.tgz" --provenance --tag "${{ steps.vars.outputs.tag }}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish keri
-        run: npm publish "$RUNNER_TEMP/keri-${{ steps.vars.outputs.version }}.tgz" --provenance --tag "${{ steps.vars.outputs.tag }}"
+      # pnpm resolves keri's `cesr: workspace:*` to the exact version being published, and walks the
+      # workspace topologically so cesr reaches the registry before keri depends on it.
+      # --no-git-checks because set-version.ts has just modified the manifests.
+      - name: Publish packages
+        run: pnpm publish --recursive --filter "./packages/*" --provenance --tag "${{ steps.vars.outputs.tag }}" --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
