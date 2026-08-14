@@ -4,7 +4,9 @@ import { basename, resolve } from "node:path";
 const ROOT = resolve(import.meta.dirname, "..");
 
 // `rewriteRelativeImportExtensions` rewrites .ts -> .js in emitted JavaScript but leaves the
-// declarations pointing at .ts. TypeScript resolves those itself; Deno and other checkers do not.
+// declarations pointing at .ts — identical on TypeScript 5.9, 6.0 and 7.0, so it is the intended
+// behaviour, not a bug to wait out. Inside a .d.ts the specifier is never executed and TypeScript's
+// own resolver maps `./x.ts` to `./x.d.ts`; Deno has no such mapping and fails to resolve it.
 const tsSpecifier = /(from\s*|import\s*\(\s*)(["'])(\.[^"']*)\.ts\2/g;
 
 for await (const file of glob("packages/*/dist/**/*.d.ts", { cwd: ROOT })) {
