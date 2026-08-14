@@ -287,7 +287,8 @@ export class Controller {
 
   async processMessage(message: Message): Promise<void> {
     if (message.version.protocol === "ACDC") {
-      // TODO: verify ACDC credential SAID and anchors in TEL or KEL
+      // TODO: verify ACDC credential SAID and anchors in TEL or KEL, via
+      // verifyCredentialSaid / verifyCredential from core/main.ts
       this.#log.debug("processMessage: saving ACDC", { d: message.body.d });
       this.#storage.saveMessage(message);
       return;
@@ -315,7 +316,8 @@ export class Controller {
       case "vcp":
       case "iss":
       case "rev":
-        // TODO: verify is anchored to a valid ixn in the issuer's KEL
+        // TODO: verify is anchored to a valid ixn in the issuer's KEL, via
+        // verifyTransactionEventAnchor from core/main.ts
         this.#log.debug("processMessage: saving registry event", { t: message.body.t, d: message.body.d });
         this.#storage.saveMessage(message);
         break;

@@ -16,6 +16,9 @@
     "check": "tsc --noEmit",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
+    "dev:verifier": "vite --config apps/verifier/vite.config.ts apps/verifier",
+    "build:verifier": "vite build --config apps/verifier/vite.config.ts apps/verifier",
+    "check:verifier": "tsc --noEmit -p apps/verifier/tsconfig.json",
     "docs:build": "typedoc",
     "docs:serve": "concurrently \"serve docs\" \"typedoc --watch --preserveWatchOutput\""
   },
@@ -52,10 +55,16 @@
     "@biomejs/biome": "^2.4.9",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
     "concurrently": "^9.2.1",
     "debug": "^4.4.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "serve": "^14.2.5",
     "typedoc": "^0.28.14",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vite": "^8.2.1"
   }
 }

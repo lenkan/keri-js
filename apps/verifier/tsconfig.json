@@ -1,0 +1,16 @@
+{
+  "include": ["src", "vite.config.ts"],
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": ["vite/client"]
+  }
+}
