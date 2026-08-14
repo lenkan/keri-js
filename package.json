@@ -8,7 +8,7 @@
   },
   "packageManager": "pnpm@11.21.0",
   "scripts": {
-    "build": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json && node --no-warnings scripts/postprocess-dist.ts",
+    "build": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json",
     "dev": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json --watch",
     "pretest": "pnpm run build",
     "test": "node --test --no-warnings 'packages/*/src/**/*.test.ts'",

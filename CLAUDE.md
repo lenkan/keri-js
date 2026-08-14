@@ -53,7 +53,17 @@ pnpm's isolated `node_modules` means an undeclared dependency fails rather than 
 - Build output goes to `packages/*/dist`
 - Biome handles linting and formatting (`biome.json` at root)
 - Cryptography uses `@noble/*` libraries exclusively
-- `scripts/postprocess-dist.ts` runs after `tsc -b` and does two things Deno needs. `rewriteRelativeImportExtensions` leaves emitted declarations pointing at `.ts`, which tsc resolves but Deno does not ([microsoft/TypeScript#61037](https://github.com/microsoft/TypeScript/issues/61037), open); and Deno resolves a workspace-linked package to a plain `file://` path, where it does not pick up a sibling `.d.ts` on its own, so each emitted file gets a `@ts-self-types` pragma. Both halves are required — either alone still fails `deno check`.
+- Both packages publish `dist` **and** `src`, and their `exports` carry a `deno` condition pointing at the TypeScript source:
+
+  ```json
+  ".": {
+    "deno": "./src/main.ts",
+    "types": "./dist/main.d.ts",
+    "default": "./dist/main.js"
+  }
+  ```
+
+  Deno therefore reads the source and never touches the emitted output, which sidesteps the fact that `rewriteRelativeImportExtensions` leaves declarations pointing at `.ts` ([microsoft/TypeScript#61037](https://github.com/microsoft/TypeScript/issues/61037), open) and that Deno does not pick up a sibling `.d.ts` on its own. Node and bundlers fall through to `default` and get `dist`. Condition order matters: `deno` must come first.
 
 ## Spec references
 

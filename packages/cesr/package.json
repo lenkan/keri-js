@@ -15,16 +15,20 @@
   },
   "exports": {
     ".": {
+      "deno": "./src/main.ts",
       "types": "./dist/main.d.ts",
       "default": "./dist/main.js"
     },
     "./encoding": {
+      "deno": "./src/encoding/main.ts",
       "types": "./dist/encoding/main.d.ts",
       "default": "./dist/encoding/main.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "!src/**/*.test.ts"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
