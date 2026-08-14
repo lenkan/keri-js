@@ -95,7 +95,7 @@ jobs:
       - name: Run consumer tests in deno
         run: deno test --allow-net --allow-read test_consumer
 
-  verifier:
+  apps:
     runs-on: ubuntu-24.04
 
     steps:
@@ -117,11 +117,11 @@ jobs:
       - name: Build packages
         run: pnpm run build
 
-      - name: Type check verifier app
-        run: pnpm --filter @keri-js/verifier run check
+      - name: Type check apps
+        run: pnpm run check:apps
 
-      - name: Build verifier app
-        run: pnpm --filter @keri-js/verifier run build
+      - name: Build apps
+        run: pnpm run build:apps
 
   interop:
     runs-on: ubuntu-24.04
