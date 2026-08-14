@@ -12,20 +12,13 @@ if (!version) {
   process.exit(1);
 }
 
-const names = new Set(PACKAGES);
-
+// Sibling dependencies stay on the `workspace:*` protocol here; `pnpm pack` resolves it to the
+// exact version of the sibling being packed, which keeps the two locked together in a release.
 for (const name of PACKAGES) {
   const path = resolve(ROOT, "packages", name, "package.json");
   const manifest = JSON.parse(await readFile(path, "utf8"));
 
   manifest.version = version;
-
-  // Sibling packages are pinned exactly, so the two versions can never drift apart in a release.
-  for (const dependency of Object.keys(manifest.dependencies ?? {})) {
-    if (names.has(dependency)) {
-      manifest.dependencies[dependency] = version;
-    }
-  }
 
   await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`${name}@${version}`);

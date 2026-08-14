@@ -11,16 +11,18 @@ Playground KERI library for javascript. See test_interop for KERIpy compatibilit
 
 ## Development
 
-```sh
-npm install
-npm run build           # Build both packages
-npm run test            # Unit tests
-npm run lint            # Biome lint + import boundary check
-npm run check           # TypeScript type-check
+This is a [pnpm](https://pnpm.io) workspace.
 
-npm run test:consumer   # Public-surface tests through package names
-npm run test:vector     # Cross-impl test vectors
-npm run test:interop    # Interop tests (requires .venv with KERIpy)
+```sh
+pnpm install
+pnpm run build           # Build both packages
+pnpm run test            # Unit tests
+pnpm run lint            # Biome lint + import boundary check
+pnpm run check           # TypeScript type-check
+
+pnpm run test:consumer   # Public-surface tests through package names
+pnpm run test:vector     # Cross-impl test vectors
+pnpm run test:interop    # Interop tests (requires .venv with KERIpy)
 ```
 
 `keri` resolves `cesr` through its built output, so the build runs before check and test. The
@@ -29,5 +31,5 @@ npm run test:interop    # Interop tests (requires .venv with KERIpy)
 The verifier app lives in [`apps/verifier`](apps/verifier):
 
 ```sh
-npm run dev:verifier
+pnpm run dev:verifier
 ```

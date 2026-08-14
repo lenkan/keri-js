@@ -46,6 +46,6 @@
   "dependencies": {
     "@noble/curves": "^2.0.0",
     "@noble/hashes": "^2.0.0",
-    "cesr": "0.0.0"
+    "cesr": "workspace:*"
   }
 }

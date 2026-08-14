@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic key management and identity framework. It is an npm workspace publishing two packages.
+KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic key management and identity framework. It is a pnpm workspace publishing two packages.
 
 ### Repository layout
 
@@ -18,30 +18,34 @@ test_interop/      KERIpy compatibility tests
 fixtures/          .cesr fixtures shared by both packages' tests
 ```
 
-Each submodule has a `main.ts` that defines its public surface. Within a package, cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Across packages, and from anything outside `packages/*/src`, use the package name (`cesr`, `cesr/encoding`, `keri`, `keri/witness`, …). Both rules are enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
+Each submodule has a `main.ts` that defines its public surface. Within a package, cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Across packages, and from anything outside `packages/*/src`, use the package name (`cesr`, `cesr/encoding`, `keri`, `keri/witness`, …). Both rules are enforced by `scripts/check-imports.ts`, run as part of `pnpm run lint`.
+
+Workspace members are declared in `pnpm-workspace.yaml`, and sibling dependencies use the `workspace:*` protocol so they can never resolve from the registry. `pnpm pack` rewrites `workspace:*` to the exact version being packed.
 
 `keri` resolves `cesr` through its built `dist/`, so **the build must run before check, test or the app**. The `pretest`/`precheck` hooks do this automatically; `tsc -b` keeps it incremental.
 
 ## Commands
 
 ```sh
-npm run build           # Build both packages to packages/*/dist
-npm run test            # Unit tests (packages/*/src/**/*.test.ts)
-npm run check           # TypeScript type-check (no emit)
-npm run lint            # Biome lint + import boundary check
-npm run format          # Biome formatting (write)
+pnpm run build           # Build both packages to packages/*/dist
+pnpm run test            # Unit tests (packages/*/src/**/*.test.ts)
+pnpm run check           # TypeScript type-check (no emit)
+pnpm run lint            # Biome lint + import boundary check
+pnpm run format          # Biome formatting (write)
 
-npm run test:consumer   # Public-surface tests through package names
-npm run test:vector     # Cross-impl test vectors (packages/cesr/test_vectors/)
-npm run test:interop    # Interop tests (requires .venv with KERIpy)
+pnpm run test:consumer   # Public-surface tests through package names
+pnpm run test:vector     # Cross-impl test vectors (packages/cesr/test_vectors/)
+pnpm run test:interop    # Interop tests (requires .venv with KERIpy)
 
-npm run dev:verifier            # Watch-build the library alongside the Vite dev server
-npm run check -w apps/verifier  # Type-check the app (needs a full `npm install`)
+pnpm run dev:verifier                       # Watch-build the library alongside the Vite dev server
+pnpm --filter @keri-js/verifier run check   # Type-check the app (needs a full `pnpm install`)
 ```
 
 Tests use the native Node.js test runner. Unit test files live alongside source files.
 
-Jobs that do not build the verifier app install with `npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root`, which keeps React and Vite out of their `node_modules`.
+Jobs that do not build the verifier app install with `pnpm install --frozen-lockfile --filter "!@keri-js/verifier"`, which keeps React and Vite out of the store and the virtual store entirely.
+
+pnpm's isolated `node_modules` means an undeclared dependency fails rather than resolving through hoisting. Anything imported from `scripts/`, `test_interop/` or `test_consumer/` must be declared in the root `package.json`.
 
 ## TypeScript & Code Style
 

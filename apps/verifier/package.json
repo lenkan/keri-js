@@ -9,7 +9,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "keri": "*",
+    "keri": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

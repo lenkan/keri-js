@@ -17,26 +17,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
 
       - name: Run linter
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Type check
-        run: npm run check
+        run: pnpm run check
 
       - name: Run tests
-        run: npm run test
+        run: pnpm run test
 
       - name: Run vector test
-        run: npm run test:vector
+        run: pnpm run test:vector
 
   consumer:
     runs-on: ubuntu-24.04
@@ -49,17 +52,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
 
       - name: Run consumer tests
-        run: npm run test:consumer
+        run: pnpm run test:consumer
 
   consumer-deno:
     runs-on: ubuntu-24.04
@@ -68,24 +74,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
 
       - name: Build packages
-        run: npm run build
+        run: pnpm run build
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: "2"
 
-      # Deno resolves workspace-symlinked packages without applying their exports map, so its type
+      # Deno resolves workspace-linked packages without applying their exports map, so its type
       # checker cannot see the declarations here. Consumers installing the published tarballs are
       # unaffected. This job is about whether the built library runs under Deno.
       - name: Run consumer tests in deno
@@ -98,23 +107,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build packages
-        run: npm run build
+        run: pnpm run build
 
       - name: Type check verifier app
-        run: npm run check -w apps/verifier
+        run: pnpm --filter @keri-js/verifier run check
 
       - name: Build verifier app
-        run: npm run build -w apps/verifier
+        run: pnpm --filter @keri-js/verifier run build
 
   interop:
     runs-on: ubuntu-24.04
@@ -123,14 +135,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
 
       - name: Setup python 3.13
         uses: actions/setup-python@v4
@@ -145,4 +160,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run interop tests
-        run: npm run test:interop
+        run: pnpm run test:interop

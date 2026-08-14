@@ -15,13 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
-          cache: "npm"
+          cache: "pnpm"
 
-      - run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
+      - run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
 
       - name: Set publish variables
         id: vars
@@ -36,16 +38,23 @@ jobs:
 
       - run: node --no-warnings scripts/set-version.ts "${{ steps.vars.outputs.version }}"
 
-      - run: npm run build
+      - run: pnpm run build
+
+      # pnpm pack resolves keri's `cesr: workspace:*` to the exact version being packed; npm
+      # publishes the resulting tarballs because pnpm publish cannot attach provenance.
+      - name: Pack packages
+        run: |
+          pnpm --filter cesr exec pnpm pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter keri exec pnpm pack --pack-destination "$RUNNER_TEMP"
 
       # cesr must exist on the registry before keri, which depends on this exact version, is
       # published against it.
       - name: Publish cesr
-        run: npm publish -w cesr --provenance --tag "${{ steps.vars.outputs.tag }}"
+        run: npm publish "$RUNNER_TEMP/cesr-${{ steps.vars.outputs.version }}.tgz" --provenance --tag "${{ steps.vars.outputs.tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish keri
-        run: npm publish -w keri --provenance --tag "${{ steps.vars.outputs.tag }}"
+        run: npm publish "$RUNNER_TEMP/keri-${{ steps.vars.outputs.version }}.tgz" --provenance --tag "${{ steps.vars.outputs.tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
