@@ -1,6 +1,0 @@
-{
-  "entryPointStrategy": "packages",
-  "entryPoints": ["packages/cesr", "packages/keri"],
-  "out": "api-docs",
-  "favicon": "./assets/favicon.png"
-}
