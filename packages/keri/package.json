@@ -1,0 +1,36 @@
+{
+  "name": "keri",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenkan/keri-js.git",
+    "directory": "packages/keri"
+  },
+  "type": "module",
+  "author": "Daniel Lenksjö",
+  "license": "Apache-2.0",
+  "description": "KERI for JavaScript",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./dist/main.js",
+    "./sqlite-storage": "./dist/sqlite-storage/main.js",
+    "./witness": "./dist/witness/main.js",
+    "./mailbox": "./dist/mailbox/main.js",
+    "./nodejs-utils": "./dist/nodejs-utils/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "test": "node --test --no-warnings 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0",
+    "cesr": "0.0.0"
+  }
+}

@@ -1,36 +1,36 @@
 {
-  "name": "keri",
+  "name": "keri-js",
   "version": "0.0.0",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lenkan/keri-js.git"
   },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch",
-    "test": "node --test --no-warnings 'src/**/*.test.ts'",
+    "build": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json",
+    "dev": "tsc -b packages/cesr/tsconfig.build.json packages/keri/tsconfig.build.json --watch",
+    "pretest": "npm run build",
+    "test": "node --test --no-warnings 'packages/*/src/**/*.test.ts'",
+    "pretest:consumer": "npm run build",
+    "test:consumer": "node --test --no-warnings 'test_consumer/**/*.test.ts'",
+    "pretest:interop": "npm run build",
     "test:interop": "node --test --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
-    "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
+    "pretest:vector": "npm run build",
+    "test:vector": "node --test --no-warnings 'packages/cesr/test_vectors/**/*.test.ts'",
     "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
     "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
-    "check": "tsc --noEmit",
+    "precheck": "npm run build",
+    "check": "tsc --noEmit && npm run check --workspaces --if-present",
     "clean": "node scripts/clean.ts",
     "format": "biome format --write .",
-    "dev:verifier": "vite --config apps/verifier/vite.config.ts apps/verifier",
-    "build:verifier": "vite build --config apps/verifier/vite.config.ts apps/verifier",
-    "check:verifier": "tsc --noEmit -p apps/verifier/tsconfig.json",
+    "dev:verifier": "concurrently \"npm run dev\" \"npm run dev -w apps/verifier\"",
     "docs:build": "typedoc",
-    "docs:serve": "concurrently \"serve docs\" \"typedoc --watch --preserveWatchOutput\""
+    "docs:serve": "concurrently \"serve api-docs\" \"typedoc --watch --preserveWatchOutput\""
   },
-  "exports": {
-    ".": "./dist/main.js",
-    "./sqlite-storage": "./dist/sqlite-storage/main.js",
-    "./witness": "./dist/witness/main.js",
-    "./nodejs-utils": "./dist/nodejs-utils/main.js"
-  },
-  "files": [
-    "dist"
-  ],
   "type": "module",
   "author": "Daniel Lenksjö",
   "license": "Apache-2.0",
@@ -45,26 +45,16 @@
   "engines": {
     "node": ">=22"
   },
-  "dependencies": {
-    "@noble/curves": "^2.0.0",
-    "@noble/ed25519": "^3.0.0",
-    "@noble/hashes": "^2.0.0",
-    "@noble/secp256k1": "^3.0.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "cesr": "*",
     "concurrently": "^9.2.1",
     "debug": "^4.4.3",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "keri": "*",
     "serve": "^14.2.5",
     "typedoc": "^0.28.14",
-    "typescript": "^6.0.2",
-    "vite": "^8.2.1"
+    "typescript": "^6.0.2"
   }
 }

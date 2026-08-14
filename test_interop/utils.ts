@@ -1,10 +1,10 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
-import { createMailboxRouter, Mailbox } from "../src/mailbox/main.ts";
-import { Controller } from "../src/main.ts";
-import { createListener, type Logger } from "../src/nodejs-utils/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../src/sqlite-storage/main.ts";
-import { createRouter, Witness } from "../src/witness/main.ts";
+import { Controller } from "keri";
+import { createMailboxRouter, Mailbox } from "keri/mailbox";
+import { createListener, type Logger } from "keri/nodejs-utils";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "keri/sqlite-storage";
+import { createRouter, Witness } from "keri/witness";
 import { KERIPy } from "./keripy.ts";
 
 export interface Endpoint {

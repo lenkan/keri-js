@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { KeyEventLog } from "../src/core/main.ts";
+import { KeyEventLog } from "keri";
 import { createController, type KeripyWitness, startKeripyWitness } from "./utils.ts";
 
 let wan: KeripyWitness;

@@ -1,14 +1,4 @@
 {
-  "exclude": ["dist", "apps"],
-  "compilerOptions": {
-    "strict": true,
-    "noEmit": true,
-    "target": "esnext",
-    "module": "nodenext",
-    "allowImportingTsExtensions": true,
-    "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true,
-    "resolveJsonModule": true,
-    "types": ["node"]
-  }
+  "extends": "./tsconfig.base.json",
+  "include": ["scripts/**/*.ts", "test_interop/**/*.ts", "test_consumer/**/*.ts"]
 }
