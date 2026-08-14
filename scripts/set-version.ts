@@ -1,9 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { glob, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 
 const ROOT = resolve(import.meta.dirname, "..");
-const PACKAGES = ["cesr", "keri"];
 
 const version = process.argv[2];
 
@@ -12,14 +11,14 @@ if (!version) {
   process.exit(1);
 }
 
-// Sibling dependencies stay on the `workspace:*` protocol here; `pnpm pack` resolves it to the
-// exact version of the sibling being packed, which keeps the two locked together in a release.
-for (const name of PACKAGES) {
-  const path = resolve(ROOT, "packages", name, "package.json");
+// Sibling dependencies stay on the `workspace:*` protocol; `pnpm pack` resolves it to the exact
+// version of the sibling being packed, which keeps every published package locked to one version.
+for await (const file of glob("packages/*/package.json", { cwd: ROOT })) {
+  const path = resolve(ROOT, file);
   const manifest = JSON.parse(await readFile(path, "utf8"));
 
   manifest.version = version;
 
   await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`${name}@${version}`);
+  console.log(`${manifest.name}@${version}`);
 }

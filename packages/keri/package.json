@@ -47,8 +47,8 @@
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "check": "tsc --noEmit",
-    "test": "node --test --no-warnings 'src/**/*.test.ts'"
+    "dev": "tsc -b tsconfig.build.json --watch",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@noble/curves": "^2.0.0",

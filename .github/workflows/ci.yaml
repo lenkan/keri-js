@@ -27,7 +27,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
+        run: pnpm install --frozen-lockfile --filter "./packages/*"
 
       - name: Run linter
         run: pnpm run lint
@@ -62,7 +62,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
+        run: pnpm install --frozen-lockfile --filter "./packages/*"
 
       - name: Run consumer tests
         run: pnpm run test:consumer
@@ -84,11 +84,9 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
+        run: pnpm install --frozen-lockfile --filter "./packages/*"
 
-      - name: Build packages
-        run: pnpm run build
-
+      # No build step: the `deno` export condition points at src, so Deno never reads dist.
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
@@ -142,12 +140,14 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
+        run: pnpm install --frozen-lockfile --filter "./packages/*"
 
       - name: Setup python 3.13
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - name: Install Python dependencies
         run: |

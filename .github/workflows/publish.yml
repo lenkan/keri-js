@@ -23,7 +23,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
-      - run: pnpm install --frozen-lockfile --filter "!@keri-js/verifier"
+      - run: pnpm install --frozen-lockfile --filter "./packages/*"
 
       - name: Set publish variables
         id: vars
@@ -43,9 +43,7 @@ jobs:
       # pnpm pack resolves keri's `cesr: workspace:*` to the exact version being packed; npm
       # publishes the resulting tarballs because pnpm publish cannot attach provenance.
       - name: Pack packages
-        run: |
-          pnpm --filter cesr exec pnpm pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter keri exec pnpm pack --pack-destination "$RUNNER_TEMP"
+        run: pnpm --filter "./packages/*" exec pnpm pack --pack-destination "$RUNNER_TEMP"
 
       # cesr must exist on the registry before keri, which depends on this exact version, is
       # published against it.

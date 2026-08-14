@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "keri";
 import { createMailboxRouter, Mailbox } from "keri/mailbox";
@@ -27,13 +28,8 @@ function findFreePort(): Promise<number> {
     const server = createServer();
     server.once("error", reject);
     server.listen(0, () => {
-      const address = server.address();
-      if (address && typeof address === "object") {
-        const { port } = address;
-        server.close(() => resolve(port));
-      } else {
-        server.close(() => reject(new Error("Failed to find a free port")));
-      }
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
     });
   });
 }
@@ -42,8 +38,18 @@ async function serve(router: (request: Request) => Promise<Response>, port: numb
   const server = createServer(createListener(router));
 
   await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, () => resolve());
+    const onError = (error: Error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port);
   });
 
   signal.addEventListener("abort", () => server.close());
