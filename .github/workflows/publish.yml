@@ -21,7 +21,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
 
-      - run: npm ci
+      - run: npm ci --workspace packages/cesr --workspace packages/keri --include-workspace-root
 
       - name: Set publish variables
         id: vars
@@ -34,11 +34,18 @@ jobs:
             echo "tag=dev" >> "$GITHUB_OUTPUT"
           fi
 
-      - run: npm version "${{ steps.vars.outputs.version }}" --no-git-tag-version
+      - run: node --no-warnings scripts/set-version.ts "${{ steps.vars.outputs.version }}"
 
       - run: npm run build
 
-      - name: Publish packages
-        run: npm publish --provenance --tag "${{ steps.vars.outputs.tag }}"
+      # cesr must exist on the registry before keri, which depends on this exact version, is
+      # published against it.
+      - name: Publish cesr
+        run: npm publish -w cesr --provenance --tag "${{ steps.vars.outputs.tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish keri
+        run: npm publish -w keri --provenance --tag "${{ steps.vars.outputs.tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
