@@ -1,5 +1,5 @@
 import { Attachments, encodeText, parse } from "cesr";
-import type { KeyEvent, KeyEventBody } from "../core/main.ts";
+import type { KeyEvent, KeyEventBody } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 

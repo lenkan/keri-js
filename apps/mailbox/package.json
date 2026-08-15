@@ -8,9 +8,9 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@keri-js/infra": "workspace:*",
     "@noble/curves": "^2.0.0",
-    "@noble/hashes": "^2.0.0",
-    "keri": "workspace:*"
+    "@noble/hashes": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.30"

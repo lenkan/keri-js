@@ -3,9 +3,9 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { Attachments, encodeText, parse } from "cesr";
-import type { Message } from "../core/main.ts";
-import { generateKeyPair, keri } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
+import type { Message } from "keri";
+import { generateKeyPair, keri } from "keri";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 

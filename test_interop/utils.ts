@@ -2,11 +2,10 @@ import type { ChildProcess } from "node:child_process";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
-import { Controller } from "keri";
-import { createMailboxRouter, Mailbox } from "keri/mailbox";
-import { createListener, type Logger } from "keri/nodejs-utils";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "keri/sqlite-storage";
-import { createRouter, Witness } from "keri/witness";
+import { Controller } from "@keri-js/infra/controller";
+import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
+import { createListener, type Logger, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createRouter, Witness } from "@keri-js/infra/witness";
 import { KERIPy } from "./keripy.ts";
 
 export interface Endpoint {

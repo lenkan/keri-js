@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, mock, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message } from "cesr";
-import { generateKeyPair, KeyEventLog, keri, verifySignature } from "../core/main.ts";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../sqlite-storage/main.ts";
+import { generateKeyPair, KeyEventLog, keri, verifySignature } from "keri";
+import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Witness, WitnessError } from "./witness.ts";
 
 function makeWitness(seed = "test-witness") {

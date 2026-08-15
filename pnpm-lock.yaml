@@ -11,6 +11,9 @@ importers:
       '@biomejs/biome':
         specifier: ^2.4.9
         version: 2.5.8
+      '@keri-js/infra':
+        specifier: workspace:*
+        version: link:packages/keri-infra
       '@types/debug':
         specifier: ^4.1.13
         version: 4.1.13
@@ -35,15 +38,15 @@ importers:
 
   apps/mailbox:
     dependencies:
+      '@keri-js/infra':
+        specifier: workspace:*
+        version: link:../../packages/keri-infra
       '@noble/curves':
         specifier: ^2.0.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^2.0.0
         version: 2.3.0
-      keri:
-        specifier: workspace:*
-        version: link:../../packages/keri
     devDependencies:
       '@types/node':
         specifier: ^22.15.30
@@ -76,15 +79,15 @@ importers:
 
   apps/witness:
     dependencies:
+      '@keri-js/infra':
+        specifier: workspace:*
+        version: link:../../packages/keri-infra
       '@noble/curves':
         specifier: ^2.0.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^2.0.0
         version: 2.3.0
-      keri:
-        specifier: workspace:*
-        version: link:../../packages/keri
     devDependencies:
       '@types/node':
         specifier: ^22.15.30
@@ -103,6 +106,21 @@ importers:
       cesr:
         specifier: workspace:*
         version: link:../cesr
+
+  packages/keri-infra:
+    dependencies:
+      '@noble/curves':
+        specifier: ^2.0.0
+        version: 2.3.0
+      '@noble/hashes':
+        specifier: ^2.0.0
+        version: 2.3.0
+      cesr:
+        specifier: workspace:*
+        version: link:../cesr
+      keri:
+        specifier: workspace:*
+        version: link:../keri
 
 packages:
 

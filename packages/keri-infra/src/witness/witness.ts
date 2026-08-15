@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "cesr";
-import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "../core/main.ts";
+import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { KeyEventStorage } from "../storage/main.ts";
 

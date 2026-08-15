@@ -1,7 +1,5 @@
 import { encodeText, Matter, type Message, parse } from "cesr";
-import type { KeyEventBody } from "./key-event.ts";
-import type { ReceiptEvent } from "./receipt-event.ts";
-import { verifySignature } from "./verify.ts";
+import { type KeyEventBody, type ReceiptEventBody, verifySignature } from "keri";
 
 export class WitnessClient {
   #url: string;
@@ -12,7 +10,7 @@ export class WitnessClient {
     this.#fetch = fetch ?? globalThis.fetch;
   }
 
-  async receipt(event: Message<KeyEventBody>): Promise<ReceiptEvent> {
+  async receipt(event: Message<KeyEventBody>): Promise<Message<ReceiptEventBody>> {
     const url = new URL("/receipts", this.#url);
 
     if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -40,7 +38,7 @@ export class WitnessClient {
           }
         }
 
-        return incoming as ReceiptEvent;
+        return incoming as Message<ReceiptEventBody>;
       }
     }
 

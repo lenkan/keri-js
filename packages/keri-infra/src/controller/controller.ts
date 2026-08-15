@@ -15,7 +15,6 @@ import {
   KeyEventLog,
   type KeyState,
   keri,
-  MailboxClient,
   Message,
   type RegistryInceptEventBody,
   type ReplyEventBody,
@@ -23,8 +22,8 @@ import {
   resolveEndRole,
   resolveLocation,
   sign,
-  submitToWitnesses,
-} from "../core/main.ts";
+} from "keri";
+import { MailboxClient, submitToWitnesses } from "../http/main.ts";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "../storage/main.ts";
 import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";

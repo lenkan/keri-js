@@ -1,9 +1,3 @@
-import { migrate } from "./schema.ts";
-import type { Database, Params, Row } from "./sqlite-database.ts";
-
-export { NodeSqliteDatabase } from "./node-sqlite.ts";
-export type { Database, Params, Row, SQLValue } from "./sqlite-database.ts";
-
 import { encodeText, type MessageBody } from "cesr";
 import {
   Attachments,
@@ -15,7 +9,7 @@ import {
   type RegistryInceptEventBody,
   type ReplyEventBody,
   type RevokeEvent,
-} from "../core/main.ts";
+} from "keri";
 import type {
   CredentialStorage,
   KeyEventStorage,
@@ -24,6 +18,8 @@ import type {
   MailboxStorage,
   PrivateKeyStorage,
 } from "../storage/main.ts";
+import { migrate } from "./schema.ts";
+import type { Database, Params, Row } from "./sqlite-database.ts";
 
 function parseRow<T extends MessageBody>(result: Row): Message<T> {
   if (!("event_json" in result) || typeof result.event_json !== "string") {

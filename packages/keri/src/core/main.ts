@@ -52,8 +52,6 @@ export { verifyCredential, verifyCredentials } from "./credential-verification.t
 export type { Endpoint, EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
 export { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
 export { EventIndex } from "./event-index.ts";
-export type { WitnessEndpoint } from "./kawa.ts";
-export { submitToWitnesses } from "./kawa.ts";
 export type {
   DelegatedInceptArgs,
   DelegatedRotateArgs,
@@ -73,9 +71,6 @@ export { delegatedIncept, delegatedRotate } from "./key-event.ts";
 export { isKelEventType, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
-
-export type { MailboxClientOptions } from "./mailbox-client.ts";
-export { MailboxClient } from "./mailbox-client.ts";
 export type { ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
 export type { RegistryInceptEventBody, RegistryInceptEventInit } from "./registry-event.ts";
 export type {
