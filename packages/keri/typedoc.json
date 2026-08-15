@@ -1,9 +1,3 @@
 {
-  "entryPoints": [
-    "src/main.ts",
-    "src/sqlite-storage/main.ts",
-    "src/witness/main.ts",
-    "src/mailbox/main.ts",
-    "src/nodejs-utils/main.ts"
-  ]
+  "entryPoints": ["src/main.ts"]
 }

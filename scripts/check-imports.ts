@@ -68,13 +68,24 @@ for await (const file of files) {
     const spec = match[1];
 
     if (!spec.startsWith(".")) {
+      if (from === null) {
+        continue;
+      }
+
+      if (spec.startsWith("node:")) {
+        // Platform-specific bindings are confined to a submodule named `node`, so every other
+        // submodule stays runnable on Deno and in the browser. Tests are exempt — they run on Node.
+        if (submodule(from) !== "node" && !file.endsWith(".test.ts")) {
+          violations.push(`${file}: imports "${spec}" — node: builtins belong in a "node" submodule`);
+        }
+        continue;
+      }
+
       // A package may only import what it declares, or pnpm's isolated node_modules resolves it
       // through the workspace root and the published package breaks for everyone else.
-      if (from !== null && !spec.startsWith("node:")) {
-        const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
-        if (name !== from.pkg.name && !from.pkg.dependencies.has(name)) {
-          violations.push(`${file}: imports "${spec}" — not a dependency of ${from.pkg.name}`);
-        }
+      const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+      if (name !== from.pkg.name && !from.pkg.dependencies.has(name)) {
+        violations.push(`${file}: imports "${spec}" — not a dependency of ${from.pkg.name}`);
       }
       continue;
     }

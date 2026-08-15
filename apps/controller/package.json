@@ -1,0 +1,20 @@
+{
+  "name": "@keri-js/controller",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "keri": "src/main.ts"
+  },
+  "scripts": {
+    "dev": "node src/main.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@keri-js/infra": "workspace:*",
+    "cesr": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30"
+  }
+}
