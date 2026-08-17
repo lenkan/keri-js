@@ -35,16 +35,6 @@
       "types": "./dist/http/main.d.ts",
       "default": "./dist/http/main.js"
     },
-    "./storage": {
-      "deno": "./src/storage/main.ts",
-      "types": "./dist/storage/main.d.ts",
-      "default": "./dist/storage/main.js"
-    },
-    "./logging": {
-      "deno": "./src/logging/main.ts",
-      "types": "./dist/logging/main.d.ts",
-      "default": "./dist/logging/main.js"
-    },
     "./node": {
       "deno": "./src/node/main.ts",
       "types": "./dist/node/main.d.ts",

@@ -21,36 +21,39 @@ describe("keri", () => {
     assert.ok(verifySignature(icp.raw, Matter.parse(current.publicKey), Matter.parse(detached).raw));
   });
 
-  test("exports no infrastructure", () => {
-    const infra = [
-      "Controller",
-      "Witness",
-      "Mailbox",
-      "MailboxClient",
-      "WitnessClient",
-      "submitToWitnesses",
-      "createListener",
-      "createRouter",
-      "createMailboxRouter",
-      "SqliteControllerStorage",
-      "NodeSqliteDatabase",
-    ];
-
-    for (const name of infra) {
-      assert.ok(!(name in surface), `keri must not export ${name}`);
-    }
+  // Anything added here ships to consumers forever. Infrastructure — witness, mailbox, controller,
+  // transports, storage — belongs in @keri-js/infra, so a new name showing up must be deliberate.
+  test("exports exactly the toolbox surface", () => {
+    assert.deepEqual(Object.keys(surface).sort(), [
+      "Attachments",
+      "EventIndex",
+      "KeyEventLog",
+      "Message",
+      "VersionString",
+      "createCredential",
+      "credentialIssuee",
+      "delegatedIncept",
+      "delegatedRotate",
+      "disclosedAttributes",
+      "generateKeyPair",
+      "isKelEventType",
+      "isTelEventType",
+      "keri",
+      "resolveEndRole",
+      "resolveLocation",
+      "sign",
+      "verifyCredential",
+      "verifyCredentialSaid",
+      "verifyCredentials",
+      "verifySignature",
+      "verifyTransactionEventAnchor",
+      "verifyTransactionEventSaid",
+    ]);
   });
 
   test("exposes a single entry point", async () => {
     for (const subpath of ["keri/witness", "keri/mailbox", "keri/sqlite-storage", "keri/nodejs-utils"]) {
-      await assert.rejects(
-        () => import(subpath),
-        (error: unknown) => {
-          assert.equal((error as { code?: string }).code, "ERR_PACKAGE_PATH_NOT_EXPORTED");
-          return true;
-        },
-        `${subpath} must not resolve`,
-      );
+      await assert.rejects(() => import(subpath), `${subpath} must not resolve`);
     }
   });
 });

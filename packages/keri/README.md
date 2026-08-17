@@ -33,9 +33,11 @@ Create and sign key events:
 ```ts
 import { keri } from "keri";
 
-const { privateKey, publicKey, publicKeyDigest } = keri.utils.generateKeyPair();
-const event = keri.incept({ signingKeys: [publicKey], nextKeys: [keri.utils.digest(nextKey)] });
-const signatures = await keri.utils.sign(event.raw, [privateKey]);
+const current = keri.utils.generateKeyPair();
+const next = keri.utils.generateKeyPair();
+
+const event = keri.incept({ signingKeys: [current.publicKey], nextKeys: [next.publicKeyDigest] });
+event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: current.privateKey, index: 0 }));
 ```
 
 Verify credentials from a stream:
@@ -55,4 +57,5 @@ const results = verifyCredentials(index);
 | `cesr` | the CESR encoding and stream parser this package builds on |
 
 Reference implementations of a witness, a mailbox and a controller — the parts that need HTTP
-and a database — live in this repository under `apps/` and are not published.
+and a database — live in this repository under `packages/keri-infra` and `apps/`, and are not
+published.

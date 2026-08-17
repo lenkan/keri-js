@@ -69,18 +69,17 @@ function list(value: string | boolean | undefined): string[] {
   return typeof value === "string" ? value.split(",").filter((entry) => entry.length > 0) : [];
 }
 
-function print(messages: Message[], pretty: boolean): void {
-  for (const message of messages) {
-    const output = {
-      payload: message.body,
-      attachments: message.attachments.frames().map(encodeText),
-    };
+function emit(value: unknown, pretty: boolean): void {
+  if (pretty) {
+    console.dir(value, { depth: 100, colors: true });
+  } else {
+    console.log(JSON.stringify(value));
+  }
+}
 
-    if (pretty) {
-      console.dir(output, { depth: 100, colors: true });
-    } else {
-      console.log(JSON.stringify(output));
-    }
+async function print(messages: AsyncIterable<Message> | Iterable<Message>, pretty: boolean): Promise<void> {
+  for await (const message of messages) {
+    emit({ payload: message.body, attachments: message.attachments.frames().map(encodeText) }, pretty);
   }
 }
 
@@ -102,13 +101,13 @@ export async function execute(cli: CommandLineInterface): Promise<void> {
         wits: list(app.options["--wits"]),
         toad: typeof toad === "string" ? parseInt(toad, 10) : undefined,
       });
-      console.log(JSON.stringify({ id, event }));
+      emit({ id, event }, pretty);
       return;
     }
     case "rotate": {
       const controller = await cli.controller();
       const { id, event } = await controller.rotate(required(app, 1, "id"), {});
-      console.log(JSON.stringify({ id, event }));
+      emit({ id, event }, pretty);
       return;
     }
     case "oobi": {
@@ -117,21 +116,21 @@ export async function execute(cli: CommandLineInterface): Promise<void> {
       }
       const controller = await cli.controller();
       const state = await controller.introduce(required(app, 2, "url"));
-      console.log(JSON.stringify(state));
+      emit(state, pretty);
       return;
     }
     case "query": {
       const controller = await cli.controller();
-      print(await controller.query(required(app, 1, "id"), required(app, 2, "topic")), pretty);
+      await print(await controller.query(required(app, 1, "id"), required(app, 2, "topic")), pretty);
       return;
     }
     case "export": {
       const controller = await cli.controller();
-      print(await controller.export(required(app, 1, "id")), pretty);
+      await print(await controller.export(required(app, 1, "id")), pretty);
       return;
     }
     case "parse": {
-      print(await Array.fromAsync(parse(cli.read(required(app, 1, "input")))), pretty);
+      await print(parse(cli.read(required(app, 1, "input"))), pretty);
       return;
     }
     default:
