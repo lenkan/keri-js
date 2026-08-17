@@ -6,6 +6,7 @@ const ROOT = resolve(import.meta.dirname, "..");
 interface Package {
   name: string;
   src: string;
+  private: boolean;
   dependencies: Set<string>;
 }
 
@@ -18,6 +19,7 @@ for await (const file of glob("packages/*/package.json", { cwd: ROOT })) {
   packages.push({
     name: manifest.name,
     src: resolve(dir, "src"),
+    private: manifest.private === true,
     dependencies: new Set(Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies })),
   });
 }
@@ -73,10 +75,12 @@ for await (const file of files) {
       }
 
       if (spec.startsWith("node:")) {
-        // Platform-specific bindings are confined to a submodule named `node`, so every other
-        // submodule stays runnable on Deno and in the browser. Tests are exempt — they run on Node.
-        if (submodule(from) !== "node" && !file.endsWith(".test.ts")) {
-          violations.push(`${file}: imports "${spec}" — node: builtins belong in a "node" submodule`);
+        // Platform-specific bindings are confined to a `node` submodule of an unpublished package,
+        // so everything we publish stays runnable in the browser. Tests are exempt — they run on Node.
+        if (!(from.pkg.private && submodule(from) === "node") && !file.endsWith(".test.ts")) {
+          violations.push(
+            `${file}: imports "${spec}" — node: builtins belong in the "node" submodule of a private package`,
+          );
         }
         continue;
       }
