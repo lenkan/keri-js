@@ -2,13 +2,23 @@
 
 ## Project Overview
 
-KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic key management and identity framework. It is a pnpm workspace publishing two packages.
+KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic key management and identity framework. It is a pnpm workspace of three packages, two of them published:
 
-Each submodule has a `main.ts` that defines its public surface. Within a package, cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Across packages, and from anything outside `packages/*/src`, use the package name (`cesr`, `cesr/encoding`, `keri`, `keri/witness`, …). Both rules are enforced by `scripts/check-imports.ts`, run as part of `pnpm run lint`.
+| Package | Published | Contents |
+| --- | --- | --- |
+| `cesr` | yes | CESR encoding and stream parsing |
+| `keri` | yes | key events, key event logs, credentials, verification — no I/O |
+| `@keri-js/infra` | no | witness, mailbox, controller, HTTP clients, storage, Node bindings |
+
+`cesr` and `keri` are the toolbox: pure over bytes, no transport, no storage, no platform. `@keri-js/infra` holds the reference implementations that need I/O, and `apps/` composes them into runnable demos (`witness`, `mailbox`, `controller` CLI, `verifier`). Infra is where designs churn; things graduate into `keri` only once they have proven themselves there.
+
+Each submodule has a `main.ts` that defines its public surface. Within a package, cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Across packages, and from anything outside `packages/*/src`, use the package name (`cesr`, `cesr/encoding`, `keri`, `@keri-js/infra/witness`, …). Both rules are enforced by `scripts/check-imports.ts`, run as part of `pnpm run lint`.
+
+`node:` builtins may only be imported from a submodule named `node` (`@keri-js/infra/node`); `*.test.ts` files are exempt. This keeps every other submodule runnable on Deno and in the browser, and is enforced by the same script.
 
 Workspace members are declared in `pnpm-workspace.yaml`, and sibling dependencies use the `workspace:*` protocol so they can never resolve from the registry. `pnpm pack` rewrites `workspace:*` to the exact version being packed.
 
-`keri` resolves `cesr` through its built `dist/`, so **the build must run before check, test or the app**. The `pretest`/`precheck` hooks do this automatically; `tsc -b` keeps it incremental.
+Packages resolve each other through built `dist/` (`keri` → `cesr`, `@keri-js/infra` → `keri`), so **the build must run before check, test or the apps**. The `pretest`/`precheck` hooks do this automatically; `tsc -b` keeps it incremental.
 
 ## Commands
 
@@ -21,7 +31,7 @@ pnpm's isolated `node_modules` means an undeclared dependency fails rather than 
 ## TypeScript & Code Style
 
 - Cryptography uses `@noble/*` libraries exclusively
-- Both packages publish `dist` **and** `src`, and their `exports` carry a `deno` condition pointing at the TypeScript source:
+- The published packages ship `dist` **and** `src`, and their `exports` carry a `deno` condition pointing at the TypeScript source:
 
   ```json
   ".": {

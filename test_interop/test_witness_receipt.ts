@@ -1,7 +1,8 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
+import { submitToWitnesses } from "@keri-js/infra/http";
 import { parse } from "cesr";
-import { keri, submitToWitnesses } from "keri";
+import { keri } from "keri";
 import { collectAsync, createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 let wan: Endpoint;

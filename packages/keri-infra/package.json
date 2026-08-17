@@ -1,0 +1,61 @@
+{
+  "name": "@keri-js/infra",
+  "version": "0.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenkan/keri-js.git",
+    "directory": "packages/keri-infra"
+  },
+  "type": "module",
+  "author": "Daniel Lenksjö",
+  "license": "Apache-2.0",
+  "description": "Roles, transports and Node bindings composed on top of keri",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./witness": {
+      "deno": "./src/witness/main.ts",
+      "types": "./dist/witness/main.d.ts",
+      "default": "./dist/witness/main.js"
+    },
+    "./mailbox": {
+      "deno": "./src/mailbox/main.ts",
+      "types": "./dist/mailbox/main.d.ts",
+      "default": "./dist/mailbox/main.js"
+    },
+    "./controller": {
+      "deno": "./src/controller/main.ts",
+      "types": "./dist/controller/main.d.ts",
+      "default": "./dist/controller/main.js"
+    },
+    "./http": {
+      "deno": "./src/http/main.ts",
+      "types": "./dist/http/main.d.ts",
+      "default": "./dist/http/main.js"
+    },
+    "./node": {
+      "deno": "./src/node/main.ts",
+      "types": "./dist/node/main.d.ts",
+      "default": "./dist/node/main.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0",
+    "cesr": "workspace:*",
+    "keri": "workspace:*"
+  }
+}

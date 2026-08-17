@@ -32,7 +32,9 @@
     "predev:witness": "pnpm run build",
     "dev:witness": "pnpm --filter @keri-js/witness run dev",
     "predev:mailbox": "pnpm run build",
-    "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev"
+    "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev",
+    "predev:controller": "pnpm run build",
+    "dev:controller": "pnpm --filter @keri-js/controller run dev"
   },
   "type": "module",
   "author": "Daniel Lenksjö",
@@ -50,6 +52,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@keri-js/infra": "workspace:*",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
     "cesr": "workspace:*",

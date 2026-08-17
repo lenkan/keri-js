@@ -18,26 +18,6 @@
       "deno": "./src/main.ts",
       "types": "./dist/main.d.ts",
       "default": "./dist/main.js"
-    },
-    "./sqlite-storage": {
-      "deno": "./src/sqlite-storage/main.ts",
-      "types": "./dist/sqlite-storage/main.d.ts",
-      "default": "./dist/sqlite-storage/main.js"
-    },
-    "./witness": {
-      "deno": "./src/witness/main.ts",
-      "types": "./dist/witness/main.d.ts",
-      "default": "./dist/witness/main.js"
-    },
-    "./mailbox": {
-      "deno": "./src/mailbox/main.ts",
-      "types": "./dist/mailbox/main.d.ts",
-      "default": "./dist/mailbox/main.js"
-    },
-    "./nodejs-utils": {
-      "deno": "./src/nodejs-utils/main.ts",
-      "types": "./dist/nodejs-utils/main.d.ts",
-      "default": "./dist/nodejs-utils/main.js"
     }
   },
   "files": [

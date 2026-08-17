@@ -3,13 +3,12 @@ import { createReadStream } from "node:fs";
 import { describe, test } from "node:test";
 import { encodeText, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/encoding";
-import { collectAsync } from "./utils.ts";
 
 const fixture = (name: string) => new URL(`../fixtures/${name}`, import.meta.url);
 
 describe("cesr", () => {
   test("parses a key event log stream", async () => {
-    const messages = await collectAsync(parse(createReadStream(fixture("alice.cesr"))));
+    const messages = await Array.fromAsync(parse(createReadStream(fixture("alice.cesr"))));
 
     assert.equal(messages.length, 2);
     assert.equal(messages[0]?.body.t, "icp");

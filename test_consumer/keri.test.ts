@@ -1,74 +1,59 @@
 import assert from "node:assert";
-import { after, before, describe, test } from "node:test";
-import { parse } from "cesr";
-import { collectAsync, createController, type Endpoint, startMailbox, startWitness } from "./utils.ts";
-
-const abortController = new AbortController();
-
-let witness: Endpoint;
-let mailbox: Endpoint;
-
-before(async () => {
-  witness = await startWitness(abortController.signal);
-  mailbox = await startMailbox(abortController.signal);
-});
-
-after(() => {
-  abortController.abort();
-});
+import { describe, test } from "node:test";
+import { Matter } from "cesr";
+import * as surface from "keri";
+import { generateKeyPair, KeyEventLog, keri, sign, verifySignature } from "keri";
 
 describe("keri", () => {
-  test("incepts an identifier backed by sqlite storage", async () => {
-    const controller = createController();
-    const { id, event } = await controller.incept();
+  test("builds and verifies a key event log without storage or transport", () => {
+    const current = generateKeyPair();
+    const next = generateKeyPair();
 
-    assert.equal(event.i, id);
-    assert.equal(event.t, "icp");
+    const icp = keri.incept({ signingKeys: [current.publicKey], nextKeys: [next.publicKeyDigest] });
+    icp.attachments.ControllerIdxSigs.push(sign(icp.raw, { key: current.privateKey, index: 0 }));
 
-    const events = await controller.export(id);
-    assert.equal(events.length, 1);
+    const log = KeyEventLog.empty().append(icp);
 
-    const log = await controller.loadEventLog(id);
-    assert.equal(log.state.identifier, id);
-  });
-});
+    assert.equal(log.state.identifier, icp.body.i);
+    assert.deepEqual(log.state.signingKeys, [current.publicKey]);
 
-describe("keri/witness", () => {
-  test("serves an oobi for itself", async () => {
-    const response = await fetch(witness.oobi);
-
-    assert.equal(response.status, 200);
-    assert(response.body, "Expected response body");
-
-    const messages = await collectAsync(parse(response.body));
-    assert(messages.some((message) => message.body.i === witness.aid));
+    const detached = sign(icp.raw, { key: current.privateKey });
+    assert.ok(verifySignature(icp.raw, Matter.parse(current.publicKey), Matter.parse(detached).raw));
   });
 
-  test("receipts an inception event it backs", async () => {
-    const controller = createController();
-    await controller.introduce(witness.oobi);
-
-    const { id } = await controller.incept({ wits: [witness.aid], toad: 1 });
-
-    const response = await fetch(`${witness.url}/oobi/${id}`);
-    assert.equal(response.status, 200);
-    assert(response.body, "Expected response body");
-
-    const messages = await collectAsync(parse(response.body));
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0]?.body.i, id);
-    assert.equal(messages[0].attachments.WitnessIdxSigs.length, 1);
+  // Anything added here ships to consumers forever. Infrastructure — witness, mailbox, controller,
+  // transports, storage — belongs in @keri-js/infra, so a new name showing up must be deliberate.
+  test("exports exactly the toolbox surface", () => {
+    assert.deepEqual(Object.keys(surface).sort(), [
+      "Attachments",
+      "EventIndex",
+      "KeyEventLog",
+      "Message",
+      "VersionString",
+      "createCredential",
+      "credentialIssuee",
+      "delegatedIncept",
+      "delegatedRotate",
+      "disclosedAttributes",
+      "generateKeyPair",
+      "isKelEventType",
+      "isTelEventType",
+      "keri",
+      "resolveEndRole",
+      "resolveLocation",
+      "sign",
+      "verifyCredential",
+      "verifyCredentialSaid",
+      "verifyCredentials",
+      "verifySignature",
+      "verifyTransactionEventAnchor",
+      "verifyTransactionEventSaid",
+    ]);
   });
-});
 
-describe("keri/mailbox", () => {
-  test("serves an oobi for itself", async () => {
-    const response = await fetch(mailbox.oobi);
-
-    assert.equal(response.status, 200);
-    assert(response.body, "Expected response body");
-
-    const messages = await collectAsync(parse(response.body));
-    assert(messages.some((message) => message.body.i === mailbox.aid));
+  test("exposes a single entry point", async () => {
+    for (const subpath of ["keri/witness", "keri/mailbox", "keri/sqlite-storage", "keri/nodejs-utils"]) {
+      await assert.rejects(() => import(subpath), `${subpath} must not resolve`);
+    }
   });
 });
