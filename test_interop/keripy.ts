@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url";
 import debug, { type Debugger } from "debug";
 
 const KLI = join(dirname(fileURLToPath(import.meta.url)), "..", ".venv/bin/kli");
+const TIMEOUT = 20000;
+const TAIL = 2000;
+
+function format(args: string[]): string {
+  return `kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`;
+}
 
 export class KERIPy {
   readonly name: string;
@@ -34,25 +40,40 @@ export class KERIPy {
   }
 
   private run(args: string[]): Promise<string> {
-    this.log(`kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`);
+    const command = format(args);
+    this.log(command);
     return new Promise((resolve, reject) => {
-      const child = spawn(KLI, args, { timeout: 20000 });
+      const child = spawn(KLI, args, { timeout: TIMEOUT });
+      // `output` is what callers parse, so it stays stdout-only; `tail` is both streams, for the
+      // error message. `kli` reports a failed resolve on stdout and the traceback on stderr.
       let output = "";
+      let tail = "";
+      const append = (chunk: Buffer) => {
+        tail = (tail + chunk.toString()).slice(-TAIL);
+      };
+
       child.stdout.on("data", (d: Buffer) => {
         const message = d.toString();
         this.log(message);
         output += message;
+        append(d);
       });
-      child.stderr.on("data", (d: Buffer) => this.log(d.toString()));
+      child.stderr.on("data", (d: Buffer) => {
+        this.log(d.toString());
+        append(d);
+      });
       child.on("error", (err) => {
         reject(err);
       });
-      child.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`kli ${args[0]} failed`));
-        } else {
+      // `close` rather than `exit`, so the tail has everything the process wrote before it died.
+      child.on("close", (code, signal) => {
+        if (code === 0) {
           resolve(output.trim());
+          return;
         }
+
+        const reason = code === null ? `killed (${signal}) after ${TIMEOUT}ms` : `exited (code=${code})`;
+        reject(new Error(`${command} ${reason}: ${tail.trim().replaceAll("\n", " ") || "<no output>"}`));
       });
     });
   }
