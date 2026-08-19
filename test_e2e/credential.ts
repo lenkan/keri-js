@@ -5,6 +5,8 @@ const QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
 export interface IssuedCredential {
   said: string;
   stream: string;
+  /** Kept so a test can go on to present the credential from the same keystore. */
+  kli: KERIPy;
 }
 
 /**
@@ -32,5 +34,5 @@ export async function issueCredential(): Promise<IssuedCredential> {
     throw new Error("kli vc list reported no issued credential");
   }
 
-  return { said: said.trim(), stream: await kli.vc.export({ said: said.trim() }) };
+  return { said: said.trim(), stream: await kli.vc.export({ said: said.trim() }), kli };
 }

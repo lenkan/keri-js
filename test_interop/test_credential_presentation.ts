@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test from "node:test";
 import { EventIndex, verifyCredentials } from "keri";
-import { KERIPy } from "./keripy.ts";
+import { KERIPy } from "../test_utils/keripy.ts";
 import { startKerijsVerifier } from "./utils.ts";
 
 const SCHEMA_SAID = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
