@@ -39,6 +39,8 @@ export function App() {
     }
   }, []);
 
+  const reset = useCallback(() => setState({ kind: "idle" }), []);
+
   const onFile = useCallback(
     (file: File) => {
       void file.arrayBuffer().then((buffer) => verify(new Uint8Array(buffer)));
@@ -114,7 +116,7 @@ export function App() {
         </Tabs.Panel>
 
         <Tabs.Panel value="ipex">
-          <Presentation onStream={verify} />
+          <Presentation onStream={verify} onReset={reset} />
         </Tabs.Panel>
       </Tabs>
 

@@ -48,3 +48,30 @@ test("verifies a credential presented over IPEX", async ({ page }) => {
   // so every check but the offline-only schema one has what it needs.
   await expect(page.getByText("✗")).toHaveCount(0);
 });
+
+test("clears the last result when a new session starts", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Present over IPEX" }).click();
+
+  const commands = await page.getByRole("tabpanel").locator("pre").innerText();
+  const oobi = commands.match(/--oobi (\S+)/)?.[1];
+  const recipient = commands.match(/--recipient (\S+)/)?.[1];
+  const token = commands.match(/--message (\S+)/)?.[1];
+
+  if (!oobi || !recipient || !token) {
+    throw new Error(`Presentation commands were missing an oobi, recipient or token:\n${commands}`);
+  }
+
+  await kli.oobi.resolve(oobi, "verifier");
+  await kli.ipex.grant({ said, recipient, message: token });
+
+  await expect(page.getByText(said)).toBeVisible();
+
+  // The verdict belongs to the presentation that produced it, so asking for a new session must not
+  // leave the old result sitting underneath the new instructions.
+  await page.getByRole("button", { name: "Present another" }).click();
+
+  await expect(page.getByText(said)).toBeHidden();
+  await expect(page.getByText("Verified", { exact: true })).toBeHidden();
+  await expect(page.getByText("Waiting for a presentation…")).toBeVisible();
+});

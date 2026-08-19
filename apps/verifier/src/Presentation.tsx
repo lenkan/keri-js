@@ -19,7 +19,13 @@ kli ipex grant --name demo --alias issuer \\
   --message ${token}`;
 }
 
-export function Presentation({ onStream }: { onStream: (cesr: string) => void }) {
+interface PresentationProps {
+  onStream: (cesr: string) => void;
+  /** Clears the last result, so a new session does not sit under the old one's verdict. */
+  onReset: () => void;
+}
+
+export function Presentation({ onStream, onReset }: PresentationProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [delivered, setDelivered] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +34,7 @@ export function Presentation({ onStream }: { onStream: (cesr: string) => void })
     setError(null);
     setSession(null);
     setDelivered(false);
+    onReset();
 
     try {
       const response = await fetch(`${API}/api/sessions`, { method: "POST" });
@@ -38,7 +45,7 @@ export function Presentation({ onStream }: { onStream: (cesr: string) => void })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
-  }, []);
+  }, [onReset]);
 
   useEffect(() => {
     void start();
