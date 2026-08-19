@@ -5,8 +5,8 @@ const VERIFIER_SERVER = process.env.VERIFIER_SERVER ?? "http://localhost:3002";
 
 export default defineConfig({
   plugins: [react()],
-  // Same-origin in dev, so the page needs no API base URL and no CORS. The
-  // deployed build points at the verifier with VITE_VERIFIER_API instead.
+  // Dev runs the app and the verifier as two processes; deployed, the verifier
+  // serves this build itself. The proxy is what makes both same-origin.
   server: {
     proxy: {
       "/api": VERIFIER_SERVER,
