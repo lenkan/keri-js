@@ -12,6 +12,14 @@ interface Session {
   oobi: string;
 }
 
+// One lifecycle rather than three booleans, so the render has no combination to
+// second-guess and a stale verdict cannot outlive the session that produced it.
+type Phase =
+  | { kind: "starting" }
+  | { kind: "error"; message: string }
+  | { kind: "waiting"; session: Session }
+  | { kind: "delivered" };
+
 function commands({ token, aid, oobi }: Session): string {
   return `kli oobi resolve --name demo --oobi ${oobi} --oobi-alias verifier
 kli ipex grant --name demo --alias issuer \\
@@ -22,34 +30,31 @@ kli ipex grant --name demo --alias issuer \\
 
 /** Receives a credential over IPEX: the holder grants it to the session this component opens. */
 export function IpexMode() {
-  const { state, verify, reset } = useVerification();
-  const [session, setSession] = useState<Session | null>(null);
-  const [delivered, setDelivered] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { state, verify } = useVerification();
+  const [phase, setPhase] = useState<Phase>({ kind: "starting" });
 
   const start = useCallback(async () => {
-    setError(null);
-    setSession(null);
-    setDelivered(false);
-    reset();
+    setPhase({ kind: "starting" });
 
     try {
       const response = await fetch(`${API}/api/sessions`, { method: "POST" });
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
-      setSession((await response.json()) as Session);
+      setPhase({ kind: "waiting", session: (await response.json()) as Session });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setPhase({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
     }
-  }, [reset]);
+  }, []);
 
   useEffect(() => {
     void start();
   }, [start]);
 
+  const token = phase.kind === "waiting" ? phase.session.token : null;
+
   useEffect(() => {
-    if (!session) {
+    if (!token) {
       return;
     }
 
@@ -60,11 +65,11 @@ export function IpexMode() {
 
     async function poll() {
       try {
-        const response = await fetch(`${API}/api/sessions/${session?.token}`, { signal: controller.signal });
+        const response = await fetch(`${API}/api/sessions/${token}`, { signal: controller.signal });
 
         if (response.status === 200) {
           const cesr = await response.text();
-          setDelivered(true);
+          setPhase({ kind: "delivered" });
           void verify(cesr);
           return;
         }
@@ -72,7 +77,10 @@ export function IpexMode() {
         if (controller.signal.aborted) {
           return;
         }
-        setError(cause instanceof Error ? cause.message : String(cause));
+        // Stop rather than reschedule: the error UI offers "Try again", and a
+        // hidden loop behind it would poll a dead server forever.
+        setPhase({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
+        return;
       }
 
       timer = setTimeout(poll, POLL_MS);
@@ -84,12 +92,12 @@ export function IpexMode() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [session, verify]);
+  }, [token, verify]);
 
-  if (error) {
+  if (phase.kind === "error") {
     return (
       <Stack gap="md" mt="md">
-        <Alert color="red">Could not reach the verifier: {error}</Alert>
+        <Alert color="red">Could not reach the verifier: {phase.message}</Alert>
         <Group>
           <Button onClick={() => void start()}>Try again</Button>
         </Group>
@@ -97,7 +105,7 @@ export function IpexMode() {
     );
   }
 
-  if (!session) {
+  if (phase.kind === "starting") {
     return (
       <Group mt="md" gap="xs">
         <Loader size="sm" />
@@ -106,7 +114,7 @@ export function IpexMode() {
     );
   }
 
-  if (delivered) {
+  if (phase.kind === "delivered") {
     return (
       <Stack gap="md" mt="md" align="flex-start">
         <Text>Credential presented. The result is below.</Text>
@@ -125,7 +133,7 @@ export function IpexMode() {
         the second presents the credential.
       </Text>
 
-      <CommandBlock>{commands(session)}</CommandBlock>
+      <CommandBlock>{commands(phase.session)}</CommandBlock>
 
       <Group gap="xs">
         <Loader size="sm" />

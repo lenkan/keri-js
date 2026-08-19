@@ -345,6 +345,11 @@ export class KERIPy {
       }
       return this.run(args);
     },
+    /** SAIDs of the issued credentials, newest last. */
+    saids: async (): Promise<string[]> => {
+      const output = await this.vc.list({ said: true, issued: true });
+      return output.split("\n").filter((line) => line.trim().length > 0);
+    },
     export: async (opts: { said: string }): Promise<string> => {
       return this.run([
         "vc",

@@ -61,10 +61,7 @@ test("KERIpy issues credential to KERIjs via IPEX", async () => {
   });
 
   // Get the credential SAID from keripy's issued credentials
-  const credSaid = (await keripy.vc.list({ said: true, issued: true }))
-    .split("\n")
-    .filter((l) => l.trim().length > 0)
-    .at(-1);
+  const credSaid = (await keripy.vc.saids()).at(-1);
 
   assert.ok(credSaid, "Expected credential SAID after issuance");
 

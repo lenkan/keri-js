@@ -1,9 +1,13 @@
-import { Attachments, encodeText, parse } from "cesr";
+import { Attachments, encodeText, type Message, parse } from "cesr";
+import { encodeBase64Url } from "cesr/encoding";
+import type { ExchangeEventBody } from "keri";
+import { IPEX_GRANT_ROUTE } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
-import type { SessionStore, Verifier, VerifierEvent } from "./verifier.ts";
+import type { SessionStore, Verifier } from "./verifier.ts";
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+const SESSION_PATH = /^\/api\/sessions\/([A-Za-z0-9_-]{16,64})$/;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +19,9 @@ export interface RouterOptions {
   logger?: Logger;
 }
 
-function createOobiResponse(events: readonly VerifierEvent[]): Response {
-  const body = events
-    .flatMap(({ message }) => {
+function encodeOobi(events: readonly Message[]): string {
+  return events
+    .flatMap((message) => {
       const atc = new Attachments({
         ControllerIdxSigs: message.attachments.ControllerIdxSigs,
         NonTransReceiptCouples: message.attachments.NonTransReceiptCouples,
@@ -25,19 +29,24 @@ function createOobiResponse(events: readonly VerifierEvent[]): Response {
       return [new TextDecoder().decode(message.raw), encodeText(atc.frames())];
     })
     .join("");
+}
 
-  return new Response(body, {
-    status: 200,
-    headers: { "Content-Type": "application/json+cesr" },
-  });
+/** The session a presentation is addressed to, from where `kli ipex grant --message` puts it. */
+function sessionToken(messages: readonly Message[]): string | null {
+  for (const message of messages) {
+    const body = message.body as Partial<ExchangeEventBody>;
+
+    if (body.t === "exn" && body.r === IPEX_GRANT_ROUTE) {
+      const token = body.a?.m;
+      return typeof token === "string" && token.length > 0 ? token : null;
+    }
+  }
+
+  return null;
 }
 
 function createToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
+  return encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)));
 }
 
 export function createRouter(
@@ -46,6 +55,7 @@ export function createRouter(
   options: RouterOptions = {},
 ): (request: Request) => Promise<Response> {
   const log = new KeriLogger(options.logger);
+  const oobi = encodeOobi(verifier.events);
 
   async function handlePresentation(request: Request): Promise<Response> {
     // KERIpy's sendDirect PUTs the whole stream inline; KERI-JS senders detach
@@ -55,7 +65,7 @@ export function createRouter(
     const stream = (await request.text()) + attachment;
 
     const messages = await Array.fromAsync(parse(stream));
-    const token = verifier.sessionToken(messages);
+    const token = sessionToken(messages);
 
     if (!token) {
       log.warn("no grant in presentation", { messages: messages.length });
@@ -74,28 +84,33 @@ export function createRouter(
   }
 
   async function handleSessionRead(token: string): Promise<Response> {
-    if (!TOKEN_PATTERN.test(token)) {
-      return Response.json({ error: "Not Found" }, { status: 404, headers: CORS_HEADERS });
-    }
-
     const cesr = await sessions.get(token);
 
     if (!cesr) {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204 });
     }
 
-    return new Response(cesr, {
-      status: 200,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json+cesr" },
-    });
+    return new Response(cesr, { status: 200, headers: { "Content-Type": "application/json+cesr" } });
   }
 
+  // The whole surface is public and unauthenticated, so every response carries
+  // the same headers rather than each branch remembering them.
   return async function handler(request: Request): Promise<Response> {
+    const response = await route(request);
+
+    for (const [header, value] of Object.entries(CORS_HEADERS)) {
+      response.headers.set(header, value);
+    }
+
+    return response;
+  };
+
+  async function route(request: Request): Promise<Response> {
     const { method } = request;
     const pathname = new URL(request.url).pathname;
 
     if (method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204 });
     }
 
     if (pathname === "/") {
@@ -115,23 +130,24 @@ export function createRouter(
         return new Response("Method Not Allowed", { status: 405 });
       }
 
-      log.debug("serving oobi", { count: verifier.events.length });
-      const response = createOobiResponse(verifier.events);
-      response.headers.set("Keri-Aid", verifier.aid);
-      return response;
+      log.debug("serving oobi");
+      return new Response(oobi, {
+        status: 200,
+        headers: { "Content-Type": "application/json+cesr", "Keri-Aid": verifier.aid },
+      });
     }
 
     // Deliberately writes nothing: a token only has to exist by the time a
     // grant arrives, so sessions cost no storage until they are used.
     if (pathname === "/api/sessions" && method === "POST") {
-      return Response.json({ token: createToken(), aid: verifier.aid, oobi: verifier.oobi }, { headers: CORS_HEADERS });
+      return Response.json({ token: createToken(), aid: verifier.aid, oobi: verifier.oobi });
     }
 
-    const session = pathname.match(/^\/api\/sessions\/([^/]+)$/);
+    const session = pathname.match(SESSION_PATH);
     if (session && method === "GET") {
       return handleSessionRead(session[1]);
     }
 
     return new Response("Not Found", { status: 404 });
-  };
+  }
 }

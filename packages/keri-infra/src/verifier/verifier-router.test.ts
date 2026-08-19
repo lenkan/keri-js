@@ -2,9 +2,9 @@ import assert from "node:assert";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Attachments, encodeText, Message, parse } from "cesr";
+import { Attachments, encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody } from "keri";
-import { EventIndex, IPEX_GRANT_ROUTE, keri } from "keri";
+import { EventIndex, embeds, IPEX_GRANT_ROUTE, keri } from "keri";
 import { type SessionStore, Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
 
@@ -14,12 +14,7 @@ const URL_BASE = "http://localhost:3002";
 async function grantFixture(): Promise<Message<ExchangeEventBody>> {
   const raw = await readFile(new URL("../../../../fixtures/grant.cesr", import.meta.url));
   const [fwd] = await Array.fromAsync(parse(raw.toString()));
-  return embedOf(fwd as Message<ExchangeEventBody>, "evt") as Message<ExchangeEventBody>;
-}
-
-function embedOf(message: Message<ExchangeEventBody>, label: string): Message {
-  const couple = message.attachments.PathedMaterialCouples.find((c) => c.path === `-e-${label}`);
-  return new Message(message.body.e[label] as never, couple?.attachments);
+  return embeds(fwd as Message<ExchangeEventBody>).evt as Message<ExchangeEventBody>;
 }
 
 function encode(message: Message): string {
@@ -55,11 +50,7 @@ async function presentation(token: string): Promise<string> {
       sender: grant.body.i,
       route: IPEX_GRANT_ROUTE,
       anchor: { m: token, i: grant.body.a.i },
-      embeds: {
-        acdc: embedOf(grant, "acdc"),
-        iss: embedOf(grant, "iss"),
-        anc: embedOf(grant, "anc"),
-      },
+      embeds: embeds(grant),
     }),
   );
 }

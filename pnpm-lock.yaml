@@ -113,6 +113,9 @@ importers:
       '@keri-js/infra':
         specifier: workspace:*
         version: link:../../packages/keri-infra
+      cesr:
+        specifier: workspace:*
+        version: link:../../packages/cesr
 
   apps/witness:
     dependencies:

@@ -52,10 +52,7 @@ test("KERIpy presents a credential to a KERIjs verifier over IPEX", async () => 
       data: { LEI: "1234567890123456789" },
     });
 
-    const said = (await keripy.vc.list({ said: true, issued: true }))
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .at(-1);
+    const said = (await keripy.vc.saids()).at(-1);
 
     assert.ok(said, "Expected a credential SAID after issuance");
 

@@ -1,8 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, type Message } from "cesr";
-import type { ExchangeEventBody } from "keri";
-import { IPEX_GRANT_ROUTE, KeyEventLog, keri } from "keri";
-import { KeriLogger, type Logger } from "../logging/main.ts";
+import { KeyEventLog, keri } from "keri";
 
 /**
  * Where a presentation waits between the holder delivering it and the browser
@@ -21,20 +19,13 @@ export interface VerifierOptions {
    */
   url: string;
   privateKey?: Uint8Array;
-  logger?: Logger;
-}
-
-export interface VerifierEvent {
-  readonly message: Message;
-  readonly timestamp: Date;
 }
 
 export class Verifier {
   readonly #privateKey: Uint8Array;
   readonly #kel: KeyEventLog;
-  readonly #log: KeriLogger;
   readonly #url: string;
-  readonly events: readonly VerifierEvent[];
+  readonly events: readonly Message[];
 
   static createKEL(privateKey: Uint8Array): KeyEventLog {
     const publicKey = encodeText(new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }));
@@ -56,7 +47,6 @@ export class Verifier {
   constructor(options: VerifierOptions) {
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Verifier.createKEL(this.#privateKey);
-    this.#log = new KeriLogger(options.logger);
     this.#url = options.url;
 
     const url = new URL(options.url);
@@ -83,35 +73,7 @@ export class Verifier {
       NonTransReceiptCouples: [{ prefix: this.aid, sig: this.#sign(endrole) }],
     };
 
-    const timestamp = new Date();
-    this.events = [
-      { message: this.#kel.events[0], timestamp },
-      { message: location, timestamp },
-      { message: endrole, timestamp },
-    ];
-  }
-
-  /**
-   * The session token a presentation is addressed to, taken from the grant's
-   * human-readable message field where `kli ipex grant --message` puts it.
-   */
-  sessionToken(messages: Iterable<Message>): string | null {
-    for (const message of messages) {
-      const body = message.body as Partial<ExchangeEventBody>;
-
-      if (body.t !== "exn" || body.r !== IPEX_GRANT_ROUTE) {
-        continue;
-      }
-
-      const token = body.a?.m;
-      if (typeof token === "string" && token.length > 0) {
-        return token;
-      }
-
-      this.#log.warn("grant carried no session token", { said: body.d });
-    }
-
-    return null;
+    this.events = [this.#kel.events[0], location, endrole];
   }
 
   #sign(message: Message): string {

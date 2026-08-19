@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { BASE_URL } from "../playwright.config.ts";
 import type { KERIPy } from "../test_utils/keripy.ts";
 import { issueCredential } from "./credential.ts";
@@ -8,11 +8,21 @@ let stream: string;
 let kli: KERIPy;
 
 test.beforeAll(async () => {
-  // Unlike the file-drop tests, this one needs the relay behind the page, so fail with the command
-  // that starts it rather than letting the first assertion time out.
-  const response = await fetch(`${BASE_URL}/api/sessions`, { method: "POST" }).catch(() => null);
+  // Unlike the file-drop tests, this one needs the relay behind the page. global-setup only waits
+  // for the app, and the server is started beside it, so give it the same grace before failing with
+  // the command that starts it.
+  const deadline = Date.now() + 30_000;
+  let reachable = false;
 
-  if (!response?.ok) {
+  while (!reachable && Date.now() < deadline) {
+    reachable = (await fetch(`${BASE_URL}/api/sessions`, { method: "POST" }).catch(() => null))?.ok === true;
+
+    if (!reachable) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  if (!reachable) {
     throw new Error(
       `${BASE_URL}/api/sessions did not answer. Start the verifier server too ("pnpm run dev:verifier").`,
     );
@@ -21,12 +31,14 @@ test.beforeAll(async () => {
   ({ said, stream, kli } = await issueCredential());
 });
 
-test("verifies a credential presented over IPEX", async ({ page }) => {
+/**
+ * Opens the IPEX tab and presents the credential by running the commands the page prints. Reading
+ * them back out is itself an assertion that the page printed usable ones.
+ */
+async function present(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("tab", { name: "Present over IPEX" }).click();
 
-  // The page prints the commands a holder is meant to run, so reading the recipient and token back
-  // out of them is also an assertion that it printed the right ones.
   const commands = await page.getByRole("tabpanel").locator("pre").innerText();
 
   const oobi = commands.match(/--oobi (\S+)/)?.[1];
@@ -37,9 +49,12 @@ test("verifies a credential presented over IPEX", async ({ page }) => {
     throw new Error(`Presentation commands were missing an oobi, recipient or token:\n${commands}`);
   }
 
-  // Resolving the oobi the page printed, exactly as a holder copying the block would.
   await kli.oobi.resolve(oobi, "verifier");
   await kli.ipex.grant({ said, recipient, message: token });
+}
+
+test("verifies a credential presented over IPEX", async ({ page }) => {
+  await present(page);
 
   await expect(page.getByText("Credential presented. The result is below.")).toBeVisible();
   await expect(page.getByText("Verified", { exact: true })).toBeVisible();
@@ -51,20 +66,7 @@ test("verifies a credential presented over IPEX", async ({ page }) => {
 });
 
 test("clears the last result when a new session starts", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("tab", { name: "Present over IPEX" }).click();
-
-  const commands = await page.getByRole("tabpanel").locator("pre").innerText();
-  const oobi = commands.match(/--oobi (\S+)/)?.[1];
-  const recipient = commands.match(/--recipient (\S+)/)?.[1];
-  const token = commands.match(/--message (\S+)/)?.[1];
-
-  if (!oobi || !recipient || !token) {
-    throw new Error(`Presentation commands were missing an oobi, recipient or token:\n${commands}`);
-  }
-
-  await kli.oobi.resolve(oobi, "verifier");
-  await kli.ipex.grant({ said, recipient, message: token });
+  await present(page);
 
   await expect(page.getByText(said)).toBeVisible();
 

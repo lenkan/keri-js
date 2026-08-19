@@ -1,5 +1,6 @@
 /** biome-ignore-all lint/suspicious/noConsole: server entrypoint */
 import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
+import { decodeBase64Url } from "cesr/encoding";
 
 const port = Number.parseInt(Deno.env.get("PORT") ?? "3002", 10);
 const url = Deno.env.get("VERIFIER_URL") ?? `http://localhost:${port}`;
@@ -25,13 +26,13 @@ const sessions: SessionStore = {
   },
 };
 
-const verifier = new Verifier({ privateKey, url, logger: console });
+const verifier = new Verifier({ privateKey, url });
 const router = createVerifierRouter(verifier, sessions, { logger: console });
 
 Deno.serve({ port, onListen: () => banner() }, router);
 
 function decodeSeed(value: string): Uint8Array {
-  const bytes = Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/")), (c) => c.charCodeAt(0));
+  const bytes = decodeBase64Url(value);
 
   if (bytes.length !== 32) {
     throw new Error(`VERIFIER_SEED must decode to 32 bytes, got ${bytes.length}`);
