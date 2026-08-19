@@ -227,7 +227,7 @@ describe(basename(import.meta.url), () => {
       const storage = createStorage();
       storage.saveMessage(icp);
 
-      const credential = Credential.from({
+      const credential = Credential.create({
         i: icp.body.i,
         ri: "ERegistry",
         s: "ESchema",
@@ -269,7 +269,7 @@ describe(basename(import.meta.url), () => {
   describe("credentials", () => {
     test("should save and get credential", () => {
       const storage = createStorage();
-      const credential = Credential.from({
+      const credential = Credential.create({
         i: "EIssuer",
         ri: "ERegistry",
         s: "ESchema",
@@ -285,7 +285,7 @@ describe(basename(import.meta.url), () => {
 
     test("should list credentials by registry", () => {
       const storage = createStorage();
-      const credentialA = Credential.from({
+      const credentialA = Credential.create({
         i: "EIssuer",
         ri: "ERegistryA",
         s: "ESchema",
@@ -293,7 +293,7 @@ describe(basename(import.meta.url), () => {
         r: { usageDisclaimer: { l: "A" } },
       });
 
-      const credentialB = Credential.from({
+      const credentialB = Credential.create({
         i: "EIssuer",
         ri: "ERegistryA",
         s: "ESchema",
@@ -301,7 +301,7 @@ describe(basename(import.meta.url), () => {
         r: { usageDisclaimer: { l: "B" } },
       });
 
-      const credentialC = Credential.from({
+      const credentialC = Credential.create({
         i: "EIssuer",
         ri: "ERegistryB",
         s: "ESchema",

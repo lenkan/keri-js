@@ -1,6 +1,5 @@
 import { Matter, Message } from "cesr";
 import { DUMMY_VERSION, encodeEvent, type ProtocolVersion } from "./events.ts";
-import { type ReceiptEventBody, receipt } from "./receipt-event.ts";
 import type { Threshold } from "./threshold.ts";
 
 export interface KeyState {
@@ -284,27 +283,6 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Mes
 
 const KEL_EVENT_TYPES = new Set(["icp", "ixn", "rot", "dip", "drt"]);
 
-/**
- * Key events — the messages that make up a Key Event Log.
- *
- * Statics only; never instantiated. `receipt` lives here because a receipt is
- * *about* a key event, even though `rct` is not itself a KEL event type.
- */
-export class KeyEvent {
-  private constructor() {}
-
-  static readonly incept = incept;
-  static readonly interact = interact;
-  static readonly rotate = rotate;
-  static readonly delegatedIncept = delegatedIncept;
-  static readonly delegatedRotate = delegatedRotate;
-
-  /** Build the `rct` receipting `event`. */
-  static receipt(event: Message<KeyEventBody>, args?: { version?: ProtocolVersion }): Message<ReceiptEventBody> {
-    return receipt({ d: event.body.d, i: event.body.i, s: event.body.s, version: args?.version });
-  }
-
-  static isKeyEvent(message: Message): message is Message<KeyEventBody> {
-    return KEL_EVENT_TYPES.has(message.body.t as string);
-  }
+export function isKeyEvent(message: Message): message is Message<KeyEventBody> {
+  return KEL_EVENT_TYPES.has(message.body.t as string);
 }

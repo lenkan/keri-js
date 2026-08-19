@@ -3,7 +3,7 @@ import { DUMMY_SAID, DUMMY_VERSION, encodeEvent, type ProtocolVersion, verifyEve
 import { saidify } from "./said.ts";
 import type { VerifyResult } from "./verify.ts";
 
-export interface CredentialBodyInit {
+export interface CredentialArgs {
   /**
    * Salty nonce
    */
@@ -174,7 +174,7 @@ function verifySectionSaids(body: CredentialBody): VerifyResult | null {
   return disclosed ? { ok: true } : null;
 }
 
-export function createCredential(data: CredentialBodyInit): Message<CredentialBody> {
+export function createCredential(data: CredentialArgs): Message<CredentialBody> {
   const body = encodeEvent<CredentialBody>(
     {
       v: DUMMY_VERSION,
@@ -193,19 +193,6 @@ export function createCredential(data: CredentialBodyInit): Message<CredentialBo
   return new Message<CredentialBody>(body);
 }
 
-/**
- * Authentic Chained Data Containers.
- *
- * Statics only; never instantiated. `from` rather than a named verb because the
- * namespace produces exactly one kind of thing.
- */
-export class Credential {
-  private constructor() {}
-
-  static readonly from = createCredential;
-  static readonly disclosedAttributes = disclosedAttributes;
-
-  static isCredential(message: Message): message is Message<CredentialBody> {
-    return message.version.protocol === "ACDC";
-  }
+export function isCredential(message: Message): message is Message<CredentialBody> {
+  return message.version.protocol === "ACDC";
 }

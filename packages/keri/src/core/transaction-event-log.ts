@@ -12,12 +12,10 @@
 
 import type { Message } from "cesr";
 import type { IssueEventBody, RevokeEventBody } from "./credential-event.ts";
-import { issue, revoke } from "./credential-event.ts";
 import { verifyEventSaid } from "./events.ts";
 import type { KeyEventLog } from "./key-event-log.ts";
 import { findSealAnchor } from "./key-event-log.ts";
 import type { RegistryInceptEventBody } from "./registry-event.ts";
-import { incept } from "./registry-event.ts";
 import type { VerifyResult } from "./verify.ts";
 
 export type TransactionEventBody = RegistryInceptEventBody | IssueEventBody | RevokeEventBody;
@@ -46,21 +44,8 @@ export function isTelEventType(t: unknown): boolean {
   return t === "vcp" || t === "iss" || t === "rev";
 }
 
-/**
- * Transaction events — the messages that make up a registry's Transaction Event Log.
- *
- * Statics only; never instantiated.
- */
-export class TransactionEvent {
-  private constructor() {}
-
-  static readonly incept = incept;
-  static readonly issue = issue;
-  static readonly revoke = revoke;
-
-  static isTransactionEvent(message: Message): message is Message<TransactionEventBody> {
-    return isTelEventType(message.body.t);
-  }
+export function isTransactionEvent(message: Message): message is Message<TransactionEventBody> {
+  return isTelEventType(message.body.t);
 }
 
 export function verifyTransactionEventSaid(body: TransactionEventBody): VerifyResult {

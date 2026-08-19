@@ -168,22 +168,6 @@ export function embeds(message: Message<ExchangeEventBody>): Record<string, Mess
 
 const ROUTED_EVENT_TYPES = new Set(["exn", "qry", "rpy"]);
 
-/**
- * Routed messages — those addressed by a `r` route rather than anchored in a log.
- *
- * Statics only; never instantiated.
- */
-export class RoutedEvent {
-  private constructor() {}
-
-  static readonly IPEX_GRANT_ROUTE = IPEX_GRANT_ROUTE;
-
-  static readonly exchange = exchange;
-  static readonly query = query;
-  static readonly reply = reply;
-  static readonly embeds = embeds;
-
-  static isRoutedEvent(message: Message): message is Message<RoutedEventBody> {
-    return ROUTED_EVENT_TYPES.has(message.body.t as string);
-  }
+export function isRoutedEvent(message: Message): message is Message<RoutedEventBody> {
+  return ROUTED_EVENT_TYPES.has(message.body.t as string);
 }

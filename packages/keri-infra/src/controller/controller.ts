@@ -544,7 +544,7 @@ export class Controller {
     const log = await this.loadEventLog(registry.body.ii);
     const state = log.state;
 
-    const credential = Credential.from({
+    const credential = Credential.create({
       i: state.identifier,
       ri: registry.body.i,
       s: args.schemaId,

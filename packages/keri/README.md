@@ -19,6 +19,20 @@ Requires Node.js 22 or later. Runs unchanged in Deno and in the browser.
 Message constructors are grouped by protocol: `KeyEvent` (KEL), `TransactionEvent` (registry TEL),
 `RoutedEvent` (`exn`/`qry`/`rpy`) and `Credential` (ACDC).
 
+Each group is an ES module namespace, so you can take it whole from the root or a function at a
+time from its subpath. Both name the same function:
+
+```ts
+import { KeyEvent } from "keri";
+import { incept } from "keri/key-events";
+
+KeyEvent.incept === incept; // true
+```
+
+Taking them from the subpath lets a bundler drop what you don't use. Both `KeyEvent.incept` and
+`TransactionEvent.incept` are called `incept` — one is a KEL inception, the other a registry's — so
+the grouping is what tells them apart.
+
 ### Create and sign key events
 
 ```ts
@@ -87,7 +101,7 @@ import { Credential, TransactionEvent } from "keri";
 
 const vcp = TransactionEvent.incept({ ii: issuerAid });
 
-const acdc = Credential.from({
+const acdc = Credential.create({
   i: issuerAid,
   ri: vcp.body.i,
   s: schemaSaid,
@@ -112,8 +126,11 @@ KeyEvent.incept({ signingKeys, nextKeyDigests, version: 2 });
 
 | Import | Contents |
 | --- | --- |
-| `keri` | key events, key event logs, credentials, verification |
-| `cesr` | the CESR encoding and stream parser this package builds on, re-exported from `keri` |
+| `keri` | everything: the four namespaces, key event logs, verification, signing, and the CESR types re-exported from `cesr` |
+| `keri/key-events` | `incept`, `interact`, `rotate`, `delegatedIncept`, `delegatedRotate`, `receipt`, `isKeyEvent` |
+| `keri/transaction-events` | `incept` (registry `vcp`), `issue`, `revoke`, `isTransactionEvent` |
+| `keri/routed-events` | `exchange`, `query`, `reply`, `embeds`, `IPEX_GRANT_ROUTE`, `isRoutedEvent` |
+| `keri/credentials` | `create`, `disclosedAttributes`, `isCredential` |
 
 Reference implementations of a witness, a mailbox, a controller and a verifier — the parts that
 need HTTP and a database — live in this repository under `packages/keri-infra` and `apps/`, and are
