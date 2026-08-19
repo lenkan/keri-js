@@ -1,8 +1,0 @@
-.disclosure {
-  margin-top: 1rem;
-  color: var(--muted);
-}
-
-.disclosure > :not(summary) {
-  margin-top: 0.75rem;
-}
