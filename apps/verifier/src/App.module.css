@@ -14,3 +14,13 @@
   color: var(--muted);
   max-width: 40rem;
 }
+
+.tryItLede {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.tryItLede code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}
