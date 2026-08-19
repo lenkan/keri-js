@@ -194,7 +194,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Build packages
         run: pnpm run build
