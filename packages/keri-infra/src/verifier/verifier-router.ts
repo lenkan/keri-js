@@ -6,8 +6,13 @@ import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { SessionStore, Verifier } from "./verifier.ts";
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
-const TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
-const SESSION_PATH = /^\/api\/sessions\/([A-Za-z0-9_-]{16,64})$/;
+const TOKEN_LENGTH = 24;
+const TOKEN_PATTERN = /^[A-Za-z0-9]{16,64}$/;
+const SESSION_PATH = /^\/api\/sessions\/([A-Za-z0-9]{16,64})$/;
+
+// Deno KV caps a value at 64 KiB and rejects anything larger, which would
+// surface as a 500 long after the holder thinks the grant landed.
+const MAX_PRESENTATION_BYTES = 60 * 1024;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -31,22 +36,33 @@ function encodeOobi(events: readonly Message[]): string {
     .join("");
 }
 
+type TokenLookup = { ok: true; token: string } | { ok: false; reason: "no-grant" | "no-token" };
+
 /** The session a presentation is addressed to, from where `kli ipex grant --message` puts it. */
-function sessionToken(messages: readonly Message[]): string | null {
+function sessionToken(messages: readonly Message[]): TokenLookup {
   for (const message of messages) {
     const body = message.body as Partial<ExchangeEventBody>;
 
     if (body.t === "exn" && body.r === IPEX_GRANT_ROUTE) {
       const token = body.a?.m;
-      return typeof token === "string" && token.length > 0 ? token : null;
+      return typeof token === "string" && token.length > 0 ? { ok: true, token } : { ok: false, reason: "no-token" };
     }
   }
 
-  return null;
+  return { ok: false, reason: "no-grant" };
 }
 
+// Base64url's `-` and `_` are dropped rather than remapped: a token starting
+// with `-` looks like an option to `kli ipex grant --message`, and argparse
+// rejects the command outright.
 function createToken(): string {
-  return encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+  let token = "";
+
+  while (token.length < TOKEN_LENGTH) {
+    token += encodeBase64Url(crypto.getRandomValues(new Uint8Array(24))).replace(/[^A-Za-z0-9]/g, "");
+  }
+
+  return token.slice(0, TOKEN_LENGTH);
 }
 
 export function createRouter(
@@ -64,20 +80,39 @@ export function createRouter(
     const attachment = request.headers.get("CESR-ATTACHMENT") ?? "";
     const stream = (await request.text()) + attachment;
 
-    const messages = await Array.fromAsync(parse(stream));
-    const token = sessionToken(messages);
-
-    if (!token) {
-      log.warn("no grant in presentation", { messages: messages.length });
-      return Response.json({ error: "No IPEX grant found" }, { status: 400 });
+    const size = new TextEncoder().encode(stream).length;
+    if (size > MAX_PRESENTATION_BYTES) {
+      log.warn("rejecting oversized presentation", { size });
+      return Response.json({ error: "Presentation too large" }, { status: 413 });
     }
 
-    if (!TOKEN_PATTERN.test(token)) {
+    // The body is unauthenticated, so anything that is not a CESR stream has to
+    // come back as a 400 rather than escaping as a 500.
+    let messages: Message[];
+    try {
+      messages = await Array.fromAsync(parse(stream));
+    } catch (cause) {
+      log.warn("could not parse presentation", { error: cause instanceof Error ? cause.message : String(cause) });
+      return Response.json({ error: "Could not parse the CESR stream" }, { status: 400 });
+    }
+
+    const lookup = sessionToken(messages);
+
+    if (!lookup.ok) {
+      log.warn(`rejecting presentation: ${lookup.reason}`, { messages: messages.length });
+      const error =
+        lookup.reason === "no-grant"
+          ? "No IPEX grant found"
+          : "The grant carries no session token, pass it as --message";
+      return Response.json({ error }, { status: 400 });
+    }
+
+    if (!TOKEN_PATTERN.test(lookup.token)) {
       log.warn("rejecting malformed session token");
       return Response.json({ error: "Malformed session token" }, { status: 400 });
     }
 
-    await sessions.put(token, stream, SESSION_TTL_MS);
+    await sessions.put(lookup.token, stream, SESSION_TTL_MS);
     log.debug("stored presentation", { messages: messages.length });
 
     return new Response(null, { status: 204 });

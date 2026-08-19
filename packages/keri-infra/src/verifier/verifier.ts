@@ -41,19 +41,23 @@ export class Verifier {
   }
 
   get oobi(): string {
-    return `${this.#url.replace(/\/$/, "")}/oobi`;
+    return `${this.#url}/oobi`;
   }
 
   constructor(options: VerifierOptions) {
     this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
     this.#kel = Verifier.createKEL(this.#privateKey);
-    this.#url = options.url;
 
     const url = new URL(options.url);
 
+    // Stripped once, and advertised in the same form: KERIpy appends a hardcoded
+    // `/`, so a trailing slash here would have it post to `//`, which routes
+    // nowhere.
+    this.#url = options.url.replace(/\/+$/, "");
+
     const location = keri.reply({
       r: "/loc/scheme",
-      a: { eid: this.aid, scheme: url.protocol.replace(":", ""), url: options.url },
+      a: { eid: this.aid, scheme: url.protocol.replace(":", ""), url: this.#url },
     });
 
     // `controller`, not `mailbox`: KERIpy's StreamPoster tries controller,

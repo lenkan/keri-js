@@ -12,6 +12,8 @@ export type VerificationState =
 export interface Verification {
   state: VerificationState;
   verify: (input: Uint8Array | string) => Promise<void>;
+  /** Drops the current verdict, so the next input never renders under the previous one's result. */
+  reset: () => void;
 }
 
 /**
@@ -29,7 +31,11 @@ export function useVerification(): Verification {
     }
   }, []);
 
-  return { state, verify };
+  const reset = useCallback(() => {
+    setState({ kind: "idle" });
+  }, []);
+
+  return { state, verify, reset };
 }
 
 export function VerificationResult({ state }: { state: VerificationState }) {

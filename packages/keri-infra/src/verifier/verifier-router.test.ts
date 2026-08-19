@@ -80,7 +80,9 @@ describe(basename(import.meta.url), () => {
 
     assert.strictEqual(body.aid, verifier.aid);
     assert.strictEqual(body.oobi, `${URL_BASE}/oobi`);
-    assert.match(body.token, /^[A-Za-z0-9_-]{16,64}$/);
+    // Alphanumeric only: a token starting with `-` reads as an option to
+    // `kli ipex grant --message`, which argparse then refuses.
+    assert.match(body.token, /^[A-Za-z0-9]{16,64}$/);
     assert.strictEqual(sessions.size(), 0, "creating a session should not write");
   });
 
@@ -119,6 +121,46 @@ describe(basename(import.meta.url), () => {
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
+  });
+
+  test("should say so when a grant carries no session token at all", async () => {
+    const sessions = makeSessions();
+    const response = await makeApp(sessions)(request("/", { method: "PUT", body: await presentation("") }));
+
+    assert.strictEqual(response.status, 400);
+    // Forgetting `--message` is the likely mistake, so the two cases must not read alike.
+    assert.match(((await response.json()) as { error: string }).error, /--message/);
+    assert.strictEqual(sessions.size(), 0);
+  });
+
+  // The endpoint is unauthenticated, so a body that is not CESR has to come back
+  // as a 400 rather than escaping the handler as a 500.
+  test("should reject a body it cannot parse", async () => {
+    const sessions = makeSessions();
+    const response = await makeApp(sessions)(request("/", { method: "PUT", body: "not a cesr stream at all" }));
+
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(sessions.size(), 0);
+  });
+
+  test("should reject a presentation too large to store", async () => {
+    const sessions = makeSessions();
+    const response = await makeApp(sessions)(request("/", { method: "PUT", body: "x".repeat(64 * 1024) }));
+
+    assert.strictEqual(response.status, 413);
+    assert.strictEqual(sessions.size(), 0);
+  });
+
+  test("should not double the slash when the url carries one", async () => {
+    const verifier = new Verifier({ url: `${URL_BASE}/` });
+
+    assert.strictEqual(verifier.oobi, `${URL_BASE}/oobi`);
+
+    const response = await createRouter(verifier, makeSessions())(request("/oobi"));
+    const body = await response.text();
+
+    // KERIpy appends its own `/` to whatever this advertises, and `//` routes nowhere.
+    assert.ok(body.includes(`"url":"${URL_BASE}"`), `expected the location scheme to carry ${URL_BASE}`);
   });
 
   test("should allow the browser to read a session cross-origin", async () => {

@@ -1,5 +1,5 @@
 import { Alert, Button, Group, Loader, Stack, Text } from "@mantine/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CommandBlock } from "../components/main.ts";
 import { useVerification, VerificationResult } from "../Verification.tsx";
 
@@ -30,11 +30,13 @@ kli ipex grant --name demo --alias issuer \\
 
 /** Receives a credential over IPEX: the holder grants it to the session this component opens. */
 export function IpexMode() {
-  const { state, verify } = useVerification();
+  const { state, verify, reset } = useVerification();
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
+  const started = useRef(false);
 
   const start = useCallback(async () => {
     setPhase({ kind: "starting" });
+    reset();
 
     try {
       const response = await fetch(`${API}/api/sessions`, { method: "POST" });
@@ -45,9 +47,17 @@ export function IpexMode() {
     } catch (cause) {
       setPhase({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
     }
-  }, []);
+  }, [reset]);
 
+  // Once per mount, not once per effect run: the tab this lives in keeps its
+  // children mounted but tears their effects down while hidden, and a session
+  // minted on the way back would orphan the commands already copied out of here.
   useEffect(() => {
+    if (started.current) {
+      return;
+    }
+
+    started.current = true;
     void start();
   }, [start]);
 
@@ -71,6 +81,14 @@ export function IpexMode() {
           const cesr = await response.text();
           setPhase({ kind: "delivered" });
           void verify(cesr);
+          return;
+        }
+
+        // Only 204 means "nothing presented yet". Anything else is a server that
+        // answers but cannot serve this session, and rescheduling would sit on
+        // "waiting" forever with nothing to show for it.
+        if (response.status !== 204) {
+          setPhase({ kind: "error", message: `Server returned ${response.status}` });
           return;
         }
       } catch (cause) {
