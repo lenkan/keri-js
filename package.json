@@ -20,6 +20,7 @@
     "test:interop": "node --test --test-force-exit --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
     "pretest:vector": "pnpm run build",
     "test:vector": "node --test --no-warnings 'packages/cesr/test_vectors/**/*.test.ts'",
+    "test:e2e": "playwright test",
     "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
     "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
     "precheck": "pnpm run build",
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@keri-js/infra": "workspace:*",
+    "@playwright/test": "^1.62.1",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
     "cesr": "workspace:*",

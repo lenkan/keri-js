@@ -344,6 +344,20 @@ export class KERIPy {
       }
       return this.run(args);
     },
+    export: async (opts: { said: string }): Promise<string> => {
+      return this.run([
+        "vc",
+        "export",
+        "--name",
+        this.name,
+        "--alias",
+        this.name,
+        ...this.baseArgs,
+        "--said",
+        opts.said,
+        "--full",
+      ]);
+    },
     create: async (opts: {
       registryName: string;
       schema: string;

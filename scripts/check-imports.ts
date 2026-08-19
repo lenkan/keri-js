@@ -57,6 +57,8 @@ const files = glob(
     "scripts/**/*.ts",
     "test_interop/**/*.ts",
     "test_consumer/**/*.ts",
+    "test_utils/**/*.ts",
+    "test_e2e/**/*.ts",
   ],
   { cwd: ROOT },
 );

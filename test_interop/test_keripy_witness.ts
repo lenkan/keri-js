@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { parse } from "cesr";
-import { KERIPy } from "./keripy.ts";
+import { KERIPy } from "../test_utils/keripy.ts";
 import {
   collectAsync,
   createController,

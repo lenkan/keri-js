@@ -7,3 +7,5 @@ dist/
 .vscode/
 .env
 .claude
+test-results/
+playwright-report/

@@ -1,4 +1,11 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["scripts/**/*.ts", "test_interop/**/*.ts", "test_consumer/**/*.ts"]
+  "include": [
+    "playwright.config.ts",
+    "scripts/**/*.ts",
+    "test_e2e/**/*.ts",
+    "test_interop/**/*.ts",
+    "test_consumer/**/*.ts",
+    "test_utils/**/*.ts"
+  ]
 }
