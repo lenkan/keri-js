@@ -1,12 +1,13 @@
 import { Attachments, Message, type MessageBody } from "cesr";
-import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent, formatDate, type ProtocolVersion } from "./events.ts";
 import { saidify } from "./said.ts";
 
-export interface QueryEventInit {
+export interface QueryEventArgs {
   dt?: Date;
   r?: string;
   rr?: string;
   q: Record<string, unknown>;
+  version?: ProtocolVersion;
 }
 
 export type QueryEventBody = {
@@ -19,10 +20,11 @@ export type QueryEventBody = {
   q: Record<string, unknown>;
 };
 
-export interface ReplyEventInit {
-  dt?: string;
+export interface ReplyEventArgs {
+  dt?: Date;
   r: string;
   a: Record<string, unknown>;
+  version?: ProtocolVersion;
 }
 
 export type ReplyEventBody = {
@@ -42,44 +44,49 @@ export type RoutedEventBody = {
   [key: string]: unknown;
 };
 
-export type RoutedEvent = Message<RoutedEventBody>;
-
-export function query(args: QueryEventInit): Message<QueryEventBody> {
-  const body = encodeEvent<QueryEventBody>({
-    v: DUMMY_VERSION,
-    t: "qry",
-    d: "",
-    dt: formatDate(args.dt ?? new Date()),
-    r: args.r ?? "",
-    rr: args.rr ?? "",
-    q: args.q,
-  });
-
-  return new Message(body);
-}
-
-export function reply(args: ReplyEventInit): Message<ReplyEventBody> {
-  const body = encodeEvent<ReplyEventBody>({
-    v: DUMMY_VERSION,
-    t: "rpy",
-    d: "",
-    dt: args.dt ?? formatDate(new Date()),
-    r: args.r,
-    a: args.a,
-  });
+export function query(args: QueryEventArgs): Message<QueryEventBody> {
+  const body = encodeEvent<QueryEventBody>(
+    {
+      v: DUMMY_VERSION,
+      t: "qry",
+      d: "",
+      dt: formatDate(args.dt ?? new Date()),
+      r: args.r ?? "",
+      rr: args.rr ?? "",
+      q: args.q,
+    },
+    { version: args.version },
+  );
 
   return new Message(body);
 }
 
-export interface ExchangeEventInit {
+export function reply(args: ReplyEventArgs): Message<ReplyEventBody> {
+  const body = encodeEvent<ReplyEventBody>(
+    {
+      v: DUMMY_VERSION,
+      t: "rpy",
+      d: "",
+      dt: formatDate(args.dt ?? new Date()),
+      r: args.r,
+      a: args.a,
+    },
+    { version: args.version },
+  );
+
+  return new Message(body);
+}
+
+export interface ExchangeEventArgs {
   sender: string;
   recipient?: string;
   p?: string;
-  timestamp?: string;
+  timestamp?: Date;
   route: string;
   query?: Record<string, unknown>;
   anchor?: Record<string, unknown>;
   embeds?: Record<string, Message>;
+  version?: ProtocolVersion;
 }
 
 export interface ExchangeEmbedding {
@@ -103,7 +110,7 @@ export interface ExchangeEventBody extends Record<string, unknown> {
 
 export const IPEX_GRANT_ROUTE = "/ipex/grant";
 
-export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
+export function exchange(args: ExchangeEventArgs): Message<ExchangeEventBody> {
   const block: ExchangeEmbedding = { d: "" };
   const attachments = new Attachments();
 
@@ -116,19 +123,22 @@ export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
     });
   }
 
-  const body = encodeEvent<ExchangeEventBody>({
-    v: DUMMY_VERSION,
-    t: "exn",
-    d: "",
-    i: args.sender,
-    rp: args.recipient ?? "",
-    p: args.p ?? "",
-    dt: args.timestamp ?? formatDate(new Date()),
-    r: args.route,
-    q: args.query ?? {},
-    a: args.anchor ?? {},
-    e: args.embeds ? saidify(block, ["d"]) : {},
-  });
+  const body = encodeEvent<ExchangeEventBody>(
+    {
+      v: DUMMY_VERSION,
+      t: "exn",
+      d: "",
+      i: args.sender,
+      rp: args.recipient ?? "",
+      p: args.p ?? "",
+      dt: formatDate(args.timestamp ?? new Date()),
+      r: args.route,
+      q: args.query ?? {},
+      a: args.anchor ?? {},
+      e: args.embeds ? saidify(block, ["d"]) : {},
+    },
+    { version: args.version },
+  );
 
   return new Message(body, attachments);
 }
@@ -154,4 +164,26 @@ export function embeds(message: Message<ExchangeEventBody>): Record<string, Mess
   }
 
   return result;
+}
+
+const ROUTED_EVENT_TYPES = new Set(["exn", "qry", "rpy"]);
+
+/**
+ * Routed messages — those addressed by a `r` route rather than anchored in a log.
+ *
+ * Statics only; never instantiated.
+ */
+export class RoutedEvent {
+  private constructor() {}
+
+  static readonly IPEX_GRANT_ROUTE = IPEX_GRANT_ROUTE;
+
+  static readonly exchange = exchange;
+  static readonly query = query;
+  static readonly reply = reply;
+  static readonly embeds = embeds;
+
+  static isRoutedEvent(message: Message): message is Message<RoutedEventBody> {
+    return ROUTED_EVENT_TYPES.has(message.body.t as string);
+  }
 }

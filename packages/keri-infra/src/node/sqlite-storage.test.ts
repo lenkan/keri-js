@@ -2,13 +2,22 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
-import { type InceptEventBody, type KeyEvent, type KeyState, keri, Message } from "keri";
+import {
+  Credential,
+  generateKeyPair,
+  type InceptEventBody,
+  KeyEvent,
+  type KeyState,
+  Message,
+  RoutedEvent,
+  TransactionEvent,
+} from "keri";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "./main.ts";
 
-function incept(): KeyEvent<InceptEventBody> {
-  const key0 = keri.utils.generateKeyPair();
-  const key1 = keri.utils.generateKeyPair();
-  return keri.incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
+function incept(): Message<InceptEventBody> {
+  const key0 = generateKeyPair();
+  const key1 = generateKeyPair();
+  return KeyEvent.incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
 }
 
 function createStorage() {
@@ -36,9 +45,9 @@ describe(basename(import.meta.url), () => {
         lastEvent: { i: icp.body.i, s: icp.body.s, d: icp.body.d },
         lastEstablishment: { i: icp.body.i, s: icp.body.s, d: icp.body.d },
       };
-      const ixn1 = keri.interact(state0);
+      const ixn1 = KeyEvent.interact(state0);
       const state1: KeyState = { ...state0, lastEvent: { i: icp.body.i, s: ixn1.body.s, d: ixn1.body.d } };
-      const ixn2 = keri.interact(state1);
+      const ixn2 = KeyEvent.interact(state1);
 
       storage.saveMessage(icp);
       storage.saveMessage(ixn2); // save out of order
@@ -76,7 +85,7 @@ describe(basename(import.meta.url), () => {
       const storage = createStorage();
       const icp = incept();
       const seal = { digest: icp.body.d, snu: icp.body.s };
-      const vcp = keri.registry({ ii: icp.body.i });
+      const vcp = TransactionEvent.incept({ ii: icp.body.i });
       const message = new Message(vcp.body, { SealSourceCouples: [seal] });
 
       storage.saveMessage(message);
@@ -90,7 +99,7 @@ describe(basename(import.meta.url), () => {
       const storage = createStorage();
       const icp = incept();
       const triple = { prefix: icp.body.i, snu: icp.body.s, digest: icp.body.d };
-      const vcp = keri.registry({ ii: icp.body.i });
+      const vcp = TransactionEvent.incept({ ii: icp.body.i });
       const message = new Message(vcp.body, { SealSourceTriples: [triple] });
 
       storage.saveMessage(message);
@@ -103,7 +112,7 @@ describe(basename(import.meta.url), () => {
   describe("iterate reply events", () => {
     test("should filter by types", () => {
       const icp = incept();
-      const rpy = keri.reply({ r: "/loc/scheme", a: { url: "http://localhost" } });
+      const rpy = RoutedEvent.reply({ r: "/loc/scheme", a: { url: "http://localhost" } });
       const storage = createStorage();
 
       storage.saveMessage(icp);
@@ -116,8 +125,8 @@ describe(basename(import.meta.url), () => {
 
     test("should filter by route", () => {
       const storage = createStorage();
-      storage.saveMessage(keri.reply({ r: "/loc/scheme", a: {} }));
-      storage.saveMessage(keri.reply({ r: "/end/role/add", a: {} }));
+      storage.saveMessage(RoutedEvent.reply({ r: "/loc/scheme", a: {} }));
+      storage.saveMessage(RoutedEvent.reply({ r: "/end/role/add", a: {} }));
 
       const events = [...storage.getReplies({ route: "/loc/scheme" })];
       assert.equal(events.length, 1);
@@ -126,8 +135,8 @@ describe(basename(import.meta.url), () => {
 
     test("should filter by eid", () => {
       const storage = createStorage();
-      storage.saveMessage(keri.reply({ r: "/loc/scheme", a: { eid: "EID_A", url: "http://a" } }));
-      storage.saveMessage(keri.reply({ r: "/loc/scheme", a: { eid: "EID_B", url: "http://b" } }));
+      storage.saveMessage(RoutedEvent.reply({ r: "/loc/scheme", a: { eid: "EID_A", url: "http://a" } }));
+      storage.saveMessage(RoutedEvent.reply({ r: "/loc/scheme", a: { eid: "EID_B", url: "http://b" } }));
 
       const events = [...storage.getReplies({ eid: "EID_A" })];
       assert.equal(events.length, 1);
@@ -136,8 +145,12 @@ describe(basename(import.meta.url), () => {
 
     test("should filter by cid", () => {
       const storage = createStorage();
-      storage.saveMessage(keri.reply({ r: "/end/role/add", a: { cid: "CID_1", role: "controller", eid: "EID_A" } }));
-      storage.saveMessage(keri.reply({ r: "/end/role/add", a: { cid: "CID_2", role: "controller", eid: "EID_B" } }));
+      storage.saveMessage(
+        RoutedEvent.reply({ r: "/end/role/add", a: { cid: "CID_1", role: "controller", eid: "EID_A" } }),
+      );
+      storage.saveMessage(
+        RoutedEvent.reply({ r: "/end/role/add", a: { cid: "CID_2", role: "controller", eid: "EID_B" } }),
+      );
 
       const events = [...storage.getReplies({ cid: "CID_1" })];
       assert.equal(events.length, 1);
@@ -154,7 +167,7 @@ describe(basename(import.meta.url), () => {
     test("should return registry event body when found", () => {
       const storage = createStorage();
       const icp = incept();
-      const vcp = keri.registry({ ii: icp.body.i });
+      const vcp = TransactionEvent.incept({ ii: icp.body.i });
 
       storage.saveMessage(vcp);
 
@@ -177,8 +190,8 @@ describe(basename(import.meta.url), () => {
     test("should return registries for the given owner", () => {
       const storage = createStorage();
       const owner = incept();
-      const reg1 = keri.registry({ ii: owner.body.i });
-      const reg2 = keri.registry({ ii: owner.body.i });
+      const reg1 = TransactionEvent.incept({ ii: owner.body.i });
+      const reg2 = TransactionEvent.incept({ ii: owner.body.i });
 
       storage.saveMessage(new Message(reg1.body));
       storage.saveMessage(new Message(reg2.body));
@@ -194,8 +207,8 @@ describe(basename(import.meta.url), () => {
       const owner1 = incept();
       const owner2 = incept();
 
-      storage.saveMessage(keri.registry({ ii: owner1.body.i }));
-      storage.saveMessage(keri.registry({ ii: owner2.body.i }));
+      storage.saveMessage(TransactionEvent.incept({ ii: owner1.body.i }));
+      storage.saveMessage(TransactionEvent.incept({ ii: owner2.body.i }));
 
       const registries = [...storage.getRegistriesByOwner(owner1.body.i)];
       assert.equal(registries.length, 1);
@@ -214,7 +227,7 @@ describe(basename(import.meta.url), () => {
       const storage = createStorage();
       storage.saveMessage(icp);
 
-      const credential = keri.credential({
+      const credential = Credential.from({
         i: icp.body.i,
         ri: "ERegistry",
         s: "ESchema",
@@ -222,7 +235,7 @@ describe(basename(import.meta.url), () => {
         r: { usageDisclaimer: { l: "Disclaimer" } },
       });
 
-      const issuanceEvent = keri.issue({
+      const issuanceEvent = TransactionEvent.issue({
         i: credential.body.d,
         ri: credential.body.ri,
       });
@@ -230,11 +243,11 @@ describe(basename(import.meta.url), () => {
 
       storage.saveMessage(issuanceEvent);
 
-      const revEvent = keri.revoke({
+      const revEvent = TransactionEvent.revoke({
         i: credential.body.d,
         ri: credential.body.ri,
         p: issuanceEvent.body.d,
-        dt: issuanceEvent.body.dt,
+        dt: new Date(issuanceEvent.body.dt),
       });
 
       storage.saveMessage(revEvent);
@@ -256,7 +269,7 @@ describe(basename(import.meta.url), () => {
   describe("credentials", () => {
     test("should save and get credential", () => {
       const storage = createStorage();
-      const credential = keri.credential({
+      const credential = Credential.from({
         i: "EIssuer",
         ri: "ERegistry",
         s: "ESchema",
@@ -272,7 +285,7 @@ describe(basename(import.meta.url), () => {
 
     test("should list credentials by registry", () => {
       const storage = createStorage();
-      const credentialA = keri.credential({
+      const credentialA = Credential.from({
         i: "EIssuer",
         ri: "ERegistryA",
         s: "ESchema",
@@ -280,7 +293,7 @@ describe(basename(import.meta.url), () => {
         r: { usageDisclaimer: { l: "A" } },
       });
 
-      const credentialB = keri.credential({
+      const credentialB = Credential.from({
         i: "EIssuer",
         ri: "ERegistryA",
         s: "ESchema",
@@ -288,7 +301,7 @@ describe(basename(import.meta.url), () => {
         r: { usageDisclaimer: { l: "B" } },
       });
 
-      const credentialC = keri.credential({
+      const credentialC = Credential.from({
         i: "EIssuer",
         ri: "ERegistryB",
         s: "ESchema",

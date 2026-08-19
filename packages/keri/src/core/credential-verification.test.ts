@@ -2,19 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Message, parse } from "cesr";
-import type { Credential, CredentialBody } from "./credential.ts";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { encodeText, Indexer, Message, parse } from "cesr";
+import type { CredentialBody } from "./credential.ts";
 import { createCredential } from "./credential.ts";
 import type { IssueEventBody } from "./credential-event.ts";
 import { issue, revoke } from "./credential-event.ts";
 import type { CheckStatus, CredentialCheckId, CredentialVerification } from "./credential-verification.ts";
 import { verifyCredential, verifyCredentials } from "./credential-verification.ts";
 import { EventIndex } from "./event-index.ts";
-import { incept, interact, type KeyEvent } from "./key-event.ts";
+import { incept, interact } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair } from "./keys.ts";
 import { incept as registry } from "./registry-event.ts";
-import { sign as signRaw } from "./sign.ts";
 
 const SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
 const OTHER_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY";
@@ -62,9 +62,9 @@ async function fixtureIndex(mutate?: (body: CredentialBody) => CredentialBody): 
 function newIssuer() {
   const key = generateKeyPair();
   const next = generateKeyPair();
-  const sign = (event: KeyEvent) => [signRaw(event.raw, { key: key.privateKey, index: 0 })];
+  const sign = (event: Message) => [encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(event.raw, key.privateKey), 0))];
 
-  const icp = incept({ signingKeys: [key.publicKey], nextKeys: [next.publicKeyDigest] });
+  const icp = incept({ signingKeys: [key.publicKey], nextKeyDigests: [next.publicKeyDigest] });
   const icpMessage = new Message(icp.body, { ControllerIdxSigs: sign(icp) });
   const messages: Message[] = [icpMessage];
   let log = KeyEventLog.empty().append(icpMessage);
@@ -97,14 +97,14 @@ function newIssuer() {
         ...(args.edges && { e: args.edges }),
       });
 
-      const iss = issue({ i: credential.body.d, ri: vcp.body.i, dt: DT });
+      const iss = issue({ i: credential.body.d, ri: vcp.body.i, dt: new Date(DT) });
       const couple = anchor({ i: iss.body.i, s: iss.body.s, d: iss.body.d });
       messages.push(credential, new Message(iss.body, { SealSourceCouples: [couple] }));
 
       return { credential, iss };
     },
 
-    revoke(credential: Credential, iss: Message<IssueEventBody>) {
+    revoke(credential: Message<CredentialBody>, iss: Message<IssueEventBody>) {
       const rev = revoke({ i: credential.body.d, ri: vcp.body.i, p: iss.body.d });
       const couple = anchor({ i: rev.body.i, s: rev.body.s, d: rev.body.d });
       messages.push(new Message(rev.body, { SealSourceCouples: [couple] }));

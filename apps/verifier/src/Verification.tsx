@@ -1,6 +1,6 @@
 import { Alert } from "@mantine/core";
 import type { CredentialVerification } from "keri";
-import { EventIndex, verifyCredentials } from "keri";
+import { collect, verify as verifyStream } from "keri";
 import { useCallback, useState } from "react";
 import { CredentialResult } from "./CredentialResult.tsx";
 
@@ -25,7 +25,7 @@ export function useVerification(): Verification {
 
   const verify = useCallback(async (input: Uint8Array | string) => {
     try {
-      setState({ kind: "done", results: verifyCredentials(await EventIndex.parse(input)) });
+      setState({ kind: "done", results: verifyStream(await collect(input)).credentials });
     } catch (error) {
       setState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
     }

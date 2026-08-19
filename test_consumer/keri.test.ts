@@ -1,56 +1,101 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import { Matter } from "cesr";
 import * as surface from "keri";
-import { generateKeyPair, KeyEventLog, keri, sign, verifySignature } from "keri";
+import { Credential, ed25519Signer, generateKeyPair, KeyEvent, KeyEventLog, signEvent, verifySignature } from "keri";
 
 describe("keri", () => {
-  test("builds and verifies a key event log without storage or transport", () => {
+  test("builds and verifies a key event log without storage or transport", async () => {
     const current = generateKeyPair();
     const next = generateKeyPair();
+    const signer = ed25519Signer(current.privateKey);
 
-    const icp = keri.incept({ signingKeys: [current.publicKey], nextKeys: [next.publicKeyDigest] });
-    icp.attachments.ControllerIdxSigs.push(sign(icp.raw, { key: current.privateKey, index: 0 }));
+    const icp = KeyEvent.incept({ signingKeys: [current.publicKey], nextKeyDigests: [next.publicKeyDigest] });
+    await signEvent(icp, [signer]);
 
     const log = KeyEventLog.empty().append(icp);
 
     assert.equal(log.state.identifier, icp.body.i);
     assert.deepEqual(log.state.signingKeys, [current.publicKey]);
 
-    const detached = sign(icp.raw, { key: current.privateKey });
-    assert.ok(verifySignature(icp.raw, Matter.parse(current.publicKey), Matter.parse(detached).raw));
+    const detached = await signer.sign(icp.raw);
+    assert.deepEqual(verifySignature(icp.raw, current.publicKey, detached), { ok: true });
+  });
+
+  test("builds an ACDC and reads back its disclosed claims", () => {
+    const issuer = generateKeyPair();
+
+    const acdc = Credential.from({
+      i: issuer.publicKey,
+      ri: "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao",
+      s: "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY",
+      a: { i: issuer.publicKey, LEI: "5493001KJTIIGC8Y1R17" },
+      r: {},
+    });
+
+    assert.ok(Credential.isCredential(acdc));
+    assert.deepEqual(Credential.disclosedAttributes(acdc.body), [["LEI", "5493001KJTIIGC8Y1R17"]]);
   });
 
   // Anything added here ships to consumers forever. Infrastructure — witness, mailbox, controller,
   // transports, storage — belongs in @keri-js/infra, so a new name showing up must be deliberate.
+  //
+  // Constructors live on the four namespaces, not as flat exports. Adding flat aliases later would
+  // be additive, but shipping both is the duplication this surface was reshaped to remove.
   test("exports exactly the toolbox surface", () => {
     assert.deepEqual(Object.keys(surface).sort(), [
       "Attachments",
+      "Counter",
+      "Credential",
       "EventIndex",
-      "IPEX_GRANT_ROUTE",
+      "Indexer",
+      "KeyEvent",
       "KeyEventLog",
+      "Matter",
       "Message",
+      "RoutedEvent",
+      "TransactionEvent",
       "VersionString",
-      "createCredential",
-      "credentialIssuee",
-      "delegatedIncept",
-      "delegatedRotate",
-      "disclosedAttributes",
-      "embeds",
+      "collect",
+      "ed25519Signer",
+      "formatDate",
       "generateKeyPair",
-      "isKelEventType",
-      "isTelEventType",
-      "keri",
-      "resolveEndRole",
-      "resolveLocation",
-      "sign",
-      "verifyCredential",
-      "verifyCredentialSaid",
-      "verifyCredentials",
+      "nextKeyDigest",
+      "parse",
+      "saidify",
+      "signEvent",
+      "verify",
       "verifySignature",
-      "verifyTransactionEventAnchor",
-      "verifyTransactionEventSaid",
     ]);
+  });
+
+  test("groups every constructor under its protocol namespace", () => {
+    assert.deepEqual(
+      Object.getOwnPropertyNames(KeyEvent)
+        .filter((name) => !["length", "name", "prototype"].includes(name))
+        .sort(),
+      ["delegatedIncept", "delegatedRotate", "incept", "interact", "isKeyEvent", "receipt", "rotate"],
+    );
+
+    assert.deepEqual(
+      Object.getOwnPropertyNames(surface.TransactionEvent)
+        .filter((name) => !["length", "name", "prototype"].includes(name))
+        .sort(),
+      ["incept", "isTransactionEvent", "issue", "revoke"],
+    );
+
+    assert.deepEqual(
+      Object.getOwnPropertyNames(surface.RoutedEvent)
+        .filter((name) => !["length", "name", "prototype"].includes(name))
+        .sort(),
+      ["IPEX_GRANT_ROUTE", "embeds", "exchange", "isRoutedEvent", "query", "reply"],
+    );
+
+    assert.deepEqual(
+      Object.getOwnPropertyNames(Credential)
+        .filter((name) => !["length", "name", "prototype"].includes(name))
+        .sort(),
+      ["disclosedAttributes", "from", "isCredential"],
+    );
   });
 
   test("exposes a single entry point", async () => {

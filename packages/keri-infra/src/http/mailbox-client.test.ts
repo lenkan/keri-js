@@ -2,12 +2,12 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, type Message } from "cesr";
-import { generateKeyPair, keri } from "keri";
+import { generateKeyPair, KeyEvent } from "keri";
 import { MailboxClient } from "./mailbox-client.ts";
 
 function makeMessage(): Message {
   const { publicKey } = generateKeyPair();
-  return keri.incept({ signingKeys: [publicKey], nextKeys: [] });
+  return KeyEvent.incept({ signingKeys: [publicKey], nextKeyDigests: [] });
 }
 
 function encodeMessage(message: Message): string {

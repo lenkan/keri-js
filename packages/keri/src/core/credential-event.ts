@@ -1,7 +1,7 @@
 import { Message } from "cesr";
-import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent, formatDate, type ProtocolVersion } from "./events.ts";
 
-export interface IssueEventInit {
+export interface IssueEventArgs {
   /**
    * Credential SAID
    */
@@ -11,7 +11,8 @@ export interface IssueEventInit {
    * Registry SAID
    */
   ri: string;
-  dt?: string;
+  dt?: Date;
+  version?: ProtocolVersion;
 }
 
 export type IssueEventBody = {
@@ -32,7 +33,7 @@ export type IssueEventBody = {
   dt: string;
 };
 
-export interface RevokeEventInit {
+export interface RevokeEventArgs {
   /**
    * Credential SAID
    */
@@ -47,7 +48,8 @@ export interface RevokeEventInit {
    * Issuance event SAID
    */
   p: string;
-  dt?: string;
+  dt?: Date;
+  version?: ProtocolVersion;
 }
 
 export type RevokeEventBody = {
@@ -61,7 +63,7 @@ export type RevokeEventBody = {
   dt: string;
 };
 
-export function issue(args: IssueEventInit): Message<IssueEventBody> {
+export function issue(args: IssueEventArgs): Message<IssueEventBody> {
   const body = encodeEvent<IssueEventBody>(
     {
       v: DUMMY_VERSION,
@@ -70,15 +72,15 @@ export function issue(args: IssueEventInit): Message<IssueEventBody> {
       i: args.i,
       s: "0",
       ri: args.ri,
-      dt: args.dt ?? formatDate(new Date()),
+      dt: formatDate(args.dt ?? new Date()),
     },
-    { labels: ["d"] },
+    { labels: ["d"], version: args.version },
   );
 
   return new Message(body);
 }
 
-export function revoke(args: RevokeEventInit): Message<RevokeEventBody> {
+export function revoke(args: RevokeEventArgs): Message<RevokeEventBody> {
   const body = encodeEvent<RevokeEventBody>(
     {
       v: DUMMY_VERSION,
@@ -88,9 +90,9 @@ export function revoke(args: RevokeEventInit): Message<RevokeEventBody> {
       s: "1",
       ri: args.ri,
       p: args.p,
-      dt: args.dt ?? formatDate(new Date()),
+      dt: formatDate(args.dt ?? new Date()),
     },
-    { labels: ["d"] },
+    { labels: ["d"], version: args.version },
   );
 
   return new Message(body);

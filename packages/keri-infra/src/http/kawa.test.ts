@@ -1,10 +1,18 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, mock, test } from "node:test";
-import { encodeText, Message } from "cesr";
-import { generateKeyPair, keri, sign } from "keri";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { encodeText, Indexer, Matter, Message } from "cesr";
+import { generateKeyPair, KeyEvent } from "keri";
 import type { WitnessEndpoint } from "./kawa.ts";
 import { submitToWitnesses } from "./kawa.ts";
+
+function sign(payload: Uint8Array, options: { key: Uint8Array; index?: number }): string {
+  const raw = ed25519.sign(payload, options.key);
+  return options.index === undefined
+    ? encodeText(Matter.crypto.ed25519_sig(raw))
+    : encodeText(Indexer.crypto.ed25519_sig(raw, options.index));
+}
 
 function createResponse(body: Message): Response {
   const serialized = JSON.stringify(body.body) + encodeText(body.attachments.frames());
@@ -17,15 +25,15 @@ describe(basename(import.meta.url), () => {
     const nextKey = generateKeyPair();
     const witnessKey = generateKeyPair({ nonTransferable: true });
 
-    const event = keri.incept({
+    const event = KeyEvent.incept({
       signingKeys: [sigKey.publicKey],
-      nextKeys: [nextKey.publicKeyDigest],
-      wits: [witnessKey.publicKey],
+      nextKeyDigests: [nextKey.publicKeyDigest],
+      backers: [witnessKey.publicKey],
     });
 
     event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: sigKey.privateKey, index: 0 }));
 
-    const rct = keri.receipt({ d: event.body.d, i: event.body.i, s: event.body.s });
+    const rct = KeyEvent.receipt(event);
     const witnessSig = sign(event.raw, { key: witnessKey.privateKey });
     const receiptMsg = new Message(rct.body, {
       NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: witnessSig }],
@@ -57,15 +65,15 @@ describe(basename(import.meta.url), () => {
     const witnessKey = generateKeyPair({ nonTransferable: true });
     const attackerKey = generateKeyPair({ nonTransferable: true });
 
-    const event = keri.incept({
+    const event = KeyEvent.incept({
       signingKeys: [sigKey.publicKey],
-      nextKeys: [nextKey.publicKeyDigest],
-      wits: [witnessKey.publicKey],
+      nextKeyDigests: [nextKey.publicKeyDigest],
+      backers: [witnessKey.publicKey],
     });
 
     event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: sigKey.privateKey, index: 0 }));
 
-    const rct = keri.receipt({ d: event.body.d, i: event.body.i, s: event.body.s });
+    const rct = KeyEvent.receipt(event);
     const invalidSig = sign(event.raw, { key: attackerKey.privateKey });
     const receiptMsg = new Message(rct.body, {
       NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: invalidSig }],

@@ -1,10 +1,11 @@
 import { Message } from "cesr";
-import { DUMMY_VERSION, encodeEvent } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent, type ProtocolVersion } from "./events.ts";
 
-export interface ReceiptEventInit {
+export interface ReceiptEventArgs {
   d: string;
   i: string;
   s: string;
+  version?: ProtocolVersion;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -16,9 +17,7 @@ export type ReceiptEventBody = {
   s: string;
 };
 
-export type ReceiptEvent = Message<ReceiptEventBody>;
-
-export function receipt(args: ReceiptEventInit): ReceiptEvent {
+export function receipt(args: ReceiptEventArgs): Message<ReceiptEventBody> {
   const body = encodeEvent<ReceiptEventBody>(
     {
       v: DUMMY_VERSION,
@@ -27,7 +26,7 @@ export function receipt(args: ReceiptEventInit): ReceiptEvent {
       i: args.i,
       s: args.s,
     },
-    { labels: [] },
+    { labels: [], version: args.version },
   );
 
   return new Message<ReceiptEventBody>(body);

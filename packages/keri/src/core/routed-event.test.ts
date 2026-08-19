@@ -3,16 +3,14 @@ import { randomBytes } from "node:crypto";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, Indexer } from "cesr";
-import { formatDate } from "./events.ts";
 import { exchange } from "./routed-event.ts";
 
 describe(basename(import.meta.url), () => {
   test("should create exchange event", () => {
-    const dt = formatDate(new Date());
     const event = exchange({
       sender: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS",
       route: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS",
-      timestamp: dt,
+      timestamp: new Date(),
     });
 
     assert.partialDeepStrictEqual(event.body, { t: "exn" });

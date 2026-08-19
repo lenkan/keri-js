@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { keri } from "keri";
+import { RoutedEvent } from "keri";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { createController, type Endpoint, startKerijsMailbox, startKeripyWitness } from "./utils.ts";
 
@@ -44,7 +44,7 @@ test("forward exchange through mailbox", async () => {
   const words = ["bob", "to", "alice"];
 
   await bob.forward({
-    message: keri.exchange({
+    message: RoutedEvent.exchange({
       sender: bobState.id,
       route: "/challenge/response",
       query: {},
@@ -91,7 +91,7 @@ test("KERIpy controller receives forwarded exchange via KERIjs mailbox", async (
   const words = await alice.challenge.generate();
 
   await bob.forward({
-    message: keri.exchange({
+    message: RoutedEvent.exchange({
       sender: bobState.id,
       route: "/challenge/response",
       query: {},

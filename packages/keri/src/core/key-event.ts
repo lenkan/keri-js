@@ -1,5 +1,6 @@
 import { Matter, Message } from "cesr";
-import { DUMMY_VERSION, encodeEvent } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent, type ProtocolVersion } from "./events.ts";
+import { type ReceiptEventBody, receipt } from "./receipt-event.ts";
 import type { Threshold } from "./threshold.ts";
 
 export interface KeyState {
@@ -27,23 +28,28 @@ export interface KeyState {
 export interface InceptArgs {
   signingKeys: string[];
   signingThreshold?: Threshold;
-  nextKeys: string[];
+  /** Digests of the next keys, not the keys themselves — see {@link nextKeyDigest}. */
+  nextKeyDigests: string[];
   nextThreshold?: Threshold;
-  wits?: string[];
-  toad?: number;
+  backers?: string[];
+  backerThreshold?: number;
+  version?: ProtocolVersion;
 }
 
 export interface InteractArgs {
   data?: Record<string, unknown>;
+  version?: ProtocolVersion;
 }
 
 export interface RotateArgs {
   signingKeys: string[];
+  /** Digests of the next keys, not the keys themselves — see {@link nextKeyDigest}. */
   nextKeyDigests: string[];
   data?: Record<string, unknown>;
-  br?: string[];
-  ba?: string[];
-  bt?: string;
+  removeBackers?: string[];
+  addBackers?: string[];
+  backerThreshold?: number;
+  version?: ProtocolVersion;
 }
 
 export interface DelegatedInceptArgs extends InceptArgs {
@@ -122,28 +128,24 @@ export type KeyEventBody = {
   [key: string]: unknown;
 };
 
-export type KeyEvent<T extends KeyEventBody = KeyEventBody> = Message<T>;
+/** Default backer threshold: all but one, so a single backer is still required. */
+function defaultBackerThreshold(backers: string[]): string {
+  if (backers.length === 0) {
+    return "0";
+  }
 
-export function incept(args: InceptArgs): KeyEvent<InceptEventBody> {
+  return backers.length === 1 ? "1" : (backers.length - 1).toString();
+}
+
+export function incept(args: InceptArgs): Message<InceptEventBody> {
   const keys = args.signingKeys;
   if (keys.length === 0) {
     throw new Error("No keys provided in inception event");
   }
 
-  const wits = args.wits ?? [];
+  const backers = args.backers ?? [];
   const transferable = keys.length > 1 || isTransferable(keys[0]);
   const labels = transferable ? ["d", "i"] : ["d"];
-
-  let bt: string;
-  if (args.toad !== undefined) {
-    bt = args.toad.toString();
-  } else if (wits.length === 0) {
-    bt = "0";
-  } else if (wits.length === 1) {
-    bt = "1";
-  } else {
-    bt = (wits.length - 1).toString();
-  }
 
   const body = encodeEvent<InceptEventBody>(
     {
@@ -154,20 +156,20 @@ export function incept(args: InceptArgs): KeyEvent<InceptEventBody> {
       s: "0",
       kt: keys.length.toString() as Threshold,
       k: keys,
-      nt: args.nextKeys.length.toString() as Threshold,
-      n: args.nextKeys,
-      bt,
-      b: wits,
+      nt: args.nextKeyDigests.length.toString() as Threshold,
+      n: args.nextKeyDigests,
+      bt: args.backerThreshold?.toString() ?? defaultBackerThreshold(backers),
+      b: backers,
       c: [] as string[],
       a: [] as Record<string, unknown>[],
     },
-    { labels, legacy: true },
+    { labels, version: args.version },
   );
 
   return new Message(body);
 }
 
-export function interact(state: KeyState, args: InteractArgs = {}): KeyEvent<InteractEventBody> {
+export function interact(state: KeyState, args: InteractArgs = {}): Message<InteractEventBody> {
   const body = encodeEvent<InteractEventBody>(
     {
       v: DUMMY_VERSION,
@@ -178,13 +180,13 @@ export function interact(state: KeyState, args: InteractArgs = {}): KeyEvent<Int
       p: state.lastEvent.d,
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
     },
-    { labels: ["d"], legacy: true },
+    { labels: ["d"], version: args.version },
   );
 
   return new Message(body);
 }
 
-export function rotate(state: KeyState, args: RotateArgs): KeyEvent<RotateEventBody> {
+export function rotate(state: KeyState, args: RotateArgs): Message<RotateEventBody> {
   const keyDigest = state.nextKeyDigests[0];
   if (!keyDigest) {
     throw new Error(`State for id ${state.identifier} does not contain pre-committed next key digest`);
@@ -202,36 +204,25 @@ export function rotate(state: KeyState, args: RotateArgs): KeyEvent<RotateEventB
       k: args.signingKeys,
       nt: "1",
       n: args.nextKeyDigests,
-      bt: args.bt ?? "0",
-      br: args.br ?? ([] as string[]),
-      ba: args.ba ?? ([] as string[]),
+      bt: args.backerThreshold?.toString() ?? "0",
+      br: args.removeBackers ?? ([] as string[]),
+      ba: args.addBackers ?? ([] as string[]),
       c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
     },
-    { labels: ["d"], legacy: true },
+    { labels: ["d"], version: args.version },
   );
 
   return new Message(body);
 }
 
-export function delegatedIncept(args: DelegatedInceptArgs): KeyEvent<DipEventBody> {
+export function delegatedIncept(args: DelegatedInceptArgs): Message<DipEventBody> {
   const keys = args.signingKeys;
   if (keys.length === 0) {
     throw new Error("No keys provided in inception event");
   }
 
-  const wits = args.wits ?? [];
-
-  let bt: string;
-  if (args.toad !== undefined) {
-    bt = args.toad.toString();
-  } else if (wits.length === 0) {
-    bt = "0";
-  } else if (wits.length === 1) {
-    bt = "1";
-  } else {
-    bt = (wits.length - 1).toString();
-  }
+  const backers = args.backers ?? [];
 
   const body = encodeEvent<DipEventBody>(
     {
@@ -242,21 +233,21 @@ export function delegatedIncept(args: DelegatedInceptArgs): KeyEvent<DipEventBod
       s: "0",
       kt: keys.length.toString() as Threshold,
       k: keys,
-      nt: args.nextKeys.length.toString() as Threshold,
-      n: args.nextKeys,
-      bt,
-      b: wits,
+      nt: args.nextKeyDigests.length.toString() as Threshold,
+      n: args.nextKeyDigests,
+      bt: args.backerThreshold?.toString() ?? defaultBackerThreshold(backers),
+      b: backers,
       c: [] as string[],
       a: [] as Record<string, unknown>[],
       di: args.delegator,
     },
-    { labels: ["d", "i"], legacy: true },
+    { labels: ["d", "i"], version: args.version },
   );
 
   return new Message(body);
 }
 
-export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): KeyEvent<DrtEventBody> {
+export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Message<DrtEventBody> {
   if (state.delegator === undefined) {
     throw new Error(`State for id ${state.identifier} has no delegator; cannot delegated-rotate`);
   }
@@ -278,15 +269,42 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Key
       k: args.signingKeys,
       nt: "1",
       n: args.nextKeyDigests,
-      bt: args.bt ?? "0",
-      br: args.br ?? ([] as string[]),
-      ba: args.ba ?? ([] as string[]),
+      bt: args.backerThreshold?.toString() ?? "0",
+      br: args.removeBackers ?? ([] as string[]),
+      ba: args.addBackers ?? ([] as string[]),
       c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
       di: state.delegator,
     },
-    { labels: ["d"], legacy: true },
+    { labels: ["d"], version: args.version },
   );
 
   return new Message(body);
+}
+
+const KEL_EVENT_TYPES = new Set(["icp", "ixn", "rot", "dip", "drt"]);
+
+/**
+ * Key events — the messages that make up a Key Event Log.
+ *
+ * Statics only; never instantiated. `receipt` lives here because a receipt is
+ * *about* a key event, even though `rct` is not itself a KEL event type.
+ */
+export class KeyEvent {
+  private constructor() {}
+
+  static readonly incept = incept;
+  static readonly interact = interact;
+  static readonly rotate = rotate;
+  static readonly delegatedIncept = delegatedIncept;
+  static readonly delegatedRotate = delegatedRotate;
+
+  /** Build the `rct` receipting `event`. */
+  static receipt(event: Message<KeyEventBody>, args?: { version?: ProtocolVersion }): Message<ReceiptEventBody> {
+    return receipt({ d: event.body.d, i: event.body.i, s: event.body.s, version: args?.version });
+  }
+
+  static isKeyEvent(message: Message): message is Message<KeyEventBody> {
+    return KEL_EVENT_TYPES.has(message.body.t as string);
+  }
 }

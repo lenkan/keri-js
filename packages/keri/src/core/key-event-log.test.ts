@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { Message } from "cesr";
-import { delegatedIncept, delegatedRotate, incept, interact, type KeyEvent, rotate } from "./key-event.ts";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { encodeText, Indexer, Message } from "cesr";
+import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
-import { sign as _sign } from "./sign.ts";
 
-function sign(event: KeyEvent, keys: KeyPair[]): string[] {
-  return keys.map((key, idx) => _sign(event.raw, { key: key.privateKey, index: idx }));
+function sign(event: Message, keys: KeyPair[]): string[] {
+  return keys.map((key, idx) => encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(event.raw, key.privateKey), idx)));
 }
 
 function inceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
-  const event = incept({ signingKeys: [key.publicKey], nextKeys: [nextKey.publicKeyDigest] });
+  const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [nextKey.publicKeyDigest] });
   const sigs = sign(event, [key]);
   return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
 }
@@ -31,7 +31,7 @@ describe(basename(import.meta.url), () => {
     const key0 = generateKeyPair();
     const key1 = generateKeyPair();
 
-    const event = incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
+    const event = incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
     assert.throws(() => KeyEventLog.empty().append(new Message(event.body)), {
       message: "Threshold not met: 0 weight provided, but 1 required",
     });
@@ -106,7 +106,7 @@ describe(basename(import.meta.url), () => {
     test("should allow appending icp with no controller sigs", () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
-      const event = incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
+      const event = incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
       const log = KeyEventLog.empty().append(new Message(event.body), { allowPartiallySigned: true });
       assert.equal(log.state.lastEvent.s, "0");
     });
@@ -115,7 +115,7 @@ describe(basename(import.meta.url), () => {
       const key0 = generateKeyPair();
       const key1 = generateKeyPair();
       const wrongKey = generateKeyPair();
-      const event = incept({ signingKeys: [key0.publicKey], nextKeys: [key1.publicKeyDigest] });
+      const event = incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
       const wrongSigs = sign(event, [wrongKey]);
       assert.throws(
         () =>
@@ -134,8 +134,8 @@ describe(basename(import.meta.url), () => {
       const witnessKey = generateKeyPair();
       const event = incept({
         signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
-        wits: [witnessKey.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        backers: [witnessKey.publicKey],
       });
       const controllerSigs = sign(event, [key0]);
       const log = KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: controllerSigs }), {
@@ -150,8 +150,8 @@ describe(basename(import.meta.url), () => {
       const witnessKey = generateKeyPair();
       const event = incept({
         signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
-        wits: [witnessKey.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        backers: [witnessKey.publicKey],
       });
       const controllerSigs = sign(event, [key0]);
       assert.throws(() => KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: controllerSigs })), {
@@ -166,8 +166,8 @@ describe(basename(import.meta.url), () => {
       const wrongWitnessKey = generateKeyPair();
       const event = incept({
         signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
-        wits: [witnessKey.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        backers: [witnessKey.publicKey],
       });
       const controllerSigs = sign(event, [key0]);
       const wrongWitnessSigs = sign(event, [wrongWitnessKey]);
@@ -188,7 +188,7 @@ describe(basename(import.meta.url), () => {
     function dipLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
       const event = delegatedIncept({
         signingKeys: [key.publicKey],
-        nextKeys: [nextKey.publicKeyDigest],
+        nextKeyDigests: [nextKey.publicKeyDigest],
         delegator,
       });
       const sigs = sign(event, [key]);
@@ -208,7 +208,7 @@ describe(basename(import.meta.url), () => {
       const key1 = generateKeyPair();
       const event = delegatedIncept({
         signingKeys: [key0.publicKey],
-        nextKeys: [key1.publicKeyDigest],
+        nextKeyDigests: [key1.publicKeyDigest],
         delegator,
       });
       const sigs = sign(event, [key0]);
@@ -266,7 +266,7 @@ describe(basename(import.meta.url), () => {
   describe("delegator anchor verification", () => {
     /** Builds a non-delegated KEL acting as the delegator. */
     function makeDelegator(key: KeyPair, nextKey: KeyPair): KeyEventLog {
-      const event = incept({ signingKeys: [key.publicKey], nextKeys: [nextKey.publicKeyDigest] });
+      const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [nextKey.publicKeyDigest] });
       const sigs = sign(event, [key]);
       return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sigs }));
     }
@@ -292,7 +292,7 @@ describe(basename(import.meta.url), () => {
 
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
 
@@ -316,7 +316,7 @@ describe(basename(import.meta.url), () => {
 
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       const dipSigs = sign(dip, [delegateKey]);
@@ -339,7 +339,7 @@ describe(basename(import.meta.url), () => {
 
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       const dipSigs = sign(dip, [delegateKey]);
@@ -362,7 +362,7 @@ describe(basename(import.meta.url), () => {
       const delegator = makeDelegator(delegatorKey, delegatorNext);
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       });
       const dipSigs = sign(dip, [delegateKey]);
@@ -384,7 +384,7 @@ describe(basename(import.meta.url), () => {
 
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       delegator = anchorDip(delegator, delegatorKey, dip.body);
@@ -427,7 +427,7 @@ describe(basename(import.meta.url), () => {
 
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       delegator = anchorDip(delegator, delegatorKey, dip.body);
@@ -456,7 +456,7 @@ describe(basename(import.meta.url), () => {
       let delegator = makeDelegator(delegatorKey, delegatorNext);
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       delegator = anchorDip(delegator, delegatorKey, dip.body);
@@ -481,7 +481,7 @@ describe(basename(import.meta.url), () => {
       let delegator = makeDelegator(delegatorKey, delegatorNext);
       const dip = delegatedIncept({
         signingKeys: [delegateKey.publicKey],
-        nextKeys: [delegateNext.publicKeyDigest],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
         delegator: delegator.state.identifier,
       });
       delegator = anchorDip(delegator, delegatorKey, dip.body);
@@ -518,12 +518,12 @@ describe(basename(import.meta.url), () => {
       // Two dip events whose `di` fields cross-reference: no leaf.
       const dipA = delegatedIncept({
         signingKeys: [keyA.publicKey],
-        nextKeys: [nextA.publicKeyDigest],
+        nextKeyDigests: [nextA.publicKeyDigest],
         delegator: "EBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       });
       const dipB = delegatedIncept({
         signingKeys: [keyB.publicKey],
-        nextKeys: [nextB.publicKeyDigest],
+        nextKeyDigests: [nextB.publicKeyDigest],
         delegator: "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       });
       // Override di to point at each other's i (di must reference real AIDs).
@@ -546,8 +546,8 @@ describe(basename(import.meta.url), () => {
       const k1 = generateKeyPair();
       const n1 = generateKeyPair();
 
-      const a = incept({ signingKeys: [k0.publicKey], nextKeys: [n0.publicKeyDigest] });
-      const b = incept({ signingKeys: [k1.publicKey], nextKeys: [n1.publicKeyDigest] });
+      const a = incept({ signingKeys: [k0.publicKey], nextKeyDigests: [n0.publicKeyDigest] });
+      const b = incept({ signingKeys: [k1.publicKey], nextKeyDigests: [n1.publicKeyDigest] });
 
       assert.throws(
         () =>

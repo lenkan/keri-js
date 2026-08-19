@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
-import { keri } from "keri";
+import { RoutedEvent } from "keri";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
@@ -49,7 +49,7 @@ test("KERIpy challenge-response with KERIjs signer", async () => {
   const words = await keripy.challenge.generate();
   assert.equal(words.length, 12);
 
-  const exn = keri.exchange({
+  const exn = RoutedEvent.exchange({
     sender: jsState.id,
     route: "/challenge/response",
     anchor: { i: jsState.id, words },
@@ -107,7 +107,7 @@ test("KeriJS challenge-response between two controllers", async () => {
   const words = ["test", "challenge"];
 
   await controller1.forward({
-    message: keri.exchange({
+    message: RoutedEvent.exchange({
       sender: state1.id,
       route: "/challenge/response",
       query: {},

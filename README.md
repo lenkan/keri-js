@@ -4,10 +4,14 @@ Playground KERI library for javascript. See test_interop for KERIpy compatibilit
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`cesr`](packages/cesr) | Composable Event Streaming Representation: encoding, decoding and stream parsing |
-| [`keri`](packages/keri) | Key events, credentials, controller, witness and mailbox |
+| Package | Published | Description |
+| --- | --- | --- |
+| [`cesr`](packages/cesr) | yes | Composable Event Streaming Representation: encoding, decoding and stream parsing |
+| [`keri`](packages/keri) | yes | Key events, key event logs, credentials and verification — the building blocks, with no I/O |
+| [`@keri-js/infra`](packages/keri-infra) | no | Reference witness, mailbox, controller and verifier, plus HTTP clients, storage and Node bindings |
+
+Build on `cesr` and `keri`. `@keri-js/infra` and the apps under `apps/` are reference
+implementations and the harness the KERIpy interop tests run against, not the adoption path.
 
 ## Development
 

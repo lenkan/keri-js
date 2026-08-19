@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
+import { generateKeyPair, KeyEvent, RoutedEvent } from "keri";
 import { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
-import { incept } from "./key-event.ts";
-import { generateKeyPair } from "./keys.ts";
-import { reply } from "./routed-event.ts";
+
+const reply = RoutedEvent.reply;
 
 function createAid() {
   const key = generateKeyPair();
   const next = generateKeyPair();
-  return incept({ signingKeys: [key.publicKey], nextKeys: [next.publicKeyDigest] }).body.i;
+  return KeyEvent.incept({ signingKeys: [key.publicKey], nextKeyDigests: [next.publicKeyDigest] }).body.i;
 }
 
 describe(basename(import.meta.url), () => {

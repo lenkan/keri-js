@@ -21,7 +21,7 @@ const RESERVED = /^\/(oobi|api)(\/|$)/;
 // keyed by the url it was built for: nothing request-scoped may outlive the
 // request that produced it, and the url is request-derived when VERIFIER_URL is
 // unset. Setting VERIFIER_URL makes this depend on bindings alone.
-let cached: { url: string; router: (request: Request) => Promise<Response> } | undefined;
+let cached: { url: string; router: Promise<(request: Request) => Promise<Response>> } | undefined;
 
 function sessions(kv: KVNamespace): SessionStore {
   return {
@@ -46,7 +46,7 @@ function decodeSeed(value: string): Uint8Array {
   return bytes;
 }
 
-function route(env: Env, request: Request): (request: Request) => Promise<Response> {
+function route(env: Env, request: Request): Promise<(request: Request) => Promise<Response>> {
   const url = env.VERIFIER_URL ?? new URL(request.url).origin;
 
   if (cached?.url === url) {
@@ -60,8 +60,11 @@ function route(env: Env, request: Request): (request: Request) => Promise<Respon
     console.warn("VERIFIER_SEED is not set, using an ephemeral identity for this isolate only");
   }
 
-  const verifier = new Verifier({ privateKey: seed ? decodeSeed(seed) : undefined, url });
-  const router = createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console });
+  // The promise is what gets cached, so requests arriving during a cold start
+  // share one key derivation instead of each racing to build their own.
+  const router = Verifier.create({ privateKey: seed ? decodeSeed(seed) : undefined, url }).then((verifier) =>
+    createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console }),
+  );
 
   cached = { url, router };
 
@@ -91,7 +94,6 @@ async function asset(request: Request, env: Env): Promise<Response | null> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const router = route(env, request);
     const { pathname } = new URL(request.url);
 
     if ((request.method === "GET" || request.method === "HEAD") && !RESERVED.test(pathname)) {
@@ -101,6 +103,8 @@ export default {
         return response;
       }
     }
+
+    const router = await route(env, request);
 
     return router(request);
   },

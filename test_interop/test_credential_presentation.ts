@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test from "node:test";
-import { EventIndex, verifyCredentials } from "keri";
+import { collect as collectStream, verify } from "keri";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { startKerijsVerifier } from "./utils.ts";
 
@@ -67,7 +67,7 @@ test("KERIpy presents a credential to a KERIjs verifier over IPEX", async () => 
     const cesr = await collect(verifier.url, session.token);
 
     // The browser verifies exactly this stream, so assert on it the same way.
-    const results = verifyCredentials(await EventIndex.parse(cesr));
+    const results = verify(await collectStream(cesr)).credentials;
     assert.strictEqual(results.length, 1);
 
     const result = results[0];

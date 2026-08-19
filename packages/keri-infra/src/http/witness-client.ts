@@ -1,4 +1,4 @@
-import { encodeText, Matter, type Message, parse } from "cesr";
+import { encodeText, type Message, parse } from "cesr";
 import { type KeyEventBody, type ReceiptEventBody, verifySignature } from "keri";
 
 export class WitnessClient {
@@ -33,8 +33,9 @@ export class WitnessClient {
     for await (const incoming of parse(fetchResponse.body)) {
       if (incoming.body.t === "rct" && incoming.body.d === event.body.d) {
         for (const couple of incoming.attachments.NonTransReceiptCouples) {
-          if (!verifySignature(event.raw, Matter.parse(couple.prefix), Matter.parse(couple.sig).raw)) {
-            throw new Error(`Invalid witness signature from ${couple.prefix}`);
+          const result = verifySignature(event.raw, couple.prefix, couple.sig);
+          if (!result.ok) {
+            throw new Error(`Invalid witness signature from ${couple.prefix}: ${result.error}`);
           }
         }
 

@@ -1,5 +1,5 @@
-import { Message, VersionString } from "cesr";
-import { DUMMY_SAID, encodeEvent, verifyEventSaid } from "./events.ts";
+import { Message } from "cesr";
+import { DUMMY_SAID, DUMMY_VERSION, encodeEvent, type ProtocolVersion, verifyEventSaid } from "./events.ts";
 import { saidify } from "./said.ts";
 import type { VerifyResult } from "./verify.ts";
 
@@ -18,6 +18,7 @@ export interface CredentialBodyInit {
   };
   r?: Record<string, unknown>;
   e?: Record<string, unknown>;
+  version?: ProtocolVersion;
 }
 
 export interface CredentialSubject {
@@ -95,8 +96,6 @@ export type CredentialBody = {
   e?: CredentialEdges;
 };
 
-export type Credential = Message<CredentialBody>;
-
 export interface CredentialSaidResult {
   /**
    * Whether the top level `d` recomputes over the body.
@@ -141,7 +140,7 @@ export function credentialIssuee(body: CredentialBody): string | null {
  * failure to the section that changed, which a single top level mismatch cannot.
  */
 export function verifyCredentialSaid(body: CredentialBody): CredentialSaidResult {
-  return { body: verifyEventSaid(body, { labels: ["d"], protocol: "ACDC" }), sections: verifySectionSaids(body) };
+  return { body: verifyEventSaid(body, { labels: ["d"] }), sections: verifySectionSaids(body) };
 }
 
 function verifySectionSaids(body: CredentialBody): VerifyResult | null {
@@ -175,22 +174,38 @@ function verifySectionSaids(body: CredentialBody): VerifyResult | null {
   return disclosed ? { ok: true } : null;
 }
 
-export function createCredential(data: CredentialBodyInit): Credential {
-  const body = encodeEvent<CredentialBody>({
-    v: VersionString.encode({
-      protocol: "ACDC",
-      kind: "JSON",
-      legacy: true,
-    }),
-    d: DUMMY_SAID,
-    ...(data.u && { u: data.u }),
-    i: data.i,
-    ri: data.ri,
-    s: data.s,
-    a: saidify({ d: DUMMY_SAID, ...data.a }, ["d"]),
-    ...(data.e && { e: saidify({ d: DUMMY_SAID, ...data.e }, ["d"]) }),
-    r: saidify({ d: DUMMY_SAID, ...data.r }, ["d"]),
-  });
+export function createCredential(data: CredentialBodyInit): Message<CredentialBody> {
+  const body = encodeEvent<CredentialBody>(
+    {
+      v: DUMMY_VERSION,
+      d: DUMMY_SAID,
+      ...(data.u && { u: data.u }),
+      i: data.i,
+      ri: data.ri,
+      s: data.s,
+      a: saidify({ d: DUMMY_SAID, ...data.a }, ["d"]),
+      ...(data.e && { e: saidify({ d: DUMMY_SAID, ...data.e }, ["d"]) }),
+      r: saidify({ d: DUMMY_SAID, ...data.r }, ["d"]),
+    },
+    { labels: ["d"], protocol: "ACDC", version: data.version },
+  );
 
   return new Message<CredentialBody>(body);
+}
+
+/**
+ * Authentic Chained Data Containers.
+ *
+ * Statics only; never instantiated. `from` rather than a named verb because the
+ * namespace produces exactly one kind of thing.
+ */
+export class Credential {
+  private constructor() {}
+
+  static readonly from = createCredential;
+  static readonly disclosedAttributes = disclosedAttributes;
+
+  static isCredential(message: Message): message is Message<CredentialBody> {
+    return message.version.protocol === "ACDC";
+  }
 }

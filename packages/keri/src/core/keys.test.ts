@@ -25,16 +25,16 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should return a deterministic key pair for the same seed", () => {
-    const a = generateKeyPair({ seed: "test-seed" });
-    const b = generateKeyPair({ seed: "test-seed" });
+    const a = generateKeyPair({ insecureSeed: "test-seed" });
+    const b = generateKeyPair({ insecureSeed: "test-seed" });
     assert.equal(a.publicKey, b.publicKey);
     assert.deepEqual(a.privateKey, b.privateKey);
     assert.equal(a.publicKeyDigest, b.publicKeyDigest);
   });
 
   test("should return different key pairs for different seeds", () => {
-    const a = generateKeyPair({ seed: "seed-a" });
-    const b = generateKeyPair({ seed: "seed-b" });
+    const a = generateKeyPair({ insecureSeed: "seed-a" });
+    const b = generateKeyPair({ insecureSeed: "seed-b" });
     assert.notEqual(a.publicKey, b.publicKey);
   });
 
@@ -45,14 +45,14 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should have a 44-character blake3_256 CESR publicKeyDigest (E prefix)", () => {
-    const pair = generateKeyPair({ seed: "digest-test" });
+    const pair = generateKeyPair({ insecureSeed: "digest-test" });
     assert.equal(pair.publicKeyDigest[0], "E");
     assert.equal(pair.publicKeyDigest.length, 44);
   });
 
   test("should combine seed and nonTransferable", () => {
-    const a = generateKeyPair({ seed: "my-seed", nonTransferable: true });
-    const b = generateKeyPair({ seed: "my-seed", nonTransferable: true });
+    const a = generateKeyPair({ insecureSeed: "my-seed", nonTransferable: true });
+    const b = generateKeyPair({ insecureSeed: "my-seed", nonTransferable: true });
     assert.equal(a.publicKey[0], "B");
     assert.equal(a.publicKey, b.publicKey);
   });
