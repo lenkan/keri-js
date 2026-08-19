@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { keri } from "keri";
-import { KERIPy } from "./keripy.ts";
+import { KERIPy } from "../test_utils/keripy.ts";
 import { createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 let wan: Endpoint;

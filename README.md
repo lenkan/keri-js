@@ -23,7 +23,12 @@ pnpm run check           # TypeScript type-check
 pnpm run test:consumer   # Public-surface tests through package names
 pnpm run test:vector     # Cross-impl test vectors
 pnpm run test:interop    # Interop tests (requires .venv with KERIpy)
+pnpm run test:e2e        # Verifier browser tests (requires .venv with KERIpy)
 ```
+
+`test:e2e` drives the verifier app in a browser and does not start it — run `pnpm run dev:verifier`
+first, or point `E2E_BASE_URL` at another host. Install the browser once with
+`pnpm exec playwright install chromium`.
 
 `keri` resolves `cesr` through its built output, so the build runs before check and test. The
 `pretest` and `precheck` hooks handle this; `tsc -b` keeps it incremental.
