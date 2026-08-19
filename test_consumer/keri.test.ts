@@ -27,6 +27,7 @@ describe("keri", () => {
     assert.deepEqual(Object.keys(surface).sort(), [
       "Attachments",
       "EventIndex",
+      "IPEX_GRANT_ROUTE",
       "KeyEventLog",
       "Message",
       "VersionString",
@@ -35,6 +36,7 @@ describe("keri", () => {
       "delegatedIncept",
       "delegatedRotate",
       "disclosedAttributes",
+      "embeds",
       "generateKeyPair",
       "isKelEventType",
       "isTelEventType",

@@ -8,6 +8,7 @@ import { EventIndex } from "./event-index.ts";
 const ISSUER = "EAK1H-RJM-mRzgNa7oNTv71FBvJERCHLunYI9ja9KW7w";
 const REGISTRY = "EEXV71avZSL6fKJnQky_oxHqRPlNYR3zNGD-OpJe0DJa";
 const CREDENTIAL = "EKBG6wNsN9iT_gujAjOytqAyQdwtA24qc5C96xgu6Qy9";
+const GRANT_CREDENTIAL = "EL5jmZNF5iYBz6h_M6TKXKlMkItcWcG2xyvqukWxBCbk";
 
 async function fixture(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(`../../../../fixtures/${name}`, import.meta.url)));
@@ -84,11 +85,20 @@ describe(basename(import.meta.url), () => {
     );
   });
 
-  // IPEX unwrapping is not implemented; grant.cesr carries its ACDC inside an
-  // exn, which this ignores. Update when IPEX lands.
-  test("should index no credentials from an IPEX grant stream", async () => {
+  // grant.cesr is a mailbox-forwarded grant, so reaching the ACDC means
+  // unwrapping /fwd and then /ipex/grant.
+  test("should index the credential embedded in an IPEX grant stream", async () => {
     const index = await EventIndex.parse(await fixture("grant.cesr"));
 
-    assert.deepEqual(index.credentials, []);
+    assert.equal(index.credentials.length, 1);
+    assert.equal(index.credentials[0].body.d, GRANT_CREDENTIAL);
+  });
+
+  test("should carry the embedded issuance seal through unwrapping", async () => {
+    const index = await EventIndex.parse(await fixture("grant.cesr"));
+    const credential = index.credential(GRANT_CREDENTIAL);
+
+    assert.ok(credential);
+    assert.equal(credential.attachments.SealSourceTriples.length, 1);
   });
 });

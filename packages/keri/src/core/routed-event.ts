@@ -1,4 +1,4 @@
-import { Attachments, Message } from "cesr";
+import { Attachments, Message, type MessageBody } from "cesr";
 import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
 import { saidify } from "./said.ts";
 
@@ -101,12 +101,14 @@ export interface ExchangeEventBody extends Record<string, unknown> {
   e: Record<string, string | Record<string, unknown>>;
 }
 
+export const IPEX_GRANT_ROUTE = "/ipex/grant";
+
 export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
-  const embeds: ExchangeEmbedding = { d: "" };
+  const block: ExchangeEmbedding = { d: "" };
   const attachments = new Attachments();
 
   for (const [key, message] of Object.entries(args.embeds ?? {})) {
-    embeds[key] = message.body;
+    block[key] = message.body;
     attachments.PathedMaterialCouples.push({
       path: `-${["e", key].join("-")}`,
       attachments: message.attachments,
@@ -125,8 +127,31 @@ export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
     r: args.route,
     q: args.query ?? {},
     a: args.anchor ?? {},
-    e: args.embeds ? saidify(embeds, ["d"]) : {},
+    e: args.embeds ? saidify(block, ["d"]) : {},
   });
 
   return new Message(body, attachments);
+}
+
+/**
+ * The messages an `exn` carries in `e`, each rejoined with the attachments
+ * `exchange` detached to `-e-<label>`. Without them a granted ACDC has no
+ * issuance seal and its anchoring event no signatures.
+ *
+ * `e.d` is the SAID of the embed block rather than a message, so the object
+ * check skips it.
+ */
+export function embeds(message: Message<ExchangeEventBody>): Record<string, Message> {
+  const result: Record<string, Message> = {};
+
+  for (const [label, body] of Object.entries(message.body.e ?? {})) {
+    if (!body || typeof body !== "object") {
+      continue;
+    }
+
+    const couple = message.attachments.PathedMaterialCouples.find((c) => c.path === `-e-${label}`);
+    result[label] = new Message(body as MessageBody, couple?.attachments);
+  }
+
+  return result;
 }

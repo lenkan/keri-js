@@ -108,6 +108,15 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@22.20.1)(sugarss@5.0.1(postcss@8.5.26))(yaml@2.9.0)
 
+  apps/verifier-server:
+    dependencies:
+      '@keri-js/infra':
+        specifier: workspace:*
+        version: link:../../packages/keri-infra
+      cesr:
+        specifier: workspace:*
+        version: link:../../packages/cesr
+
   apps/witness:
     dependencies:
       '@keri-js/infra':

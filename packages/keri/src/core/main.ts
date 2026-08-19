@@ -81,6 +81,7 @@ export type {
   ReplyEventBody,
   ReplyEventInit,
 } from "./routed-event.ts";
+export { embeds, IPEX_GRANT_ROUTE } from "./routed-event.ts";
 export type { SignOptions } from "./sign.ts";
 export { sign } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";

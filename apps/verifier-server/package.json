@@ -1,0 +1,14 @@
+{
+  "name": "@keri-js/verifier-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "deno run --allow-net --allow-env --allow-read --unstable-kv src/main.ts",
+    "check": "deno check src/main.ts"
+  },
+  "dependencies": {
+    "@keri-js/infra": "workspace:*",
+    "cesr": "workspace:*"
+  }
+}

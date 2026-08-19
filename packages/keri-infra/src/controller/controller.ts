@@ -1,13 +1,14 @@
 import { encodeText, Indexer, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/encoding";
 import {
-  Attachments,
   type CredentialBody,
   type DipEventBody,
   type Endpoint,
   type ExchangeEventBody,
+  embeds,
   type InceptEventBody,
   type InteractEventBody,
+  IPEX_GRANT_ROUTE,
   type IssueEvent,
   isKelEventType,
   type KeyEvent,
@@ -750,7 +751,7 @@ export class Controller {
 
     const grant = keri.exchange({
       sender: state.identifier,
-      route: "/ipex/grant",
+      route: IPEX_GRANT_ROUTE,
       timestamp: args.timestamp,
       query: {},
       anchor: {
@@ -844,26 +845,20 @@ export class Controller {
 
     for (const message of messages) {
       const body = message.body as ExchangeEventBody;
-      if (body.t !== "exn" || body.r !== "/ipex/grant") {
+      if (body.t !== "exn" || body.r !== IPEX_GRANT_ROUTE) {
         continue;
       }
 
-      const acdcBody = body.e?.acdc as CredentialBody | undefined;
-      const issBody = body.e?.iss as IssueEvent | undefined;
+      const { acdc, iss } = embeds(message as Message<ExchangeEventBody>);
 
-      if (!acdcBody || !issBody) {
+      if (!acdc || !iss) {
         this.#log.warn("receiveGrants: invalid grant", { holder: holderId });
         throw new Error("Invalid grant message: missing acdc or iss embed");
       }
 
-      const acdcCouple = message.attachments.PathedMaterialCouples.find((c) => c.path === "-e-acdc");
-      const issCouple = message.attachments.PathedMaterialCouples.find((c) => c.path === "-e-iss");
-
-      this.#storage.saveMessage(new Message(acdcBody, acdcCouple?.attachments ?? new Attachments()));
-      if (issBody) {
-        this.#storage.saveMessage(new Message(issBody, issCouple?.attachments ?? new Attachments()));
-      }
-      credentials.push(acdcBody);
+      this.#storage.saveMessage(acdc);
+      this.#storage.saveMessage(iss);
+      credentials.push(acdc.body as CredentialBody);
     }
 
     this.#log.debug("receiveGrants: complete", { holder: holderId, credentials: credentials.length });

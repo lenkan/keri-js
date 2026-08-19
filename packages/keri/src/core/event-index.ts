@@ -3,6 +3,8 @@ import { parse } from "cesr";
 import type { CredentialBody } from "./credential.ts";
 import type { DipEventBody, KeyEventBody } from "./key-event.ts";
 import { isKelEventType } from "./key-event-log.ts";
+import type { ExchangeEventBody } from "./routed-event.ts";
+import { embeds } from "./routed-event.ts";
 import type { TransactionEventBody } from "./transaction-event-log.ts";
 import { isTelEventType } from "./transaction-event-log.ts";
 
@@ -23,7 +25,12 @@ export class EventIndex {
   constructor(messages: Iterable<Message>) {
     const seen = new Set<string>();
 
-    for (const message of messages) {
+    // Grows as IPEX grants are unwrapped, so embeds are indexed and deduped on
+    // the same terms as anything that arrived on the stream directly.
+    const pending = Array.from(messages);
+
+    for (let i = 0; i < pending.length; i++) {
+      const message = pending[i];
       const digest = message.body.d;
 
       // A replayed stream would otherwise fail on a duplicate inception event.
@@ -43,9 +50,9 @@ export class EventIndex {
       } else if (message.version.protocol === "ACDC") {
         const credential = message as Message<CredentialBody>;
         this.#credentials.set(credential.body.d, credential);
+      } else if (message.body.t === "exn") {
+        pending.push(...Object.values(embeds(message as Message<ExchangeEventBody>)));
       }
-      // Everything else, `exn` included, is ignored. Unwrapping IPEX only has to
-      // add messages here; nothing downstream changes.
     }
 
     for (const events of this.#keyEvents.values()) {

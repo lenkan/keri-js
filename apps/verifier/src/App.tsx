@@ -1,9 +1,6 @@
-import { Alert, Container, Stack, Text, Textarea, Title } from "@mantine/core";
-import type { CredentialVerification } from "keri";
-import { EventIndex, verifyCredentials } from "keri";
-import { useCallback, useState } from "react";
-import { CredentialResult } from "./CredentialResult.tsx";
-import { CommandBlock, Disclosure, Dropzone } from "./components/main.ts";
+import { Container, Stack, Tabs, Text, Title } from "@mantine/core";
+import { CommandBlock, Disclosure } from "./components/main.ts";
+import { IpexMode, StreamMode } from "./modes/main.ts";
 
 const TRY_IT_INSTALL_COMMANDS = "pip install keri==1.3.3";
 
@@ -20,37 +17,13 @@ kli vc export --name demo --alias issuer \\
   --said "$(kli vc list --name demo --alias issuer --said --issued | tail -n 1)" \\
   --full > credential.cesr`;
 
-const CESR_ACCEPT = [".cesr"];
-
-type State =
-  | { kind: "idle" }
-  | { kind: "error"; message: string }
-  | { kind: "done"; results: CredentialVerification[] };
-
 export function App() {
-  const [state, setState] = useState<State>({ kind: "idle" });
-
-  const verify = useCallback(async (input: Uint8Array | string) => {
-    try {
-      setState({ kind: "done", results: verifyCredentials(await EventIndex.parse(input)) });
-    } catch (error) {
-      setState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-    }
-  }, []);
-
-  const onFile = useCallback(
-    (file: File) => {
-      void file.arrayBuffer().then((buffer) => verify(new Uint8Array(buffer)));
-    },
-    [verify],
-  );
-
   return (
     <Container size="md" py="xl">
       <Title order={1}>ACDC Verifier</Title>
       <Text c="dimmed" maw={640} mb="xl">
-        Drop a CESR stream with a credential, its issuer's key event log, and registry events — verified entirely in
-        this page, no network or server.
+        Bring a credential as a CESR stream, or have it presented over IPEX — either way it is verified entirely in this
+        page.
       </Text>
 
       <Disclosure summary="Don't have a credential handy? Generate one locally">
@@ -79,36 +52,20 @@ export function App() {
         </Stack>
       </Disclosure>
 
-      <Dropzone onFile={onFile} accept={CESR_ACCEPT}>
-        Drop a .cesr file here
-      </Dropzone>
+      <Tabs defaultValue="stream" mt="md">
+        <Tabs.List>
+          <Tabs.Tab value="stream">Bring a stream</Tabs.Tab>
+          <Tabs.Tab value="ipex">Present over IPEX</Tabs.Tab>
+        </Tabs.List>
 
-      <Disclosure summary="Paste a stream instead">
-        {/* Verification is synchronous and costs ~13ms per credential, so it runs on
-            paste/blur rather than on every keystroke. */}
-        <Textarea
-          rows={6}
-          placeholder='{"v":"KERI10JSON…'
-          onPaste={(event) => {
-            const text = event.clipboardData.getData("text").trim();
-            if (text) {
-              void verify(text);
-            }
-          }}
-          onBlur={(event) => {
-            const text = event.target.value.trim();
-            if (text) {
-              void verify(text);
-            }
-          }}
-        />
-      </Disclosure>
+        <Tabs.Panel value="stream">
+          <StreamMode />
+        </Tabs.Panel>
 
-      {state.kind === "error" && <Alert>Could not read the stream: {state.message}</Alert>}
-
-      {state.kind === "done" && state.results.length === 0 && <Alert>No credential found in that stream.</Alert>}
-
-      {state.kind === "done" && state.results.map((result) => <CredentialResult key={result.said} result={result} />)}
+        <Tabs.Panel value="ipex">
+          <IpexMode />
+        </Tabs.Panel>
+      </Tabs>
     </Container>
   );
 }

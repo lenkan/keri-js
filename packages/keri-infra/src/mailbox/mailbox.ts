@@ -1,7 +1,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter, Message, type MessageBody } from "cesr";
+import { encodeText, Indexer, Matter, type Message } from "cesr";
 import type { ExchangeEventBody, QueryEventBody } from "keri";
-import { KeyEventLog, keri } from "keri";
+import { embeds, KeyEventLog, keri } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { MailboxServerStorage } from "../storage/main.ts";
 
@@ -99,7 +99,7 @@ export class Mailbox {
   }
 
   #handleForward(message: Message<ExchangeEventBody>): void {
-    const { q, e } = message.body;
+    const { q } = message.body;
     const pre = q.pre as string | undefined;
     const topic = q.topic as string | undefined;
 
@@ -108,14 +108,11 @@ export class Mailbox {
       return;
     }
 
-    const evtBody = e?.evt as MessageBody | undefined;
-    if (!evtBody) {
+    const innerMessage = embeds(message).evt;
+    if (!innerMessage) {
       this.#log.warn("ignoring forward: missing e.evt", { pre, topic });
       return;
     }
-
-    const evtCouple = message.attachments.PathedMaterialCouples.find((c) => c.path === "-e-evt");
-    const innerMessage = new Message(evtBody, evtCouple?.attachments);
 
     this.#log.debug("saving mailbox entry", { pre, topic });
     this.#storage.saveMailboxEntry(pre, topic, innerMessage);
