@@ -1,9 +1,15 @@
 /** biome-ignore-all lint/suspicious/noConsole: server entrypoint */
 import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
 import { decodeBase64Url } from "cesr/encoding";
+import { createStaticHandler } from "./static.ts";
 
 const port = Number.parseInt(Deno.env.get("PORT") ?? "3002", 10);
 const url = Deno.env.get("VERIFIER_URL") ?? `http://localhost:${port}`;
+const staticDir = Deno.env.get("VERIFIER_STATIC_DIR") ?? "./static";
+
+// The protocol owns these: `/` takes presentations from KERIpy's sendDirect and
+// `/oobi` publishes the identity, so neither can be shadowed by the app shell.
+const RESERVED = /^\/(oobi|api)(\/|$)/;
 
 // The AID has to survive restarts and redeploys, or every published OOBI goes
 // stale. A stored seed keeps it stable without a key derivation on cold start.
@@ -28,8 +34,23 @@ const sessions: SessionStore = {
 
 const verifier = new Verifier({ privateKey, url });
 const router = createVerifierRouter(verifier, sessions, { logger: console });
+const serveStatic = createStaticHandler(staticDir);
 
-Deno.serve({ port, onListen: () => banner() }, router);
+async function handler(request: Request): Promise<Response> {
+  const { pathname } = new URL(request.url);
+
+  if ((request.method === "GET" || request.method === "HEAD") && !RESERVED.test(pathname)) {
+    const response = await serveStatic(pathname);
+
+    if (response) {
+      return response;
+    }
+  }
+
+  return router(request);
+}
+
+Deno.serve({ port, onListen: () => banner() }, handler);
 
 function decodeSeed(value: string): Uint8Array {
   const bytes = decodeBase64Url(value);

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CommandBlock } from "../components/main.ts";
 import { useVerification, VerificationResult } from "../Verification.tsx";
 
-const API = import.meta.env.VITE_VERIFIER_API ?? "";
 const POLL_MS = 2000;
 
 interface Session {
@@ -39,7 +38,7 @@ export function IpexMode() {
     reset();
 
     try {
-      const response = await fetch(`${API}/api/sessions`, { method: "POST" });
+      const response = await fetch("/api/sessions", { method: "POST" });
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
@@ -75,7 +74,7 @@ export function IpexMode() {
 
     async function poll() {
       try {
-        const response = await fetch(`${API}/api/sessions/${token}`, { signal: controller.signal });
+        const response = await fetch(`/api/sessions/${token}`, { signal: controller.signal });
 
         if (response.status === 200) {
           const cesr = await response.text();
