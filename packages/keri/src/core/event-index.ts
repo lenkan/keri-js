@@ -1,8 +1,9 @@
-import type { Message, ParseInput } from "cesr";
-import { parse } from "cesr";
+import type { MessageBody, ParseInput } from "cesr";
+import { Message, parse } from "cesr";
 import type { CredentialBody } from "./credential.ts";
 import type { DipEventBody, KeyEventBody } from "./key-event.ts";
 import { isKelEventType } from "./key-event-log.ts";
+import type { ExchangeEventBody } from "./routed-event.ts";
 import type { TransactionEventBody } from "./transaction-event-log.ts";
 import { isTelEventType } from "./transaction-event-log.ts";
 
@@ -23,7 +24,12 @@ export class EventIndex {
   constructor(messages: Iterable<Message>) {
     const seen = new Set<string>();
 
-    for (const message of messages) {
+    // Grows as IPEX grants are unwrapped, so embeds are indexed and deduped on
+    // the same terms as anything that arrived on the stream directly.
+    const pending = Array.from(messages);
+
+    for (let i = 0; i < pending.length; i++) {
+      const message = pending[i];
       const digest = message.body.d;
 
       // A replayed stream would otherwise fail on a duplicate inception event.
@@ -43,9 +49,9 @@ export class EventIndex {
       } else if (message.version.protocol === "ACDC") {
         const credential = message as Message<CredentialBody>;
         this.#credentials.set(credential.body.d, credential);
+      } else if (message.body.t === "exn") {
+        pending.push(...embedded(message as Message<ExchangeEventBody>));
       }
-      // Everything else, `exn` included, is ignored. Unwrapping IPEX only has to
-      // add messages here; nothing downstream changes.
     }
 
     for (const events of this.#keyEvents.values()) {
@@ -100,6 +106,26 @@ export class EventIndex {
   get registries(): string[] {
     return Array.from(this.#transactionEvents.keys());
   }
+}
+
+/**
+ * The messages an `exn` carries in `e`, each rejoined with the attachments the
+ * envelope detached to `-e-<label>` — without them a granted ACDC has no
+ * issuance seal and its anchoring event no signatures.
+ *
+ * Every route is unwrapped the same way, so a `/ipex/grant` reached through a
+ * mailbox `/fwd` resolves by unwrapping twice. `e.d` is the SAID of the embed
+ * block rather than a message, and is skipped by the object check.
+ */
+function embedded(message: Message<ExchangeEventBody>): Message[] {
+  return Object.entries(message.body.e ?? {}).flatMap(([label, body]) => {
+    if (!body || typeof body !== "object") {
+      return [];
+    }
+
+    const couple = message.attachments.PathedMaterialCouples.find((c) => c.path === `-e-${label}`);
+    return [new Message(body as MessageBody, couple?.attachments)];
+  });
 }
 
 function push<T>(map: Map<string, T[]>, key: string, value: T): void {

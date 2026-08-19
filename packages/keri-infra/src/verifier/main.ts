@@ -1,0 +1,3 @@
+export type { Logger } from "../logging/main.ts";
+export { type SessionStore, Verifier, type VerifierEvent, type VerifierOptions } from "./verifier.ts";
+export { createRouter as createVerifierRouter, type RouterOptions } from "./verifier-router.ts";

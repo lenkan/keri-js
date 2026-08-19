@@ -101,6 +101,8 @@ export interface ExchangeEventBody extends Record<string, unknown> {
   e: Record<string, string | Record<string, unknown>>;
 }
 
+export const IPEX_GRANT_ROUTE = "/ipex/grant";
+
 export function exchange(args: ExchangeEventInit): Message<ExchangeEventBody> {
   const embeds: ExchangeEmbedding = { d: "" };
   const attachments = new Attachments();

@@ -30,6 +30,11 @@
       "types": "./dist/controller/main.d.ts",
       "default": "./dist/controller/main.js"
     },
+    "./verifier": {
+      "deno": "./src/verifier/main.ts",
+      "types": "./dist/verifier/main.d.ts",
+      "default": "./dist/verifier/main.js"
+    },
     "./http": {
       "deno": "./src/http/main.ts",
       "types": "./dist/http/main.d.ts",

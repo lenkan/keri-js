@@ -7,6 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
 import { createListener, type Logger, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
 import { createRouter, Witness } from "@keri-js/infra/witness";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { allocatePorts } from "../test_utils/ports.ts";
@@ -92,6 +93,24 @@ export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSi
   serve(createMailboxRouter(mailbox, { logger: serverLogger }));
 
   return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
+}
+
+export async function startKerijsVerifier(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
+  const { url, serve } = await listen(opts.signal, opts.port);
+
+  // Deno KV backs this in the deployed app; the router only needs the interface.
+  const entries = new Map<string, string>();
+  const sessions: SessionStore = {
+    get: async (token) => entries.get(token) ?? null,
+    put: async (token, cesr) => {
+      entries.set(token, cesr);
+    },
+  };
+
+  const verifier = new Verifier({ url });
+  serve(createVerifierRouter(verifier, sessions, { logger: serverLogger }));
+
+  return { aid: verifier.aid, url, oobi: verifier.oobi };
 }
 
 const witnesses = new Set<ChildProcessWithoutNullStreams>();

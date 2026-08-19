@@ -114,6 +114,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The verifier server runs on Deno Deploy, so it type-checks under Deno.
+      - name: Setup Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: "2"
+
       - name: Build packages
         run: pnpm run build
 

@@ -1,9 +1,10 @@
-import { Alert, Container, Stack, Text, Textarea, Title } from "@mantine/core";
+import { Alert, Container, Stack, Tabs, Text, Textarea, Title } from "@mantine/core";
 import type { CredentialVerification } from "keri";
 import { EventIndex, verifyCredentials } from "keri";
 import { useCallback, useState } from "react";
 import { CredentialResult } from "./CredentialResult.tsx";
 import { CommandBlock, Disclosure, Dropzone } from "./components/main.ts";
+import { Presentation } from "./Presentation.tsx";
 
 const TRY_IT_INSTALL_COMMANDS = "pip install keri==1.3.3";
 
@@ -49,8 +50,8 @@ export function App() {
     <Container size="md" py="xl">
       <Title order={1}>ACDC Verifier</Title>
       <Text c="dimmed" maw={640} mb="xl">
-        Drop a CESR stream with a credential, its issuer's key event log, and registry events — verified entirely in
-        this page, no network or server.
+        Bring a credential as a CESR stream, or have it presented over IPEX — either way it is verified entirely in this
+        page.
       </Text>
 
       <Disclosure summary="Don't have a credential handy? Generate one locally">
@@ -79,30 +80,43 @@ export function App() {
         </Stack>
       </Disclosure>
 
-      <Dropzone onFile={onFile} accept={CESR_ACCEPT}>
-        Drop a .cesr file here
-      </Dropzone>
+      <Tabs defaultValue="stream" mt="md">
+        <Tabs.List>
+          <Tabs.Tab value="stream">Bring a stream</Tabs.Tab>
+          <Tabs.Tab value="ipex">Present over IPEX</Tabs.Tab>
+        </Tabs.List>
 
-      <Disclosure summary="Paste a stream instead">
-        {/* Verification is synchronous and costs ~13ms per credential, so it runs on
-            paste/blur rather than on every keystroke. */}
-        <Textarea
-          rows={6}
-          placeholder='{"v":"KERI10JSON…'
-          onPaste={(event) => {
-            const text = event.clipboardData.getData("text").trim();
-            if (text) {
-              void verify(text);
-            }
-          }}
-          onBlur={(event) => {
-            const text = event.target.value.trim();
-            if (text) {
-              void verify(text);
-            }
-          }}
-        />
-      </Disclosure>
+        <Tabs.Panel value="stream">
+          <Dropzone onFile={onFile} accept={CESR_ACCEPT}>
+            Drop a .cesr file here
+          </Dropzone>
+
+          <Disclosure summary="Paste a stream instead">
+            {/* Verification is synchronous and costs ~13ms per credential, so it runs on
+                paste/blur rather than on every keystroke. */}
+            <Textarea
+              rows={6}
+              placeholder='{"v":"KERI10JSON…'
+              onPaste={(event) => {
+                const text = event.clipboardData.getData("text").trim();
+                if (text) {
+                  void verify(text);
+                }
+              }}
+              onBlur={(event) => {
+                const text = event.target.value.trim();
+                if (text) {
+                  void verify(text);
+                }
+              }}
+            />
+          </Disclosure>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="ipex">
+          <Presentation onStream={verify} />
+        </Tabs.Panel>
+      </Tabs>
 
       {state.kind === "error" && <Alert>Could not read the stream: {state.message}</Alert>}
 
