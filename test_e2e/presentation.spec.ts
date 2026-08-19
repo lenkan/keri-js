@@ -4,6 +4,7 @@ import type { KERIPy } from "../test_utils/keripy.ts";
 import { issueCredential } from "./credential.ts";
 
 let said: string;
+let stream: string;
 let kli: KERIPy;
 
 test.beforeAll(async () => {
@@ -17,7 +18,7 @@ test.beforeAll(async () => {
     );
   }
 
-  ({ said, kli } = await issueCredential());
+  ({ said, stream, kli } = await issueCredential());
 });
 
 test("verifies a credential presented over IPEX", async ({ page }) => {
@@ -74,4 +75,24 @@ test("clears the last result when a new session starts", async ({ page }) => {
   await expect(page.getByText(said)).toBeHidden();
   await expect(page.getByText("Verified", { exact: true })).toBeHidden();
   await expect(page.getByText("Waiting for a presentation…")).toBeVisible();
+});
+
+test("keeps each tab's result to itself", async ({ page }) => {
+  await page.goto("/");
+
+  // Verify on the stream tab first.
+  await page.getByRole("button", { name: "Paste a stream instead" }).click();
+  const textarea = page.getByRole("textbox");
+  await textarea.fill(stream);
+  await textarea.blur();
+  await expect(page.getByText(said)).toBeVisible();
+
+  // The IPEX tab has verified nothing, so it must not show the stream tab's verdict.
+  await page.getByRole("tab", { name: "Present over IPEX" }).click();
+  await expect(page.getByText(said)).toBeHidden();
+  await expect(page.getByText("Waiting for a presentation…")).toBeVisible();
+
+  // Going back shows it again: switching away hides a result, it does not discard it.
+  await page.getByRole("tab", { name: "Bring a stream" }).click();
+  await expect(page.getByText(said)).toBeVisible();
 });

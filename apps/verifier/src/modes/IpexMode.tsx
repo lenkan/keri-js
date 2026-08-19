@@ -1,6 +1,7 @@
 import { Alert, Button, Group, Loader, Stack, Text } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
-import { CommandBlock } from "./components/main.ts";
+import { CommandBlock } from "../components/main.ts";
+import { useVerification, VerificationResult } from "../Verification.tsx";
 
 const API = import.meta.env.VITE_VERIFIER_API ?? "";
 const POLL_MS = 2000;
@@ -19,13 +20,9 @@ kli ipex grant --name demo --alias issuer \\
   --message ${token}`;
 }
 
-interface PresentationProps {
-  onStream: (cesr: string) => void;
-  /** Clears the last result, so a new session does not sit under the old one's verdict. */
-  onReset: () => void;
-}
-
-export function Presentation({ onStream, onReset }: PresentationProps) {
+/** Receives a credential over IPEX: the holder grants it to the session this component opens. */
+export function IpexMode() {
+  const { state, verify, reset } = useVerification();
   const [session, setSession] = useState<Session | null>(null);
   const [delivered, setDelivered] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +31,7 @@ export function Presentation({ onStream, onReset }: PresentationProps) {
     setError(null);
     setSession(null);
     setDelivered(false);
-    onReset();
+    reset();
 
     try {
       const response = await fetch(`${API}/api/sessions`, { method: "POST" });
@@ -45,7 +42,7 @@ export function Presentation({ onStream, onReset }: PresentationProps) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
-  }, [onReset]);
+  }, [reset]);
 
   useEffect(() => {
     void start();
@@ -68,7 +65,7 @@ export function Presentation({ onStream, onReset }: PresentationProps) {
         if (response.status === 200) {
           const cesr = await response.text();
           setDelivered(true);
-          onStream(cesr);
+          void verify(cesr);
           return;
         }
       } catch (cause) {
@@ -87,7 +84,7 @@ export function Presentation({ onStream, onReset }: PresentationProps) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [session, onStream]);
+  }, [session, verify]);
 
   if (error) {
     return (
@@ -116,6 +113,7 @@ export function Presentation({ onStream, onReset }: PresentationProps) {
         <Button variant="default" onClick={() => void start()}>
           Present another
         </Button>
+        <VerificationResult state={state} />
       </Stack>
     );
   }
