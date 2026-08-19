@@ -1,27 +1,33 @@
-import { useState } from "react";
-import styles from "./CommandBlock.module.css";
+import { Box, Button, CopyButton, Group } from "@mantine/core";
 
 export function CommandBlock({ children }: { children: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const onCopy = () => {
-    if (!navigator.clipboard) {
-      return;
-    }
-    void navigator.clipboard.writeText(children).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
   return (
-    <div className={styles.block}>
-      <button type="button" className={styles.copy} onClick={onCopy}>
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <pre className={styles.pre}>
-        <code>{children}</code>
-      </pre>
-    </div>
+    <Group
+      wrap="nowrap"
+      align="flex-start"
+      gap="xs"
+      p="xs"
+      bg="gray.0"
+      style={{ borderRadius: "var(--mantine-radius-sm)" }}
+    >
+      <Box
+        component="pre"
+        m={0}
+        fz="xs"
+        ff="monospace"
+        // minWidth:0 lets this shrink below its content width so long lines scroll
+        // here instead of pushing the copy button out of the row.
+        style={{ flex: 1, minWidth: 0, overflowX: "auto" }}
+      >
+        {children}
+      </Box>
+      <CopyButton value={children} timeout={1500}>
+        {({ copied, copy }) => (
+          <Button type="button" variant="subtle" size="compact-xs" onClick={copy}>
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        )}
+      </CopyButton>
+    </Group>
   );
 }

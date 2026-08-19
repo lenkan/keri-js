@@ -1,22 +1,29 @@
-import type { ReactNode } from "react";
-import { cx } from "./class-names.ts";
-import styles from "./FieldList.module.css";
+import { Group, Stack, Text } from "@mantine/core";
+import type { CSSProperties, ReactNode } from "react";
+import { TONE_COLORS, type Tone } from "./tone.ts";
 
-export function FieldList({ mono = false, children }: { mono?: boolean; children: ReactNode }) {
-  return <dl className={cx(styles.list, mono && styles.mono)}>{children}</dl>;
+export function FieldList({ children }: { children: ReactNode }) {
+  return <Stack gap="xs">{children}</Stack>;
 }
 
 interface FieldProps {
   label: ReactNode;
-  tone?: "ok" | "bad";
+  mono?: boolean;
+  tone?: Tone;
   children: ReactNode;
 }
 
-export function Field({ label, tone, children }: FieldProps) {
+const VALUE_STYLE: CSSProperties = { wordBreak: "break-all" };
+
+export function Field({ label, mono = false, tone, children }: FieldProps) {
   return (
-    <div className={styles.field}>
-      <dt className={styles.label}>{label}</dt>
-      <dd className={cx(styles.value, tone && styles[tone])}>{children}</dd>
-    </div>
+    <Group gap="md" wrap="nowrap" align="baseline">
+      <Text size="sm" c="dimmed" miw={120}>
+        {label}
+      </Text>
+      <Text size="sm" ff={mono ? "monospace" : undefined} c={tone && TONE_COLORS[tone]} style={VALUE_STYLE}>
+        {children}
+      </Text>
+    </Group>
   );
 }
