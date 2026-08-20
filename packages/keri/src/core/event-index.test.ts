@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { parse } from "cesr";
+import { Message, parse } from "cesr";
 import { EventIndex } from "./event-index.ts";
 import { collect } from "./verify-report.ts";
 
@@ -101,5 +101,43 @@ describe(basename(import.meta.url), () => {
 
     assert.ok(credential);
     assert.equal(credential.attachments.SealSourceTriples.length, 1);
+  });
+
+  // Embeds are unwrapped after every top-level message, so a bare copy is
+  // always encountered first no matter where in the stream it sits.
+  test("should keep the embedded issuance seal when the same credential also arrives bare", async () => {
+    const grant = await messages("grant.cesr");
+    const embedded = new EventIndex(grant).credential(GRANT_CREDENTIAL);
+    assert.ok(embedded);
+    const bare = new Message(embedded.body);
+
+    for (const stream of [
+      [bare, ...grant],
+      [...grant, bare],
+    ]) {
+      const credential = new EventIndex(stream).credential(GRANT_CREDENTIAL);
+
+      assert.ok(credential);
+      assert.deepEqual(credential.attachments.SealSourceTriples, embedded.attachments.SealSourceTriples);
+    }
+  });
+
+  test("should merge signatures when the same key event arrives bare and signed", async () => {
+    const parsed = await messages("credential.cesr");
+    const signed = parsed.find((message) => message.body.t === "icp");
+    assert.ok(signed);
+
+    const index = new EventIndex([new Message(signed.body), ...parsed]);
+
+    assert.deepEqual(index.keyEvents(ISSUER)[0].attachments.ControllerIdxSigs, signed.attachments.ControllerIdxSigs);
+  });
+
+  test("should not double attachments when messages are replayed", async () => {
+    const parsed = await messages("credential.cesr");
+    const once = new EventIndex(parsed).keyEvents(ISSUER)[0];
+    const twice = new EventIndex([...parsed, ...parsed]).keyEvents(ISSUER)[0];
+
+    assert.ok(once.attachments.ControllerIdxSigs.length > 0);
+    assert.deepEqual(twice.attachments.ControllerIdxSigs, once.attachments.ControllerIdxSigs);
   });
 });

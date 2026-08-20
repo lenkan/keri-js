@@ -1,4 +1,4 @@
-import type { Message } from "cesr";
+import { type Attachments, type AttachmentsInit, Message } from "cesr";
 import type { CredentialBody } from "./credential.ts";
 import type { DipEventBody, KeyEventBody } from "./key-event.ts";
 import { isKelEventType } from "./key-event.ts";
@@ -22,24 +22,7 @@ export class EventIndex {
   #credentials = new Map<string, Message<CredentialBody>>();
 
   constructor(messages: Iterable<Message>) {
-    const seen = new Set<string>();
-
-    // Grows as IPEX grants are unwrapped, so embeds are indexed and deduped on
-    // the same terms as anything that arrived on the stream directly.
-    const pending = Array.from(messages);
-
-    for (let i = 0; i < pending.length; i++) {
-      const message = pending[i];
-      const digest = message.body.d;
-
-      // A replayed stream would otherwise fail on a duplicate inception event.
-      if (typeof digest === "string") {
-        if (seen.has(digest)) {
-          continue;
-        }
-        seen.add(digest);
-      }
-
+    for (const message of flatten(messages)) {
       if (isKelEventType(message.body.t)) {
         const event = message as Message<KeyEventBody>;
         push(this.#keyEvents, event.body.i, event);
@@ -49,8 +32,6 @@ export class EventIndex {
       } else if (message.version.protocol === "ACDC") {
         const credential = message as Message<CredentialBody>;
         this.#credentials.set(credential.body.d, credential);
-      } else if (message.body.t === "exn") {
-        pending.push(...Object.values(embeds(message as Message<ExchangeEventBody>)));
       }
     }
 
@@ -111,4 +92,91 @@ function push<T>(map: Map<string, T[]>, key: string, value: T): void {
   } else {
     map.set(key, [value]);
   }
+}
+
+interface Entry {
+  message: Message;
+  duplicates: Attachments[];
+}
+
+/**
+ * One message per SAID, in the order first encountered, with IPEX embeds
+ * unwrapped.
+ *
+ * Two copies of the same message are not interchangeable: an ACDC unwrapped
+ * from a grant is rejoined with the `SealSourceTriples` naming its issuance,
+ * which a bare copy of the same ACDC elsewhere in the stream does not carry,
+ * and a key event may arrive with or without its signatures. Attachments are
+ * merged across every copy so what ends up indexed does not depend on which
+ * copy the stream happened to carry first.
+ */
+function flatten(messages: Iterable<Message>): Message[] {
+  const entries: Entry[] = [];
+  const byDigest = new Map<string, Entry>();
+
+  // Grows as IPEX grants are unwrapped, so embeds are flattened on the same
+  // terms as anything that arrived on the stream directly.
+  const pending = Array.from(messages);
+
+  for (let i = 0; i < pending.length; i++) {
+    const message = pending[i];
+
+    // Unwrapped once per copy rather than once per SAID: a second copy of an
+    // exn can carry pathed attachments the first lacked, and the embeds it
+    // yields merge by SAID like anything else.
+    if (message.body.t === "exn") {
+      pending.push(...Object.values(embeds(message as Message<ExchangeEventBody>)));
+      continue;
+    }
+
+    const digest = message.body.d;
+    if (typeof digest !== "string") {
+      entries.push({ message, duplicates: [] });
+      continue;
+    }
+
+    const existing = byDigest.get(digest);
+    if (existing) {
+      existing.duplicates.push(message.attachments);
+      continue;
+    }
+
+    const entry: Entry = { message, duplicates: [] };
+    entries.push(entry);
+    byDigest.set(digest, entry);
+  }
+
+  // Rebuilding from the same body reproduces the same raw bytes, since that is
+  // how the parser built the message in the first place.
+  return entries.map(({ message, duplicates }) =>
+    duplicates.length === 0 ? message : new Message(message.body, merge([message.attachments, ...duplicates])),
+  );
+}
+
+function merge(copies: Attachments[]): AttachmentsInit {
+  return {
+    ControllerIdxSigs: unique(copies.flatMap((a) => a.ControllerIdxSigs)),
+    WitnessIdxSigs: unique(copies.flatMap((a) => a.WitnessIdxSigs)),
+    FirstSeenReplayCouples: unique(copies.flatMap((a) => a.FirstSeenReplayCouples)),
+    NonTransReceiptCouples: unique(copies.flatMap((a) => a.NonTransReceiptCouples)),
+    TransIdxSigGroups: unique(copies.flatMap((a) => a.TransIdxSigGroups)),
+    TransLastIdxSigGroups: unique(copies.flatMap((a) => a.TransLastIdxSigGroups)),
+    PathedMaterialCouples: unique(copies.flatMap((a) => a.PathedMaterialCouples)),
+    SealSourceTriples: unique(copies.flatMap((a) => a.SealSourceTriples)),
+    SealSourceCouples: unique(copies.flatMap((a) => a.SealSourceCouples)),
+  };
+}
+
+// A replayed stream would otherwise double every signature it carries.
+function unique<T>(entries: T[]): T[] {
+  const seen = new Set<string>();
+
+  return entries.filter((entry) => {
+    const key = JSON.stringify(entry);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
