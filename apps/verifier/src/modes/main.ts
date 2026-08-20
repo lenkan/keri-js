@@ -1,2 +1,1 @@
-export { IpexMode } from "./IpexMode.tsx";
-export { StreamMode } from "./StreamMode.tsx";
+export { PresentMode } from "./PresentMode.tsx";

@@ -1,6 +1,7 @@
 import { Alert, Button, Group, Loader, Stack, Text } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CommandBlock } from "../components/main.ts";
+import type { Identity } from "../login/main.ts";
 import { useVerification, VerificationResult } from "../Verification.tsx";
 
 const POLL_MS = 2000;
@@ -19,16 +20,16 @@ type Phase =
   | { kind: "waiting"; session: Session }
   | { kind: "delivered" };
 
-function commands({ token, aid, oobi }: Session): string {
-  return `kli oobi resolve --name demo --oobi ${oobi} --oobi-alias verifier
-kli ipex grant --name demo --alias issuer \\
+// A single command: the portal is already a kli contact from the login step.
+function command({ token, aid }: Session): string {
+  return `kli ipex grant --name demo --alias issuer \\
   --said "$(kli vc list --name demo --alias issuer --said --issued | tail -n 1)" \\
   --recipient ${aid} \\
   --message ${token}`;
 }
 
-/** Receives a credential over IPEX: the holder grants it to the session this component opens. */
-export function IpexMode() {
+/** Receives a credential presented over IPEX and checks it names the logged-in AID as issuee. */
+export function PresentMode({ identity }: { identity: Identity }) {
   const { state, verify, reset } = useVerification();
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const started = useRef(false);
@@ -48,9 +49,6 @@ export function IpexMode() {
     }
   }, [reset]);
 
-  // Once per mount, not once per effect run: the tab this lives in keeps its
-  // children mounted but tears their effects down while hidden, and a session
-  // minted on the way back would orphan the commands already copied out of here.
   useEffect(() => {
     if (started.current) {
       return;
@@ -114,7 +112,7 @@ export function IpexMode() {
   if (phase.kind === "error") {
     return (
       <Stack gap="md" mt="md">
-        <Alert color="red">Could not reach the verifier: {phase.message}</Alert>
+        <Alert color="red">Could not reach the portal: {phase.message}</Alert>
         <Group>
           <Button onClick={() => void start()}>Try again</Button>
         </Group>
@@ -140,19 +138,16 @@ export function IpexMode() {
             Present another
           </Button>
         </Group>
-        <VerificationResult state={state} />
+        <VerificationResult state={state} viewer={identity.aid} />
       </Stack>
     );
   }
 
   return (
     <Stack gap="md" mt="md">
-      <Text>
-        Run these where your credential lives. The first resolves this verifier so <code>kli</code> knows where to send;
-        the second presents the credential.
-      </Text>
+      <Text>Run this where your credential lives:</Text>
 
-      <CommandBlock>{commands(phase.session)}</CommandBlock>
+      <CommandBlock>{command(phase.session)}</CommandBlock>
 
       <Group gap="xs">
         <Loader size="sm" />
