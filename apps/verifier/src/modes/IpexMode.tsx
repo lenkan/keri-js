@@ -133,11 +133,13 @@ export function IpexMode() {
 
   if (phase.kind === "delivered") {
     return (
-      <Stack gap="md" mt="md" align="flex-start">
+      <Stack gap="md" mt="md">
         <Text>Credential presented. The result is below.</Text>
-        <Button variant="default" onClick={() => void start()}>
-          Present another
-        </Button>
+        <Group>
+          <Button variant="default" onClick={() => void start()}>
+            Present another
+          </Button>
+        </Group>
         <VerificationResult state={state} />
       </Stack>
     );
