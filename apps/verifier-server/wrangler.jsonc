@@ -21,12 +21,14 @@
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      // Replace with the id from `wrangler kv namespace create SESSIONS`.
-      // `wrangler dev` simulates the namespace locally and ignores this.
-      "id": "PLACEHOLDER_CREATE_WITH_WRANGLER_KV_NAMESPACE_CREATE"
+      // `wrangler dev` simulates the namespace locally and ignores this id.
+      "id": "2be39371eb904495803b562216244296"
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    // A verifier this size will not generate enough traffic for sampling to
+    // save anything, and a dropped trace is one presentation nobody can debug.
+    "head_sampling_rate": 1
   }
 }

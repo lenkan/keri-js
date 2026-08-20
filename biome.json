@@ -5,6 +5,7 @@
       "**",
       "!.claude",
       "!**/dist",
+      "!**/worker-configuration.d.ts",
       "!**/api-docs",
       "!**/.venv",
       "!**/docs",

@@ -78,6 +78,16 @@ export function createRouter(
     // the attachments to a header. Either way we store exactly what arrived,
     // because the browser re-parses it to verify.
     const attachment = request.headers.get("CESR-ATTACHMENT") ?? "";
+
+    // Buffering first and measuring after would let an unauthenticated caller
+    // decide how much memory to allocate. Content-Length is advisory, so the
+    // measured check below still stands for chunked bodies.
+    const declared = Number(request.headers.get("Content-Length"));
+    if (declared > MAX_PRESENTATION_BYTES) {
+      log.warn("rejecting oversized presentation", { size: declared });
+      return Response.json({ error: "Presentation too large" }, { status: 413 });
+    }
+
     const stream = (await request.text()) + attachment;
 
     const size = new TextEncoder().encode(stream).length;

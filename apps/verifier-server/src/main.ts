@@ -2,20 +2,26 @@
 import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
 import { decodeBase64Url } from "cesr/encoding";
 
-interface Env {
-  ASSETS: Fetcher;
-  SESSIONS: KVNamespace;
-  VERIFIER_URL?: string;
-  VERIFIER_SEED?: string;
+// ASSETS and SESSIONS come from worker-configuration.d.ts, which `wrangler types`
+// generates from the bindings. Secrets are not in the config, so they are only
+// known here.
+declare global {
+  interface Env {
+    VERIFIER_URL?: string;
+    VERIFIER_SEED?: string;
+  }
 }
 
 // The protocol owns these: `/` takes presentations from KERIpy's sendDirect and
 // `/oobi` publishes the identity, so neither can be shadowed by the app shell.
 const RESERVED = /^\/(oobi|api)(\/|$)/;
 
-// Built once per isolate. The verifier derives a key and assembles its own key
-// event log, which is wasted work on every request.
-let router: ((request: Request) => Promise<Response>) | undefined;
+// Deriving the key and assembling the key event log is the most expensive thing
+// this worker does, and isolates are reused, so it is memoised. The cache is
+// keyed by the url it was built for: nothing request-scoped may outlive the
+// request that produced it, and the url is request-derived when VERIFIER_URL is
+// unset. Setting VERIFIER_URL makes this depend on bindings alone.
+let cached: { url: string; router: (request: Request) => Promise<Response> } | undefined;
 
 function sessions(kv: KVNamespace): SessionStore {
   return {
@@ -40,7 +46,13 @@ function decodeSeed(value: string): Uint8Array {
   return bytes;
 }
 
-function build(env: Env, request: Request) {
+function route(env: Env, request: Request): (request: Request) => Promise<Response> {
+  const url = env.VERIFIER_URL ?? new URL(request.url).origin;
+
+  if (cached?.url === url) {
+    return cached.router;
+  }
+
   // The AID has to survive redeploys, or every published OOBI goes stale.
   const seed = env.VERIFIER_SEED;
 
@@ -48,10 +60,12 @@ function build(env: Env, request: Request) {
     console.warn("VERIFIER_SEED is not set, using an ephemeral identity for this isolate only");
   }
 
-  const url = env.VERIFIER_URL ?? new URL(request.url).origin;
   const verifier = new Verifier({ privateKey: seed ? decodeSeed(seed) : undefined, url });
+  const router = createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console });
 
-  return createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console });
+  cached = { url, router };
+
+  return router;
 }
 
 /** The built app, or null when the request is not the asset server's to answer. */
@@ -77,8 +91,7 @@ async function asset(request: Request, env: Env): Promise<Response | null> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    router ??= build(env, request);
-
+    const router = route(env, request);
     const { pathname } = new URL(request.url);
 
     if ((request.method === "GET" || request.method === "HEAD") && !RESERVED.test(pathname)) {

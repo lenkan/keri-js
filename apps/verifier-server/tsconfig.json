@@ -1,5 +1,5 @@
 {
-  "include": ["src"],
+  "include": ["src", "worker-configuration.d.ts"],
   "compilerOptions": {
     "noEmit": true,
     "target": "esnext",
@@ -9,7 +9,6 @@
     "strict": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true,
-    "types": ["@cloudflare/workers-types"]
+    "verbatimModuleSyntax": true
   }
 }
