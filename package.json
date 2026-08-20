@@ -36,7 +36,8 @@
     "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev",
     "predev:controller": "pnpm run build",
     "dev:controller": "pnpm --filter @keri-js/controller run dev",
-    "dev:verifier-server": "pnpm --filter @keri-js/verifier-server run dev"
+    "dev:verifier-server": "pnpm --filter @keri-js/verifier-server run dev",
+    "deploy:verifier-server": "pnpm --filter @keri-js/verifier-server run deploy"
   },
   "type": "module",
   "author": "Daniel Lenksjö",
