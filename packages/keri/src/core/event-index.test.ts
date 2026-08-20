@@ -132,6 +132,23 @@ describe(basename(import.meta.url), () => {
     assert.deepEqual(index.keyEvents(ISSUER)[0].attachments.ControllerIdxSigs, signed.attachments.ControllerIdxSigs);
   });
 
+  // findSealAnchor fails an event unless every attached hint resolves, so a
+  // duplicate carrying a bogus one must not be able to invalidate an event the
+  // genuine copy anchors correctly.
+  test("should not take seal hints from a duplicate when the first copy carries its own", async () => {
+    const parsed = await messages("credential.cesr");
+    const iss = parsed.find((message) => message.body.t === "iss");
+    assert.ok(iss);
+    assert.ok(iss.attachments.SealSourceCouples.length > 0);
+
+    const forged = new Message(iss.body, { SealSourceCouples: [{ snu: "9", digest: "EBogusAnchorDigest" }] });
+    const index = new EventIndex([...parsed, forged]);
+    const indexed = index.transactionEvents(REGISTRY).find((event) => event.body.t === "iss");
+
+    assert.ok(indexed);
+    assert.deepEqual(indexed.attachments.SealSourceCouples, iss.attachments.SealSourceCouples);
+  });
+
   test("should not double attachments when messages are replayed", async () => {
     const parsed = await messages("credential.cesr");
     const once = new EventIndex(parsed).keyEvents(ISSUER)[0];

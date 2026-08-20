@@ -106,9 +106,9 @@ interface Entry {
  * Two copies of the same message are not interchangeable: an ACDC unwrapped
  * from a grant is rejoined with the `SealSourceTriples` naming its issuance,
  * which a bare copy of the same ACDC elsewhere in the stream does not carry,
- * and a key event may arrive with or without its signatures. Attachments are
- * merged across every copy so what ends up indexed does not depend on which
- * copy the stream happened to carry first.
+ * and a key event may arrive with or without its signatures. Attachments from
+ * every copy are therefore folded together, so a copy that happens to arrive
+ * without them is not what gets indexed.
  */
 function flatten(messages: Iterable<Message>): Message[] {
   const entries: Entry[] = [];
@@ -153,6 +153,18 @@ function flatten(messages: Iterable<Message>): Message[] {
   );
 }
 
+/**
+ * Signatures and receipts are unioned; seal hints are taken whole from the
+ * first copy that carries any.
+ *
+ * The two cannot be treated alike. A signature that does not check out is
+ * ignored, so pooling them across copies can only help. A seal hint is a
+ * conjunct — `findSealAnchor` fails the event unless *every* attached hint
+ * resolves — so pooling those only ever adds ways to fail, and one copy naming
+ * an anchor that is not in the KEL would invalidate an event another copy
+ * anchors correctly. A copy carrying no hint at all still learns one from a
+ * copy that does, which is what an ACDC unwrapped from a grant needs.
+ */
 function merge(copies: Attachments[]): AttachmentsInit {
   return {
     ControllerIdxSigs: unique(copies.flatMap((a) => a.ControllerIdxSigs)),
@@ -162,9 +174,13 @@ function merge(copies: Attachments[]): AttachmentsInit {
     TransIdxSigGroups: unique(copies.flatMap((a) => a.TransIdxSigGroups)),
     TransLastIdxSigGroups: unique(copies.flatMap((a) => a.TransLastIdxSigGroups)),
     PathedMaterialCouples: unique(copies.flatMap((a) => a.PathedMaterialCouples)),
-    SealSourceTriples: unique(copies.flatMap((a) => a.SealSourceTriples)),
-    SealSourceCouples: unique(copies.flatMap((a) => a.SealSourceCouples)),
+    SealSourceTriples: firstPresent(copies, (a) => a.SealSourceTriples),
+    SealSourceCouples: firstPresent(copies, (a) => a.SealSourceCouples),
   };
+}
+
+function firstPresent<T>(copies: Attachments[], select: (attachments: Attachments) => T[]): T[] {
+  return copies.map(select).find((entries) => entries.length > 0) ?? [];
 }
 
 // A replayed stream would otherwise double every signature it carries.
