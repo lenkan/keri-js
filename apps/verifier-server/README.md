@@ -22,8 +22,8 @@ The app and the server run as two processes in dev; vite proxies `/api` and
 origin serving both:
 
 ```sh
-pnpm run build:apps
-VERIFIER_STATIC_DIR=../verifier/dist pnpm --filter @keri-js/verifier-server run dev
+pnpm run package
+cd dist && deno run --allow-net --allow-env --allow-read --unstable-kv server.js
 ```
 
 ## Environment
@@ -40,16 +40,29 @@ the published OOBI. Store it as a secret — it is the verifier's signing key.
 
 ## Deployment
 
-Deployed by Deno Deploy's Git integration, which builds from the repository on
-push. There is no deploy workflow in this repo. Settings:
+Deployed to Deno Deploy by uploading a pre-built bundle. From a checkout:
+
+```sh
+pnpm run package
+deno deploy --prod dist
+```
+
+`pnpm run package` builds the packages and both apps, then assembles `dist/`
+as `server.js` — the server with every dependency inlined — and `static/`, the
+built app. `deno.json` records the org and application, so neither needs a flag.
 
 | Setting | Value |
 | --- | --- |
-| App directory | repository root |
-| Install command | `pnpm install` |
-| Build command | `pnpm run build:apps` |
-| Entrypoint | `apps/verifier-server/src/main.ts` |
+| Source | local |
+| Install command | none |
+| Build command | none |
+| Entrypoint | `server.js` |
 | Runtime mode | dynamic |
 
-Set `VERIFIER_URL`, `VERIFIER_SEED` and `VERIFIER_STATIC_DIR=apps/verifier/dist`
-on the application, and assign a Deno KV database — sessions are stored in it.
+The upload carries no `package.json`, so an install command configured on the
+application fails the build before it starts.
+
+Set `VERIFIER_URL` and `VERIFIER_SEED` on the application, and assign a Deno KV
+database — sessions are stored in it. `VERIFIER_STATIC_DIR` is not needed and
+must not be set: the server runs from the upload root, where the default
+`./static` already resolves.
