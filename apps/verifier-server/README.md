@@ -53,16 +53,21 @@ openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | \
 
 ## Deployment
 
-Pushing to `main` deploys, from the `deploy` job in `.github/workflows/ci.yaml`.
-It needs the `build`, `apps` and `e2e` jobs, so a red build cannot ship.
+Pushing to `main` deploys, through a Cloudflare Workers Build connected to this
+repository. The build settings live in the Cloudflare dashboard, under the
+`keri-verifier` worker:
 
-It requires two repository settings, and skips itself when they are absent, so a
-fork gets a skipped job rather than a failing one:
-
-| | |
+| Setting | |
 | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | variable — the account to deploy to, and the switch that enables the job |
-| `CLOUDFLARE_API_TOKEN` | secret — needs Workers Scripts and Workers KV write |
+| Root directory | `apps/verifier-server` |
+| Build command | `pnpm install --frozen-lockfile && pnpm -w run build:apps` |
+| Deploy command | `pnpm run deploy` |
+| Build variables | `NODE_VERSION=24`, `PNPM_VERSION=11.21.0`, `SKIP_DEPENDENCY_INSTALL=1` |
+
+`SKIP_DEPENDENCY_INSTALL` is what lets the build command install with
+`--frozen-lockfile`, which the image's own install does not. `PNPM_VERSION` has
+to match the `packageManager` pin in the root manifest, which the image's older
+pnpm would otherwise refuse.
 
 To deploy by hand:
 
@@ -70,9 +75,6 @@ To deploy by hand:
 pnpm run build:apps
 pnpm --filter @keri-js/verifier-server run deploy
 ```
-
-`build:apps` builds the packages and the app; `wrangler deploy` bundles the
-worker and uploads it with the assets directory.
 
 The KV namespace already exists. To recreate it elsewhere:
 
