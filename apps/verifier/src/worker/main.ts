@@ -1,14 +1,13 @@
 /** biome-ignore-all lint/suspicious/noConsole: worker entrypoint */
-import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
+import { createVerifierRouter, type KeyEventStore, type SessionStore, Verifier } from "@keri-js/infra/verifier";
 import { decodeBase64Url } from "cesr/encoding";
 
 // ASSETS and SESSIONS come from worker-configuration.d.ts, which `wrangler types`
-// generates from the bindings. Secrets are not in the config, so they are only
-// known here.
+// generates from the bindings — and since `.dev.vars` names VERIFIER_SEED, that
+// lands in the generated Env too. Only VERIFIER_URL is unknown to the config.
 declare global {
   interface Env {
     VERIFIER_URL?: string;
-    VERIFIER_SEED?: string;
   }
 }
 
@@ -29,6 +28,17 @@ function sessions(kv: KVNamespace): SessionStore {
     // Workers KV rejects a TTL under 60s. The router asks for ten minutes, so
     // this only guards a future caller from shortening it into a silent error.
     put: (token, cesr, ttlMs) => kv.put(token, cesr, { expirationTtl: Math.max(60, Math.round(ttlMs / 1000)) }),
+  };
+}
+
+// Key events are first-seen evidence, so they never expire — unlike sessions.
+// Sequence numbers are padded hex so the keys sort.
+function keyEvents(kv: KVNamespace): KeyEventStore {
+  const eventKey = (aid: string, sn: bigint) => `kel:${aid}:${sn.toString(16).padStart(16, "0")}`;
+
+  return {
+    getEvent: (aid, sn) => kv.get(eventKey(aid, sn), "json"),
+    putEvent: (aid, sn, event) => kv.put(eventKey(aid, sn), JSON.stringify(event)),
   };
 }
 
@@ -63,7 +73,7 @@ function route(env: Env, request: Request): Promise<(request: Request) => Promis
   // The promise is what gets cached, so requests arriving during a cold start
   // share one key derivation instead of each racing to build their own.
   const router = Verifier.create({ privateKey: seed ? decodeSeed(seed) : undefined, url }).then((verifier) =>
-    createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console }),
+    createVerifierRouter(verifier, sessions(env.SESSIONS), keyEvents(env.SESSIONS), { logger: console }),
   );
 
   cached = { url, router };

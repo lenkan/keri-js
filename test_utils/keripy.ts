@@ -173,6 +173,14 @@ export class KERIPy {
     return this.run(["aid", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }
 
+  async export(opts: { alias?: string } = {}): Promise<string> {
+    return this.run(["export", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
+  }
+
+  async rotate(opts: { alias?: string } = {}): Promise<void> {
+    await this.run(["rotate", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
+  }
+
   ends = {
     add: async (opts: { alias?: string; eid: string; role?: string }): Promise<void> => {
       await this.run([
@@ -304,6 +312,22 @@ export class KERIPy {
         opts.words.join(" "),
         "--signer",
         opts.signer,
+      ]);
+    },
+    /** `recipient` is a contact alias, so resolve the recipient's OOBI with that alias first. */
+    respond: async (opts: { alias?: string; words: string[]; recipient: string }): Promise<void> => {
+      await this.run([
+        "challenge",
+        "respond",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--words",
+        opts.words.join(" "),
+        "--recipient",
+        opts.recipient,
       ]);
     },
   };

@@ -348,7 +348,7 @@ export class Controller {
   async commit(log: KeyEventLog, event: Message<KeyEventBody>): Promise<void> {
     const body = event.body as KeyEventBody;
     const isInception = body.t === "icp" || body.t === "dip";
-    const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
+    const signingKeys = KeyEvent.isEstablishment(body.t) ? (event.body as InceptEventBody).k : log.state.signingKeys;
     const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
     await signEvent(
       event,

@@ -6,10 +6,21 @@
 export type {
   ExchangeEventArgs,
   ExchangeEventBody,
+  ExchangeVerification,
+  ExchangeVerificationFailure,
   QueryEventArgs,
   QueryEventBody,
   ReplyEventArgs,
   ReplyEventBody,
   RoutedEventBody,
 } from "../core/main.ts";
-export { embeds, exchange, IPEX_GRANT_ROUTE, isRoutedEvent, query, reply } from "../core/main.ts";
+export {
+  CHALLENGE_RESPONSE_ROUTE,
+  embeds,
+  exchange,
+  IPEX_GRANT_ROUTE,
+  isRoutedEvent,
+  query,
+  reply,
+  verifyExchange,
+} from "../core/main.ts";

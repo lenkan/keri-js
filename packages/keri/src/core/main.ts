@@ -40,6 +40,8 @@ export type {
 export { nextKeyDigest } from "./digest.ts";
 export { EventIndex } from "./event-index.ts";
 export { formatDate } from "./events.ts";
+export type { ExchangeVerification, ExchangeVerificationFailure } from "./exchange-verification.ts";
+export { verifyExchange } from "./exchange-verification.ts";
 export type {
   DelegatedInceptArgs,
   DelegatedRotateArgs,
@@ -54,7 +56,15 @@ export type {
   RotateArgs,
   RotateEventBody,
 } from "./key-event.ts";
-export { delegatedIncept, delegatedRotate, incept, interact, isKeyEvent, rotate } from "./key-event.ts";
+export {
+  delegatedIncept,
+  delegatedRotate,
+  incept,
+  interact,
+  isEstablishment,
+  isKeyEvent,
+  rotate,
+} from "./key-event.ts";
 export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
@@ -73,7 +83,15 @@ export type {
   ReplyEventBody,
   RoutedEventBody,
 } from "./routed-event.ts";
-export { embeds, exchange, IPEX_GRANT_ROUTE, isRoutedEvent, query, reply } from "./routed-event.ts";
+export {
+  CHALLENGE_RESPONSE_ROUTE,
+  embeds,
+  exchange,
+  IPEX_GRANT_ROUTE,
+  isRoutedEvent,
+  query,
+  reply,
+} from "./routed-event.ts";
 export { saidify } from "./said.ts";
 export type { Ed25519SignerOptions, Signer } from "./sign.ts";
 export { ed25519Signer, signEvent } from "./sign.ts";

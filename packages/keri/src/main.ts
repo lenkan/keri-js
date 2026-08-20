@@ -51,6 +51,8 @@ export type {
   Ed25519SignerOptions,
   ExchangeEventArgs,
   ExchangeEventBody,
+  ExchangeVerification,
+  ExchangeVerificationFailure,
   GenerateKeyPairOptions,
   IdentifierVerification,
   InceptArgs,

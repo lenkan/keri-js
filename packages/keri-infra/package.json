@@ -60,6 +60,7 @@
   "dependencies": {
     "@noble/curves": "^2.0.0",
     "@noble/hashes": "^2.0.0",
+    "@scure/bip39": "^2.3.0",
     "cesr": "workspace:*",
     "keri": "workspace:*"
   }

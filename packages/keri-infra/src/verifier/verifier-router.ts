@@ -3,12 +3,15 @@ import { encodeBase64Url } from "cesr/encoding";
 import type { ExchangeEventBody } from "keri";
 import { RoutedEvent } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
+import type { KeyEventStore } from "./login.ts";
+import { createLoginHandlers } from "./login-router.ts";
 import type { SessionStore, Verifier } from "./verifier.ts";
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const TOKEN_LENGTH = 24;
 const TOKEN_PATTERN = /^[A-Za-z0-9]{16,64}$/;
 const SESSION_PATH = /^\/api\/sessions\/([A-Za-z0-9]{16,64})$/;
+const LOGIN_SESSION_PATH = /^\/api\/login\/sessions\/([A-Za-z0-9]{16,64})(\/kel|\/oobi)?$/;
 
 // Deno KV caps a value at 64 KiB and rejects anything larger, which would
 // surface as a 500 long after the holder thinks the grant landed.
@@ -22,6 +25,7 @@ const CORS_HEADERS = {
 
 export interface RouterOptions {
   logger?: Logger;
+  fetch?: typeof globalThis.fetch;
 }
 
 function encodeOobi(events: readonly Message[]): string {
@@ -68,10 +72,12 @@ function createToken(): string {
 export function createRouter(
   verifier: Verifier,
   sessions: SessionStore,
+  keyEvents: KeyEventStore,
   options: RouterOptions = {},
 ): (request: Request) => Promise<Response> {
   const log = new KeriLogger(options.logger);
   const oobi = encodeOobi(verifier.events);
+  const login = createLoginHandlers({ sessions, keyEvents, log, sessionTtlMs: SESSION_TTL_MS, fetch: options.fetch });
 
   async function handlePresentation(request: Request): Promise<Response> {
     // KERIpy's sendDirect PUTs the whole stream inline; KERI-JS senders detach
@@ -104,6 +110,14 @@ export function createRouter(
     } catch (cause) {
       log.warn("could not parse presentation", { error: cause instanceof Error ? cause.message : String(cause) });
       return Response.json({ error: "Could not parse the CESR stream" }, { status: 400 });
+    }
+
+    const challenge = messages.find((message) => {
+      const body = message.body as Partial<ExchangeEventBody>;
+      return body.t === "exn" && body.r === RoutedEvent.CHALLENGE_RESPONSE_ROUTE;
+    });
+    if (challenge) {
+      return login.handleChallengeResponse(challenge as Message<ExchangeEventBody>);
     }
 
     const lookup = sessionToken(messages);
@@ -182,10 +196,28 @@ export function createRouter(
       });
     }
 
-    // Deliberately writes nothing: a token only has to exist by the time a
-    // grant arrives, so sessions cost no storage until they are used.
-    if (pathname === "/api/sessions" && method === "POST") {
+    // Deliberately writes nothing: a token only has to exist by the time a grant
+    // or a KEL arrives, so sessions cost no storage until they are used, and the
+    // login TTL clock starts at KEL submission rather than at mint.
+    if ((pathname === "/api/sessions" || pathname === "/api/login/sessions") && method === "POST") {
       return Response.json({ token: createToken(), aid: verifier.aid, oobi: verifier.oobi });
+    }
+
+    const loginPath = pathname.match(LOGIN_SESSION_PATH);
+    if (loginPath) {
+      const [, token, sub] = loginPath;
+
+      if (sub === "/kel" && method === "POST") {
+        return login.handleKelSubmission(request, token);
+      }
+      if (sub === "/oobi" && method === "POST") {
+        return login.handleOobiSubmission(request, token);
+      }
+      if (!sub && method === "GET") {
+        return login.handleLoginRead(token);
+      }
+
+      return new Response("Method Not Allowed", { status: 405 });
     }
 
     const session = pathname.match(SESSION_PATH);

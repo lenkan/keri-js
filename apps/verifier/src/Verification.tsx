@@ -38,7 +38,7 @@ export function useVerification(): Verification {
   return { state, verify, reset };
 }
 
-export function VerificationResult({ state }: { state: VerificationState }) {
+export function VerificationResult({ state, viewer }: { state: VerificationState; viewer?: string }) {
   if (state.kind === "error") {
     return <Alert>Could not read the stream: {state.message}</Alert>;
   }
@@ -51,5 +51,5 @@ export function VerificationResult({ state }: { state: VerificationState }) {
     return <Alert>No credential found in that stream.</Alert>;
   }
 
-  return state.results.map((result) => <CredentialResult key={result.said} result={result} />);
+  return state.results.map((result) => <CredentialResult key={result.said} result={result} viewer={viewer} />);
 }

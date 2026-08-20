@@ -1,6 +1,7 @@
 import { KERIPy } from "../test_utils/keripy.ts";
 
-const QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
+export const QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
+export const REGISTRY_NAME = "e2e-registry";
 
 export interface IssuedCredential {
   said: string;
@@ -20,9 +21,9 @@ export async function issueCredential(): Promise<IssuedCredential> {
   await kli.init();
   await kli.incept({ toad: 0 });
   await kli.oobi.resolve(`https://weboftrust.github.io/oobi/${QVI_SCHEMA}`);
-  await kli.registry.incept({ registryName: "e2e-registry" });
+  await kli.registry.incept({ registryName: REGISTRY_NAME });
   await kli.vc.create({
-    registryName: "e2e-registry",
+    registryName: REGISTRY_NAME,
     schema: QVI_SCHEMA,
     recipient: await kli.aid(),
     data: { LEI: "1234567890123456789" },

@@ -26,6 +26,7 @@ export {
   delegatedRotate,
   incept,
   interact,
+  isEstablishment,
   isKeyEvent,
   receipt,
   rotate,

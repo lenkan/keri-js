@@ -100,6 +100,7 @@ export interface ExchangeEventBody extends Record<string, unknown> {
 }
 
 export const IPEX_GRANT_ROUTE = "/ipex/grant";
+export const CHALLENGE_RESPONSE_ROUTE = "/challenge/response";
 
 export function exchange(args: ExchangeEventArgs): Message<ExchangeEventBody> {
   const block: ExchangeEmbedding = { d: "" };

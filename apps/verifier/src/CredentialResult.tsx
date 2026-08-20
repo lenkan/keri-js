@@ -10,15 +10,21 @@ const STATUS_TONES: Record<CredentialStatus, Tone> = {
   unknown: "neutral",
 };
 
-export function CredentialResult({ result }: { result: CredentialVerification }) {
+export function CredentialResult({ result, viewer }: { result: CredentialVerification; viewer?: string }) {
   const claims = Credential.disclosedAttributes(result.credential.body);
+
+  // With a viewer, a cryptographically sound credential issued to someone else
+  // still fails the presentation: the portal knows who is logged in.
+  const issuedToViewer = viewer === undefined ? undefined : result.issuee === viewer;
+  const ok = result.ok && issuedToViewer !== false;
+  const verdict = !result.ok ? "Not verified" : issuedToViewer === false ? "Not issued to you" : "Verified";
 
   return (
     <Card withBorder padding="lg" mt="xl">
       <Card.Section>
         <Group justify="space-between">
-          <Text fw={700} c={TONE_COLORS[result.ok ? "ok" : "bad"]}>
-            {result.ok ? "Verified" : "Not verified"}
+          <Text fw={700} c={TONE_COLORS[ok ? "ok" : "bad"]}>
+            {verdict}
           </Text>
           <Badge color={TONE_COLORS[STATUS_TONES[result.status]]} variant="light">
             {result.status}
@@ -80,6 +86,13 @@ export function CredentialResult({ result }: { result: CredentialVerification })
           {result.checks.map((check) => (
             <CheckItem key={check.id} state={check.status} label={CHECK_LABELS[check.id]} detail={check.detail} />
           ))}
+          {issuedToViewer !== undefined && (
+            <CheckItem
+              state={issuedToViewer ? "passed" : "failed"}
+              label="Issued to you"
+              detail={issuedToViewer ? undefined : (result.issuee ?? "the credential names no issuee")}
+            />
+          )}
         </CheckList>
       </Card.Section>
     </Card>

@@ -74,6 +74,7 @@ describe("keri", () => {
       "delegatedRotate",
       "incept",
       "interact",
+      "isEstablishment",
       "isKeyEvent",
       "receipt",
       "rotate",
@@ -82,12 +83,14 @@ describe("keri", () => {
     assert.deepEqual(Object.keys(surface.TransactionEvent).sort(), ["incept", "isTransactionEvent", "issue", "revoke"]);
 
     assert.deepEqual(Object.keys(surface.RoutedEvent).sort(), [
+      "CHALLENGE_RESPONSE_ROUTE",
       "IPEX_GRANT_ROUTE",
       "embeds",
       "exchange",
       "isRoutedEvent",
       "query",
       "reply",
+      "verifyExchange",
     ]);
 
     assert.deepEqual(Object.keys(Credential).sort(), ["create", "disclosedAttributes", "isCredential"]);

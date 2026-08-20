@@ -13,7 +13,6 @@
   "dependencies": {
     "@keri-js/infra": "workspace:*",
     "@mantine/core": "^9.5.1",
-    "@mantine/dropzone": "^9.5.1",
     "@mantine/hooks": "^9.5.1",
     "cesr": "workspace:*",
     "keri": "workspace:*",

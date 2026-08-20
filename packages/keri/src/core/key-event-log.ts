@@ -1,4 +1,5 @@
-import { type Attachments, Message, parse } from "cesr";
+import { type Attachments, Message, type ParseInput, parse } from "cesr";
+import { nextKeyDigest } from "./digest.ts";
 import type {
   DipEventBody,
   DrtEventBody,
@@ -8,7 +9,7 @@ import type {
   KeyState,
   RotateEventBody,
 } from "./key-event.ts";
-import { isKelEventType } from "./key-event.ts";
+import { isEstablishment, isKelEventType } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 
 export interface AppendOptions {
@@ -77,7 +78,7 @@ export class KeyEventLog {
    * Throws on a multi-AID stream that has no leaf (cycle) or more than one
    * leaf (ambiguous — e.g. two unrelated AIDs).
    */
-  static async parse(stream: AsyncIterable<Uint8Array>, options?: AppendOptions): Promise<KeyEventLog> {
+  static async parse(stream: ParseInput, options?: AppendOptions): Promise<KeyEventLog> {
     const messages: Message<KeyEventBody>[] = [];
     for await (const message of parse(stream)) {
       // TODO: Verify that the message is a valid KeyEventBody before casting
@@ -208,11 +209,27 @@ export class KeyEventLog {
         }
 
         const state = this.#state;
-        verifySigning(bodyRaw, {
-          keys: state.signingKeys,
-          threshold: state.signingThreshold as string[] | string,
-          sigs,
-        });
+
+        if (isEstablishment(body.t)) {
+          // Each newly exposed key must have been pre-committed as a digest in
+          // the prior establishment event. Reserve/partial rotations, where `k`
+          // keeps unexposed extras, are not supported.
+          const rot = body as RotateEventBody | DrtEventBody;
+          for (const key of rot.k) {
+            if (!state.nextKeyDigests.includes(nextKeyDigest(key))) {
+              throw new Error(`Rotation key ${key} was not committed by the prior establishment event`);
+            }
+          }
+
+          verifySigning(bodyRaw, { keys: rot.k, threshold: rot.kt, sigs });
+        } else {
+          verifySigning(bodyRaw, {
+            keys: state.signingKeys,
+            threshold: state.signingThreshold as string[] | string,
+            sigs,
+          });
+        }
+
         if (state.backers && state.backers.length > 0) {
           verifyWitness(bodyRaw, {
             keys: state.backers,

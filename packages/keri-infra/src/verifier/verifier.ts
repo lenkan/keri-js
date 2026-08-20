@@ -3,13 +3,14 @@ import type { Message } from "cesr";
 import { ed25519Signer, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
 
 /**
- * Where a presentation waits between the holder delivering it and the browser
- * collecting it. Entries are short lived, so implementations are expected to
- * expire them rather than rely on the caller deleting them.
+ * TTL'd string KV holding everything a session needs: the presentation waiting
+ * for the browser, the login record, and the words → token correlation, kept
+ * apart by key prefix. Entries are short lived, so implementations are expected
+ * to expire them rather than rely on the caller deleting them.
  */
 export interface SessionStore {
-  get(token: string): Promise<string | null>;
-  put(token: string, cesr: string, ttlMs: number): Promise<void>;
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, ttlMs: number): Promise<void>;
 }
 
 export interface VerifierOptions {
