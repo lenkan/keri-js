@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import type { KERIPy } from "../test_utils/keripy.ts";
 import { issueCredential } from "./credential.ts";
+import { login, waitForApi } from "./login.ts";
 
 // Mirrors CHECK_LABELS in apps/verifier/src/checks.ts. Duplicated rather than imported: for a test
 // that asserts on rendered text, the strings are the contract.
@@ -24,13 +26,16 @@ const ALICE_KEL = fileURLToPath(new URL("../fixtures/alice.cesr", import.meta.ur
 
 let said: string;
 let stream: string;
+let kli: KERIPy;
 let credentialFile: string;
 let garbageFile: string;
 
 test.beforeAll(async () => {
+  await waitForApi();
+
   const dir = await mkdtemp(join(tmpdir(), "keri-e2e-"));
 
-  ({ said, stream } = await issueCredential());
+  ({ said, stream, kli } = await issueCredential());
 
   credentialFile = join(dir, "credential.cesr");
   await writeFile(credentialFile, stream);
@@ -42,13 +47,13 @@ test.beforeAll(async () => {
 });
 
 test("verifies a credential issued by kli", async ({ page }) => {
-  await page.goto("/");
+  await login(page, kli);
   await page.locator('input[type="file"]').setInputFiles(credentialFile);
 
   await expect(page.getByText("Verified", { exact: true })).toBeVisible();
   await expect(page.getByText("issued", { exact: true })).toBeVisible();
   await expect(page.getByText(said)).toBeVisible();
-  // Exact: the same LEI appears inside the "generate one locally" commands further up the page.
+  // Exact: the same LEI appears inside the "issue one from your keystore" commands further up the page.
   await expect(page.getByText("1234567890123456789", { exact: true })).toBeVisible();
 
   // "Schema" is both a check label and a field label, so the first match is the assertion.
@@ -62,7 +67,7 @@ test("verifies a credential issued by kli", async ({ page }) => {
 });
 
 test("verifies the same credential pasted as text", async ({ page }) => {
-  await page.goto("/");
+  await login(page, kli);
   await page.getByRole("button", { name: "Paste a stream instead" }).click();
 
   const textarea = page.getByRole("textbox");
@@ -74,14 +79,14 @@ test("verifies the same credential pasted as text", async ({ page }) => {
 });
 
 test("reports a stream that carries no credential", async ({ page }) => {
-  await page.goto("/");
+  await login(page, kli);
   await page.locator('input[type="file"]').setInputFiles(ALICE_KEL);
 
   await expect(page.getByText("No credential found in that stream.")).toBeVisible();
 });
 
 test("reports a stream it cannot parse", async ({ page }) => {
-  await page.goto("/");
+  await login(page, kli);
   await page.locator('input[type="file"]').setInputFiles(garbageFile);
 
   await expect(page.getByText("Could not read the stream:")).toBeVisible();

@@ -1,40 +1,24 @@
 import { expect, type Page, test } from "@playwright/test";
-import { BASE_URL } from "../playwright.config.ts";
 import type { KERIPy } from "../test_utils/keripy.ts";
 import { issueCredential } from "./credential.ts";
+import { login, waitForApi } from "./login.ts";
 
 let said: string;
 let stream: string;
 let kli: KERIPy;
 
 test.beforeAll(async () => {
-  // Unlike the file-drop tests, this one needs the relay behind the page. global-setup only waits
-  // for the app, which vite answers before the worker environment is up, so give the API the same
-  // grace before failing.
-  const deadline = Date.now() + 30_000;
-  let reachable = false;
-
-  while (!reachable && Date.now() < deadline) {
-    reachable = (await fetch(`${BASE_URL}/api/sessions`, { method: "POST" }).catch(() => null))?.ok === true;
-
-    if (!reachable) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-  }
-
-  if (!reachable) {
-    throw new Error(`${BASE_URL}/api/sessions did not answer. Start the verifier ("pnpm run dev:verifier").`);
-  }
+  await waitForApi();
 
   ({ said, stream, kli } = await issueCredential());
 });
 
 /**
- * Opens the IPEX tab and presents the credential by running the commands the page prints. Reading
- * them back out is itself an assertion that the page printed usable ones.
+ * Logs in, opens the IPEX tab and presents the credential by running the commands the page prints.
+ * Reading them back out is itself an assertion that the page printed usable ones.
  */
 async function present(page: Page): Promise<void> {
-  await page.goto("/");
+  await login(page, kli);
   await page.getByRole("tab", { name: "Present over IPEX" }).click();
 
   const commands = await page.getByRole("tabpanel").locator("pre").innerText();
@@ -78,7 +62,7 @@ test("clears the last result when a new session starts", async ({ page }) => {
 });
 
 test("keeps each tab's result to itself", async ({ page }) => {
-  await page.goto("/");
+  await login(page, kli);
 
   // Verify on the stream tab first.
   await page.getByRole("button", { name: "Paste a stream instead" }).click();

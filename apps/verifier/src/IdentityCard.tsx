@@ -1,15 +1,6 @@
 import { Badge, Button, Card, Group, Text } from "@mantine/core";
 import { Field, FieldList, TONE_COLORS } from "./components/main.ts";
-
-export interface Identity {
-  aid: string;
-  sequenceNumber: number;
-  signingKeys: string[];
-  signingThreshold: string | string[];
-  witnesses: string[];
-  lastEstablishment: { s: string; d: string };
-  authenticatedAt: string;
-}
+import type { Identity } from "./login/main.ts";
 
 export function IdentityCard({ identity, onLogout }: { identity: Identity; onLogout: () => void }) {
   return (
