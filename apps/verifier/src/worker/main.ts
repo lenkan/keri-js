@@ -3,12 +3,11 @@ import { createVerifierRouter, type KeyEventStore, type SessionStore, Verifier }
 import { decodeBase64Url } from "cesr/encoding";
 
 // ASSETS and SESSIONS come from worker-configuration.d.ts, which `wrangler types`
-// generates from the bindings. Secrets are not in the config, so they are only
-// known here.
+// generates from the bindings — and since `.dev.vars` names VERIFIER_SEED, that
+// lands in the generated Env too. Only VERIFIER_URL is unknown to the config.
 declare global {
   interface Env {
     VERIFIER_URL?: string;
-    VERIFIER_SEED?: string;
   }
 }
 
