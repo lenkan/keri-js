@@ -114,12 +114,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The verifier server runs on Deno Deploy, so it type-checks under Deno.
-      - name: Setup Deno
-        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
-        with:
-          deno-version: "2"
-
       - name: Build packages
         run: pnpm run build
 
@@ -202,14 +196,13 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install chromium
 
-      # The verifier server runs on Deno, and the presentation test needs it behind the page.
-      - name: Setup Deno
-        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
-        with:
-          deno-version: "2"
-
       - name: Build packages
         run: pnpm run build
+
+      # wrangler serves the built app through its assets binding, so the worker
+      # needs it on disk before it starts.
+      - name: Build verifier app
+        run: pnpm --filter @keri-js/verifier run build
 
       # The suite waits for the server rather than starting it, so it goes up here and stays up.
       - name: Start verifier
@@ -228,3 +221,44 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # Deploying from here rather than a separate workflow is what gates production
+  # on the tests: a red build cannot ship.
+  #
+  # The CLOUDFLARE_ACCOUNT_ID variable both selects the account and decides
+  # whether to deploy at all, so a fork without it gets a skipped job rather
+  # than a red one. It has to be a variable rather than a secret: the secrets
+  # context is not available in a job-level `if`.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    needs: [build, apps, e2e]
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: "deploy-verifier"
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      # Unfiltered: wrangler uploads apps/verifier/dist through the assets binding.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build apps
+        run: pnpm run build:apps
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @keri-js/verifier-server run deploy

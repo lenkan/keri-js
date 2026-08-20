@@ -1,0 +1,14 @@
+{
+  "include": ["src", "worker-configuration.d.ts"],
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["esnext"],
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  }
+}

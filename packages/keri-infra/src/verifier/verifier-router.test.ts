@@ -151,6 +151,18 @@ describe(basename(import.meta.url), () => {
     assert.strictEqual(sessions.size(), 0);
   });
 
+  // A one byte body is well under the limit, so a 413 can only have come from
+  // the declared length being checked before the body was buffered.
+  test("should reject an oversized presentation on its declared length", async () => {
+    const sessions = makeSessions();
+    const response = await makeApp(sessions)(
+      request("/", { method: "PUT", body: "x", headers: { "Content-Length": String(64 * 1024) } }),
+    );
+
+    assert.strictEqual(response.status, 413);
+    assert.strictEqual(sessions.size(), 0);
+  });
+
   test("should not double the slash when the url carries one", async () => {
     const verifier = new Verifier({ url: `${URL_BASE}/` });
 
