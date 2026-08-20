@@ -28,7 +28,7 @@ from disk:
 
 ```sh
 pnpm run build:apps
-pnpm --filter @keri-js/verifier-server run dev
+pnpm run dev:verifier-server
 ```
 
 `wrangler dev` simulates KV and the assets binding locally; no account needed.
@@ -59,21 +59,22 @@ repository. The build settings live in the Cloudflare dashboard, under the
 
 | Setting | |
 | --- | --- |
-| Root directory | `apps/verifier-server` |
-| Build command | `pnpm install --frozen-lockfile && pnpm -w run build:apps` |
-| Deploy command | `pnpm run deploy` |
-| Build variables | `NODE_VERSION=24`, `PNPM_VERSION=11.21.0`, `SKIP_DEPENDENCY_INSTALL=1` |
+| Root directory | `/` (the repository root) |
+| Build command | `pnpm install --frozen-lockfile && pnpm run build:apps` |
+| Deploy command | `pnpm run deploy:verifier-server` |
+| Build variables | `PNPM_VERSION=11.21.0`, `SKIP_DEPENDENCY_INSTALL=1` |
 
 `SKIP_DEPENDENCY_INSTALL` is what lets the build command install with
 `--frozen-lockfile`, which the image's own install does not. `PNPM_VERSION` has
 to match the `packageManager` pin in the root manifest, which the image's older
-pnpm would otherwise refuse.
+pnpm would otherwise refuse. The Node version comes from `.nvmrc` at the
+repository root.
 
 To deploy by hand:
 
 ```sh
 pnpm run build:apps
-pnpm --filter @keri-js/verifier-server run deploy
+pnpm run deploy:verifier-server
 ```
 
 The KV namespace already exists. To recreate it elsewhere:
