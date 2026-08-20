@@ -114,12 +114,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The verifier server runs on Deno Deploy, so it type-checks under Deno.
-      - name: Setup Deno
-        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
-        with:
-          deno-version: "2"
-
       - name: Build packages
         run: pnpm run build
 
@@ -202,14 +196,13 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install chromium
 
-      # The verifier server runs on Deno, and the presentation test needs it behind the page.
-      - name: Setup Deno
-        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
-        with:
-          deno-version: "2"
-
       - name: Build packages
         run: pnpm run build
+
+      # wrangler serves the built app through its assets binding, so the worker
+      # needs it on disk before it starts.
+      - name: Build verifier app
+        run: pnpm --filter @keri-js/verifier run build
 
       # The suite waits for the server rather than starting it, so it goes up here and stays up.
       - name: Start verifier

@@ -1,3 +1,8 @@
 packages:
   - packages/*
   - apps/*
+# wrangler ships the workers runtime as a platform binary and bundles with
+# esbuild; both need their install scripts to put the executable in place.
+allowBuilds:
+  esbuild: true
+  workerd: true

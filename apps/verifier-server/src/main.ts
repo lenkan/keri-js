@@ -1,56 +1,30 @@
-/** biome-ignore-all lint/suspicious/noConsole: server entrypoint */
+/** biome-ignore-all lint/suspicious/noConsole: worker entrypoint */
 import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
 import { decodeBase64Url } from "cesr/encoding";
-import { createStaticHandler } from "./static.ts";
 
-const port = Number.parseInt(Deno.env.get("PORT") ?? "3002", 10);
-const url = Deno.env.get("VERIFIER_URL") ?? `http://localhost:${port}`;
-const staticDir = Deno.env.get("VERIFIER_STATIC_DIR") ?? "./static";
+interface Env {
+  ASSETS: Fetcher;
+  SESSIONS: KVNamespace;
+  VERIFIER_URL?: string;
+  VERIFIER_SEED?: string;
+}
 
 // The protocol owns these: `/` takes presentations from KERIpy's sendDirect and
 // `/oobi` publishes the identity, so neither can be shadowed by the app shell.
 const RESERVED = /^\/(oobi|api)(\/|$)/;
 
-// The AID has to survive restarts and redeploys, or every published OOBI goes
-// stale. A stored seed keeps it stable without a key derivation on cold start.
-const seed = Deno.env.get("VERIFIER_SEED");
-const privateKey = seed ? decodeSeed(seed) : undefined;
+// Built once per isolate. The verifier derives a key and assembles its own key
+// event log, which is wasted work on every request.
+let router: ((request: Request) => Promise<Response>) | undefined;
 
-if (!seed) {
-  console.warn("VERIFIER_SEED is not set, using an ephemeral identity for this process only");
+function sessions(kv: KVNamespace): SessionStore {
+  return {
+    get: (token) => kv.get(token),
+    // Workers KV rejects a TTL under 60s. The router asks for ten minutes, so
+    // this only guards a future caller from shortening it into a silent error.
+    put: (token, cesr, ttlMs) => kv.put(token, cesr, { expirationTtl: Math.max(60, Math.round(ttlMs / 1000)) }),
+  };
 }
-
-const kv = await Deno.openKv();
-
-const sessions: SessionStore = {
-  async get(token) {
-    const entry = await kv.get<string>(["session", token]);
-    return entry.value;
-  },
-  async put(token, cesr, ttlMs) {
-    await kv.set(["session", token], cesr, { expireIn: ttlMs });
-  },
-};
-
-const verifier = new Verifier({ privateKey, url });
-const router = createVerifierRouter(verifier, sessions, { logger: console });
-const serveStatic = createStaticHandler(staticDir);
-
-async function handler(request: Request): Promise<Response> {
-  const { pathname } = new URL(request.url);
-
-  if ((request.method === "GET" || request.method === "HEAD") && !RESERVED.test(pathname)) {
-    const response = await serveStatic(pathname);
-
-    if (response) {
-      return response;
-    }
-  }
-
-  return router(request);
-}
-
-Deno.serve({ port, onListen: () => banner() }, handler);
 
 function decodeSeed(value: string): Uint8Array {
   // `openssl rand -base64 32` is the obvious way to mint this, and it emits
@@ -66,8 +40,55 @@ function decodeSeed(value: string): Uint8Array {
   return bytes;
 }
 
-function banner(): void {
-  console.log(
-    ["", "Verifier running at:", `  ${url}`, `  ${verifier.oobi}`, "", `AID: ${verifier.aid}`, ""].join("\n"),
-  );
+function build(env: Env, request: Request) {
+  // The AID has to survive redeploys, or every published OOBI goes stale.
+  const seed = env.VERIFIER_SEED;
+
+  if (!seed) {
+    console.warn("VERIFIER_SEED is not set, using an ephemeral identity for this isolate only");
+  }
+
+  const url = env.VERIFIER_URL ?? new URL(request.url).origin;
+  const verifier = new Verifier({ privateKey: seed ? decodeSeed(seed) : undefined, url });
+
+  return createVerifierRouter(verifier, sessions(env.SESSIONS), { logger: console });
 }
+
+/** The built app, or null when the request is not the asset server's to answer. */
+async function asset(request: Request, env: Env): Promise<Response | null> {
+  const response = await env.ASSETS.fetch(request);
+
+  if (response.status !== 404) {
+    return response;
+  }
+
+  // A path with an extension is a missing asset, not a route: answering for a
+  // script with the app shell would hide the 404 behind a page of HTML.
+  const { pathname, origin } = new URL(request.url);
+
+  if (/\.[^./]+$/.test(pathname)) {
+    return null;
+  }
+
+  const shell = await env.ASSETS.fetch(new Request(`${origin}/index.html`, request));
+
+  return shell.status === 404 ? null : shell;
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    router ??= build(env, request);
+
+    const { pathname } = new URL(request.url);
+
+    if ((request.method === "GET" || request.method === "HEAD") && !RESERVED.test(pathname)) {
+      const response = await asset(request, env);
+
+      if (response) {
+        return response;
+      }
+    }
+
+    return router(request);
+  },
+} satisfies ExportedHandler<Env>;

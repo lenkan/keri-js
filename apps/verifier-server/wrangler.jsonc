@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "keri-verifier",
+  "main": "src/main.ts",
+  "compatibility_date": "2026-08-20",
+  "assets": {
+    "directory": "../verifier/dist",
+    "binding": "ASSETS",
+    // `POST /` is the presentation endpoint KERIpy's sendDirect targets, and the
+    // asset server's behaviour for non-GET methods is unspecified. Running the
+    // worker first keeps the route table in one place, at the cost of an
+    // invocation per asset request.
+    "run_worker_first": true,
+    // The worker falls back to the app shell itself, so that a missing asset
+    // still answers 404 rather than a page of HTML. `html_handling` is off for
+    // the same reason: its default redirects unmatched paths to `/` instead of
+    // letting the worker decide.
+    "not_found_handling": "none",
+    "html_handling": "none"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      // Replace with the id from `wrangler kv namespace create SESSIONS`.
+      // `wrangler dev` simulates the namespace locally and ignores this.
+      "id": "PLACEHOLDER_CREATE_WITH_WRANGLER_KV_NAMESPACE_CREATE"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

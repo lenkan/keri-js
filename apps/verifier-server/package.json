@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "deno run --allow-net --allow-env --allow-read --unstable-kv src/main.ts",
-    "check": "deno check src/main.ts"
+    "dev": "wrangler dev --port 3002",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@keri-js/infra": "workspace:*",
     "cesr": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "wrangler": "^4.0.0"
   }
 }
