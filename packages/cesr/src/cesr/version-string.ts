@@ -71,8 +71,7 @@ export class VersionString {
   }
 
   /**
-   * Extrats and parses the version string from a message payload
-   * @param input
+   * Extracts and parses the version string from a message payload
    */
   static extract(input: Uint8Array | string): VersionString {
     if (typeof input !== "string") {

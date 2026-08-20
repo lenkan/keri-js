@@ -11,7 +11,7 @@ import { lshift } from "./shifting.ts";
 
 export interface ReadResult {
   /**
-   * The frame, or null if there was not enough data in the input
+   * The frame, or undefined if there was not enough data in the input
    */
   frame?: Frame;
 

@@ -37,7 +37,7 @@ async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Messa
 
 export interface MailboxClientOptions {
   /**
-   * The SAID of the mailbox controller.
+   * The AID of the mailbox controller.
    */
   id: string;
 

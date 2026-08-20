@@ -2,7 +2,6 @@ import { Message } from "cesr";
 import { DUMMY_VERSION, encodeEvent } from "./events.ts";
 import type { KeyEventBody } from "./key-event.ts";
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type ReceiptEventBody = {
   v: string;
   t: "rct";

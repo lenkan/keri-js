@@ -35,7 +35,6 @@ function parseRow<T extends MessageBody>(result: Row): Message<T> {
   return new Message(body, atc);
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type RowInput = {
   event_id: string | null;
   protocol: string | null;

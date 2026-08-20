@@ -22,7 +22,6 @@ after(() => {
 test("KERIpy challenge-response with KERIjs signer", async () => {
   const keripy = new KERIPy();
 
-  // Set up KERIpy identity
   await keripy.init();
   await keripy.oobi.resolve(wan.oobi, "wan");
   await keripy.oobi.resolve(wil.oobi, "wil");
@@ -31,14 +30,12 @@ test("KERIpy challenge-response with KERIjs signer", async () => {
 
   const keripy_aid = await keripy.aid();
 
-  // Set up KeriJS identity
   const controller = createController();
   await controller.introduce(wan.oobi);
   await controller.introduce(wil.oobi);
 
   const jsState = await controller.incept({ wits: [wan.aid], toad: 1 });
 
-  // Cross-resolve OOBIs
   const kerijs_oobi = `${wan.url}/oobi/${jsState.id}`;
   const keripy_oobi = `${wan.url}/oobi/${keripy_aid}`;
 

@@ -341,7 +341,6 @@ export class Controller {
       default:
         // TODO: Handle other message types
         this.#log.debug("processMessage: ignoring", { t: message.body.t });
-        // this.#storage.saveMessage(message);
         break;
     }
   }
@@ -468,7 +467,6 @@ export class Controller {
       sender: args.sender,
       route: "/fwd",
       timestamp: args.timestamp,
-      // rp: args.recipient,
       query: { pre: args.recipient, topic: args.topic },
       anchor: {},
       embeds: {
