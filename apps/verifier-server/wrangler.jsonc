@@ -1,6 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "keri-verifier",
+  // Pinned so a CI token with access to more than one account has no choice to
+  // make. It is an identifier, not a credential.
+  "account_id": "8935805b02bf9fe5b9968c3962159298",
   "main": "src/main.ts",
   "compatibility_date": "2026-08-20",
   "assets": {

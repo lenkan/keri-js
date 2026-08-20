@@ -53,13 +53,23 @@ openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | \
 
 ## Deployment
 
-```sh
-pnpm --filter @keri-js/verifier-server exec wrangler kv namespace create SESSIONS
-# put the returned id into wrangler.jsonc
+Pushing to `main` deploys, from the `deploy` job in `.github/workflows/ci.yaml`.
+It needs the `build`, `apps` and `e2e` jobs, so a red build cannot ship. The job
+authenticates with a `CLOUDFLARE_API_TOKEN` repository secret.
 
+To deploy by hand:
+
+```sh
 pnpm run build:apps
 pnpm --filter @keri-js/verifier-server run deploy
 ```
 
 `build:apps` builds the packages and the app; `wrangler deploy` bundles the
 worker and uploads it with the assets directory.
+
+The KV namespace already exists. To recreate it elsewhere:
+
+```sh
+pnpm --filter @keri-js/verifier-server exec wrangler kv namespace create SESSIONS
+# put the returned id into wrangler.jsonc
+```
