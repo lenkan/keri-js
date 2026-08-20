@@ -9,8 +9,8 @@ let kli: KERIPy;
 
 test.beforeAll(async () => {
   // Unlike the file-drop tests, this one needs the relay behind the page. global-setup only waits
-  // for the app, and the server is started beside it, so give it the same grace before failing with
-  // the command that starts it.
+  // for the app, which vite answers before the worker environment is up, so give the API the same
+  // grace before failing.
   const deadline = Date.now() + 30_000;
   let reachable = false;
 
@@ -23,9 +23,7 @@ test.beforeAll(async () => {
   }
 
   if (!reachable) {
-    throw new Error(
-      `${BASE_URL}/api/sessions did not answer. Start the verifier server too ("pnpm run dev:verifier").`,
-    );
+    throw new Error(`${BASE_URL}/api/sessions did not answer. Start the verifier ("pnpm run dev:verifier").`);
   }
 
   ({ said, stream, kli } = await issueCredential());

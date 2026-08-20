@@ -1,16 +1,13 @@
+import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const VERIFIER_SERVER = process.env.VERIFIER_SERVER ?? "http://localhost:3002";
-
 export default defineConfig({
-  plugins: [react()],
-  // Dev runs the app and the verifier as two processes; deployed, the verifier
-  // serves this build itself. The proxy is what makes both same-origin.
+  plugins: [react(), cloudflare()],
   server: {
-    proxy: {
-      "/api": VERIFIER_SERVER,
-      "/oobi": VERIFIER_SERVER,
-    },
+    // Bound explicitly, because "localhost" resolves to ::1 on some machines and
+    // the dev server then listens on IPv6 only. KERIpy's HTTP client connects
+    // over IPv4, so `kli oobi resolve` against this origin would hang.
+    host: "127.0.0.1",
   },
 });

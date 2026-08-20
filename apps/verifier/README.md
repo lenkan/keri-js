@@ -1,8 +1,11 @@
-# @keri-js/verifier-server
+# @keri-js/verifier
 
-Serves the ACDC verifier as a Cloudflare Worker: the API that mints presentation
-sessions and receives IPEX grants, the verifier's OOBI, and the built
-`@keri-js/verifier` app.
+The ACDC verifier: a React app that verifies credentials in the browser, and the
+Cloudflare Worker that serves it, publishes the verifier's OOBI and receives
+IPEX presentations.
+
+Verification runs entirely in the page, on `keri`. The worker never inspects a
+credential — it parks the presented stream in KV until the browser collects it.
 
 | Route | |
 | --- | --- |
@@ -18,26 +21,17 @@ back to the app shell for paths without a file extension.
 ## Run it locally
 
 ```sh
-pnpm run dev:verifier    # the app on :5173 proxying to the worker on :3002
+pnpm run dev:verifier
 ```
 
-The app and the worker run as two processes in dev; vite proxies `/api` and
-`/oobi` so the page is same-origin. To run the deployed shape instead — the
-worker serving both — build the app first, since the assets binding reads it
-from disk:
-
-```sh
-pnpm run build:apps
-pnpm run dev:verifier-server
-```
-
-`wrangler dev` simulates KV and the assets binding locally; no account needed.
+One vite process serves the app and runs the worker in workerd, with KV and the
+assets binding simulated locally. No Cloudflare account needed.
 
 ## Bindings and variables
 
 | Name | |
 | --- | --- |
-| `ASSETS` | assets binding, serving `apps/verifier/dist` |
+| `ASSETS` | assets binding, serving the client build |
 | `SESSIONS` | KV namespace holding presentations, keyed by session token |
 | `VERIFIER_URL` | public base URL, baked into the OOBI; defaults to the request origin |
 | `VERIFIER_SEED` | 32-byte base64 seed for the verifier's key |
@@ -48,7 +42,7 @@ signing key:
 
 ```sh
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | \
-  pnpm --filter @keri-js/verifier-server exec wrangler secret put VERIFIER_SEED
+  pnpm --filter @keri-js/verifier exec wrangler secret put VERIFIER_SEED
 ```
 
 ## Deployment
@@ -60,9 +54,13 @@ repository. The build settings live in the Cloudflare dashboard, under the
 | Setting | |
 | --- | --- |
 | Root directory | `/` (the repository root) |
-| Build command | `pnpm install --frozen-lockfile && pnpm run build:apps` |
-| Deploy command | `pnpm run deploy:verifier-server` |
+| Build command | `pnpm install --frozen-lockfile && pnpm run build` |
+| Deploy command | `pnpm run deploy:verifier` |
 | Build variables | `PNPM_VERSION=11.21.0`, `SKIP_DEPENDENCY_INSTALL=1` |
+
+The build command builds the workspace packages only; `deploy:verifier` runs
+`vite build` itself, which emits the client bundle, the worker, and the
+`wrangler.json` that `wrangler deploy` then reads.
 
 `SKIP_DEPENDENCY_INSTALL` is what lets the build command install with
 `--frozen-lockfile`, which the image's own install does not. `PNPM_VERSION` has
@@ -73,13 +71,12 @@ repository root.
 To deploy by hand:
 
 ```sh
-pnpm run build:apps
-pnpm run deploy:verifier-server
+pnpm run deploy:verifier
 ```
 
 The KV namespace already exists. To recreate it elsewhere:
 
 ```sh
-pnpm --filter @keri-js/verifier-server exec wrangler kv namespace create SESSIONS
+pnpm --filter @keri-js/verifier exec wrangler kv namespace create SESSIONS
 # put the returned id into wrangler.jsonc
 ```

@@ -5,6 +5,7 @@
       "**",
       "!.claude",
       "!**/dist",
+      "!**/.wrangler",
       "!**/worker-configuration.d.ts",
       "!**/api-docs",
       "!**/.venv",

@@ -1,10 +1,13 @@
 {
-  "include": ["src", "worker-configuration.d.ts"],
+  "include": ["src/worker", "worker-configuration.d.ts"],
   "compilerOptions": {
+    "composite": true,
     "noEmit": true,
     "target": "esnext",
     "module": "preserve",
     "moduleResolution": "bundler",
+    // No "dom": Request, Response and the bindings come from
+    // worker-configuration.d.ts, and the DOM lib's own versions conflict.
     "lib": ["esnext"],
     "strict": true,
     "allowImportingTsExtensions": true,

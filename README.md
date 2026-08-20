@@ -39,7 +39,8 @@ first, or point `E2E_BASE_URL` at another host. Install the browser once with
 
 ## Apps
 
-The verifier app lives in [`apps/verifier`](apps/verifier):
+The verifier app lives in [`apps/verifier`](apps/verifier), which holds both the browser app and
+the Cloudflare Worker that serves it:
 
 ```sh
 pnpm run dev:verifier
