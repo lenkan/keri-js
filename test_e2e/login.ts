@@ -32,9 +32,12 @@ export async function login(page: Page, kli: KERIPy): Promise<void> {
 
   const push = await page.locator("pre").filter({ hasText: "curl -fsS" }).innerText();
   const token = push.match(/\/api\/login\/sessions\/([A-Za-z0-9]+)\/kel/)?.[1];
-  if (!token) {
-    throw new Error(`The push command carried no session token:\n${push}`);
+  const oobi = push.match(/--oobi (\S+)/)?.[1];
+  if (!token || !oobi) {
+    throw new Error(`The first step's commands were missing a session token or oobi:\n${push}`);
   }
+
+  await kli.oobi.resolve(oobi, "portal");
 
   const submitted = await fetch(`${BASE_URL}/api/login/sessions/${token}/kel`, {
     method: "POST",
@@ -45,13 +48,11 @@ export async function login(page: Page, kli: KERIPy): Promise<void> {
   }
 
   const respond = await page.locator("pre").filter({ hasText: "challenge respond" }).innerText();
-  const oobi = respond.match(/--oobi (\S+)/)?.[1];
   const words = respond.match(/--words "([^"]+)"/)?.[1];
-  if (!oobi || !words) {
-    throw new Error(`The respond commands were missing an oobi or words:\n${respond}`);
+  if (!words) {
+    throw new Error(`The respond command was missing words:\n${respond}`);
   }
 
-  await kli.oobi.resolve(oobi, "portal");
   await kli.challenge.respond({ words: words.split(" "), recipient: "portal" });
 
   await expect(page.getByText("Logged in", { exact: true })).toBeVisible({ timeout: 15_000 });

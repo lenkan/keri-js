@@ -7,14 +7,18 @@ const SETUP_COMMANDS = `pip install keri==1.3.3
 kli init --name demo --nopasscode
 kli incept --name demo --alias issuer --icount 1 --isith 1 --ncount 1 --nsith 1 --toad 0 --transferable`;
 
-function pushCommand(token: string): string {
-  return `kli export --name demo --alias issuer | curl -fsS -X POST \\
+function resolveCommand(): string {
+  return `kli oobi resolve --name demo --oobi ${window.location.origin}/oobi --oobi-alias portal`;
+}
+
+function pushCommands(token: string): string {
+  return `${resolveCommand()}
+kli export --name demo --alias issuer | curl -fsS -X POST \\
   --data-binary @- ${window.location.origin}/api/login/sessions/${token}/kel`;
 }
 
-function respondCommands(words: string[]): string {
-  return `kli oobi resolve --name demo --oobi ${window.location.origin}/oobi --oobi-alias portal
-kli challenge respond --name demo --alias issuer \\
+function respondCommand(words: string[]): string {
+  return `kli challenge respond --name demo --alias issuer \\
   --words "${words.join(" ")}" \\
   --recipient portal`;
 }
@@ -53,11 +57,10 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
           <Text span ff="monospace">
             {`${phase.aid.slice(0, 12)}…`}
           </Text>
-          . Two commands left: the first resolves this portal as a <code>kli</code> contact, the second signs the
-          challenge words and sends the response.
+          . One command left: sign the challenge words and send the response.
         </Text>
 
-        <CommandBlock>{respondCommands(phase.words)}</CommandBlock>
+        <CommandBlock>{respondCommand(phase.words)}</CommandBlock>
 
         {phase.lastError && <Alert color="yellow">{phase.lastError}</Alert>}
 
@@ -100,8 +103,10 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
 
       {intake === "push" ? (
         <>
-          <Text>Export your key event log into this session:</Text>
-          <CommandBlock>{pushCommand(phase.token)}</CommandBlock>
+          <Text>
+            Resolve this portal as a <code>kli</code> contact, then export your key event log into this session:
+          </Text>
+          <CommandBlock>{pushCommands(phase.token)}</CommandBlock>
           <Group gap="xs">
             <Loader size="sm" />
             <Text>Waiting for your key event log…</Text>
@@ -109,7 +114,11 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
         </>
       ) : (
         <>
-          <Text>Paste an OOBI URL that serves your key event log — a witness OOBI works:</Text>
+          <Text>
+            Resolve this portal as a <code>kli</code> contact — the challenge response is sent to it later:
+          </Text>
+          <CommandBlock>{resolveCommand()}</CommandBlock>
+          <Text>Then paste an OOBI URL that serves your key event log — a witness OOBI works:</Text>
           <Group align="end">
             <TextInput
               value={oobiUrl}
