@@ -2,13 +2,12 @@ import { encodeText, type MessageBody } from "cesr";
 import {
   Attachments,
   type CredentialBody,
-  type IssueEvent,
-  type KeyEvent,
+  type IssueEventBody,
   type KeyEventBody,
   Message,
   type RegistryInceptEventBody,
   type ReplyEventBody,
-  type RevokeEvent,
+  type RevokeEventBody,
 } from "keri";
 import type {
   CredentialStorage,
@@ -88,7 +87,7 @@ function prepareRow<T extends MessageBody>(message: Message<T>): RowInput {
     }
     case "iss":
     case "rev": {
-      const body = message.body as unknown as IssueEvent | RevokeEvent;
+      const body = message.body as unknown as IssueEventBody | RevokeEventBody;
       return {
         event_id: body.d,
         protocol: message.version.protocol,
@@ -206,7 +205,7 @@ export class SqliteControllerStorage
     }
   }
 
-  *getKeyEvents(prefix: string): Generator<KeyEvent> {
+  *getKeyEvents(prefix: string): Generator<Message<KeyEventBody>> {
     const statement = [
       "SELECT event_json, attachments",
       "FROM event",
@@ -220,7 +219,7 @@ export class SqliteControllerStorage
     }
   }
 
-  *getCredentialEvents(id: string): Generator<Message<IssueEvent | RevokeEvent>> {
+  *getCredentialEvents(id: string): Generator<Message<IssueEventBody | RevokeEventBody>> {
     const statement = [
       "SELECT event_json, attachments",
       "FROM event",
@@ -229,7 +228,7 @@ export class SqliteControllerStorage
     ].join("\n");
 
     for (const row of this.#db.iterate(statement, { id })) {
-      yield parseRow<IssueEvent | RevokeEvent>(row);
+      yield parseRow<IssueEventBody | RevokeEventBody>(row);
     }
   }
 

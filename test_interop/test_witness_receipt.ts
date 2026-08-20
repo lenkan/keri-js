@@ -2,7 +2,7 @@ import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { submitToWitnesses } from "@keri-js/infra/http";
 import { parse } from "cesr";
-import { keri } from "keri";
+import { ed25519Signer, generateKeyPair, KeyEvent, signEvent } from "keri";
 import { collectAsync, createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 let wan: Endpoint;
@@ -102,17 +102,17 @@ test("Create identifier with three witnesses", async () => {
 });
 
 test("Single witness returns one witness receipt", async () => {
-  const key = keri.utils.generateKeyPair();
-  const next = keri.utils.generateKeyPair();
+  const key = generateKeyPair();
+  const next = generateKeyPair();
 
-  const event = keri.incept({
+  const event = KeyEvent.incept({
     signingKeys: [key.publicKey],
-    nextKeys: [next.publicKeyDigest],
-    wits: [wan.aid],
-    toad: 1,
+    nextKeyDigests: [next.publicKeyDigest],
+    backers: [wan.aid],
+    backerThreshold: 1,
   });
 
-  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
+  await signEvent(event, [ed25519Signer(key.privateKey)]);
 
   const wigs = await submitToWitnesses(event, [wan]);
   assert.strictEqual(wigs.length, 1);
@@ -120,17 +120,17 @@ test("Single witness returns one witness receipt", async () => {
 });
 
 test("Two witnesses return two witness receipts", async () => {
-  const key = keri.utils.generateKeyPair();
-  const next = keri.utils.generateKeyPair();
+  const key = generateKeyPair();
+  const next = generateKeyPair();
 
-  const event = keri.incept({
+  const event = KeyEvent.incept({
     signingKeys: [key.publicKey],
-    nextKeys: [next.publicKeyDigest],
-    wits: [wan.aid, wil.aid],
-    toad: 2,
+    nextKeyDigests: [next.publicKeyDigest],
+    backers: [wan.aid, wil.aid],
+    backerThreshold: 2,
   });
 
-  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
+  await signEvent(event, [ed25519Signer(key.privateKey)]);
 
   const wigs = await submitToWitnesses(event, [wan, wil]);
   assert.strictEqual(wigs.length, 2);
@@ -138,17 +138,17 @@ test("Two witnesses return two witness receipts", async () => {
 });
 
 test("Three witnesses return three witness receipts", async () => {
-  const key = keri.utils.generateKeyPair();
-  const next = keri.utils.generateKeyPair();
+  const key = generateKeyPair();
+  const next = generateKeyPair();
 
-  const event = keri.incept({
+  const event = KeyEvent.incept({
     signingKeys: [key.publicKey],
-    nextKeys: [next.publicKeyDigest],
-    wits: [wan.aid, wil.aid, wes.aid],
-    toad: 3,
+    nextKeyDigests: [next.publicKeyDigest],
+    backers: [wan.aid, wil.aid, wes.aid],
+    backerThreshold: 3,
   });
 
-  event.attachments.ControllerIdxSigs.push(keri.utils.sign(event.raw, { key: key.privateKey, index: 0 }));
+  await signEvent(event, [ed25519Signer(key.privateKey)]);
 
   const wigs = await submitToWitnesses(event, [wan, wil, wes]);
   assert.strictEqual(wigs.length, 3);

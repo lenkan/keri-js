@@ -9,13 +9,21 @@ export interface KeyPair {
 }
 
 export interface GenerateKeyPairOptions {
-  seed?: string;
+  /**
+   * Derive the private key from this string instead of the CSPRNG, so a test
+   * gets the same AID every run.
+   *
+   * Not a passphrase: a bare blake3 of the UTF-8 bytes, with no salt, no KDF
+   * and no work factor. Anything reachable from outside a test suite must use
+   * the default.
+   */
+  insecureSeed?: string;
   nonTransferable?: boolean;
 }
 
 export function generateKeyPair(options?: GenerateKeyPairOptions): KeyPair {
-  const privateKey = options?.seed
-    ? blake3(new TextEncoder().encode(options.seed), { dkLen: 32 })
+  const privateKey = options?.insecureSeed
+    ? blake3(new TextEncoder().encode(options.insecureSeed), { dkLen: 32 })
     : crypto.getRandomValues(new Uint8Array(32));
 
   const rawPublicKey = ed25519.getPublicKey(privateKey);

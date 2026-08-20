@@ -18,13 +18,30 @@ export type VerifyResult =
       error: string;
     };
 
-export function verifySignature(payload: Uint8Array, key: Matter, sig: Uint8Array): boolean {
+function verifyRaw(payload: Uint8Array, key: Matter, sig: Uint8Array): boolean {
   switch (key.code) {
     case Matter.Code.Ed25519:
     case Matter.Code.Ed25519N:
       return ed25519.verify(sig, payload, key.raw);
     default:
       throw new Error(`Unsupported key code: ${key.code}`);
+  }
+}
+
+/**
+ * Check one unindexed signature against one public key, both CESR-encoded.
+ *
+ * Returns a result rather than throwing so an unsupported key code in a stream
+ * is reported for that message instead of aborting the whole pass.
+ */
+export function verifySignature(payload: Uint8Array, publicKey: string, signature: string): VerifyResult {
+  try {
+    const key = Matter.parse(publicKey);
+    const sig = Matter.parse(signature);
+    return verifyRaw(payload, key, sig.raw) ? { ok: true } : { ok: false, error: "Invalid signature" };
+  } catch (error) {
+    // Covers both a malformed primitive and verifyRaw's unsupported-code throw.
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -41,7 +58,7 @@ export function verifyThreshold(payload: Uint8Array, options: VerifyOptions): Ve
       continue;
     }
 
-    if (!verifySignature(payload, keys[idx], sig.raw)) {
+    if (!verifyRaw(payload, keys[idx], sig.raw)) {
       return { ok: false, error: `Invalid signature for key at index ${idx}` };
     }
 
@@ -73,7 +90,7 @@ export function verifySignatures(payload: Uint8Array, options: VerifyOptions): V
   for (let idx = 0; idx < keys.length; idx++) {
     const sig = sigs.find((s) => s.index === idx);
     if (!sig) continue;
-    if (!verifySignature(payload, keys[idx], sig.raw)) {
+    if (!verifyRaw(payload, keys[idx], sig.raw)) {
       return { ok: false, error: `Invalid signature for key at index ${idx}` };
     }
   }

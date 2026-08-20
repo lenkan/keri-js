@@ -1,5 +1,5 @@
-import { Attachments, encodeText, parse } from "cesr";
-import type { KeyEvent, KeyEventBody } from "keri";
+import { Attachments, encodeText, type Message, parse } from "cesr";
+import type { KeyEventBody } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import { type Witness, WitnessError, type WitnessEvent } from "./witness.ts";
 
@@ -41,7 +41,7 @@ export function createRouter(witness: Witness, options: RouterOptions = {}): (re
 
     for await (const witnessEvent of parse(bodyText + atc)) {
       try {
-        const receipt = witness.receipt(witnessEvent as KeyEvent);
+        const receipt = await witness.receipt(witnessEvent as Message<KeyEventBody>);
         receipts.push({ message: receipt, timestamp: new Date() });
       } catch (err) {
         if (err instanceof WitnessError) {

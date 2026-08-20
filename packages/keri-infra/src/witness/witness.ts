@@ -1,6 +1,15 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, Message } from "cesr";
-import { type KeyEvent, type KeyEventBody, KeyEventLog, keri, type ReceiptEventBody } from "keri";
+import {
+  ed25519Signer,
+  KeyEvent,
+  type KeyEventBody,
+  KeyEventLog,
+  type ReceiptEventBody,
+  RoutedEvent,
+  type Signer,
+  signEvent,
+} from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { KeyEventStorage } from "../storage/main.ts";
 
@@ -22,7 +31,7 @@ export class Witness {
   readonly events: readonly WitnessEvent[];
 
   readonly #storage: KeyEventStorage;
-  readonly #privateKey: Uint8Array;
+  readonly #signer: Signer;
   readonly #kel: KeyEventLog;
   readonly #log: KeriLogger;
 
@@ -30,66 +39,65 @@ export class Witness {
     return this.#kel.state.identifier;
   }
 
-  static createKEL(privateKey: Uint8Array): KeyEventLog {
-    const publicKey = encodeText(new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }));
-
-    const icp = keri.incept({
-      signingKeys: [publicKey],
-      nextKeys: [],
-    });
-    icp.attachments = {
-      ControllerIdxSigs: [encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey), 0))],
-    };
-
+  static async createKEL(signer: Signer): Promise<KeyEventLog> {
+    const icp = KeyEvent.incept({ signingKeys: [signer.publicKey], nextKeyDigests: [] });
+    await signEvent(icp, [signer]);
     return KeyEventLog.from([icp]);
   }
 
-  constructor(options: WitnessOptions) {
-    this.#storage = options.storage;
-    this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
-    this.#kel = Witness.createKEL(this.#privateKey);
-    this.#log = new KeriLogger(options.logger);
+  static async create(options: WitnessOptions): Promise<Witness> {
+    const signer = ed25519Signer(options.privateKey ?? ed25519.utils.randomSecretKey(), { nonTransferable: true });
+    const kel = await Witness.createKEL(signer);
+    const aid = kel.state.identifier;
 
-    const events: WitnessEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
+    const events: WitnessEvent[] = [{ message: kel.events[0], timestamp: new Date() }];
 
     if (options.url) {
       const url = new URL(options.url);
       const scheme = url.protocol.replace(":", "");
 
-      const location = keri.reply({
+      const location = RoutedEvent.reply({
         r: "/loc/scheme",
         a: {
-          eid: this.aid,
+          eid: aid,
           scheme: scheme,
           url: options.url,
         },
       });
 
-      const endrole = keri.reply({
+      const endrole = RoutedEvent.reply({
         r: "/end/role/add",
         a: {
-          cid: this.aid,
+          cid: aid,
           role: "controller",
-          eid: this.aid,
+          eid: aid,
         },
       });
 
       location.attachments = {
-        NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig: this.#sign(location) }],
+        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(location.raw) }],
       };
 
       endrole.attachments = {
-        NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig: this.#sign(endrole) }],
+        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(endrole.raw) }],
       };
 
       events.push({ message: location, timestamp: new Date() });
       events.push({ message: endrole, timestamp: new Date() });
     }
 
+    return new Witness(options, signer, kel, events);
+  }
+
+  private constructor(options: WitnessOptions, signer: Signer, kel: KeyEventLog, events: WitnessEvent[]) {
+    this.#storage = options.storage;
+    this.#signer = signer;
+    this.#kel = kel;
+    this.#log = new KeriLogger(options.logger);
     this.events = events;
   }
 
-  receipt(message: Message<KeyEventBody>): Message<ReceiptEventBody> {
+  async receipt(message: Message<KeyEventBody>): Promise<Message<ReceiptEventBody>> {
     const body = message.body;
 
     if (typeof body.i !== "string" || typeof body.d !== "string" || typeof body.s !== "string") {
@@ -126,8 +134,8 @@ export class Witness {
 
     this.#log.debug("issuing receipt", { aid: body.i, s: body.s, d: body.d });
 
-    const sig = this.#sign(message);
-    const receipt = keri.receipt({ d: message.body.d, i: message.body.i, s: message.body.s });
+    const sig = await this.#signer.sign(message.raw);
+    const receipt = KeyEvent.receipt(message);
     receipt.attachments = {
       NonTransReceiptCouples: [{ prefix: this.#kel.state.identifier, sig }],
     };
@@ -204,12 +212,7 @@ export class Witness {
     this.#storage.saveMessage(new Message(storedEvent.body, mergedAttachments));
   }
 
-  *getKeyEvents(aid: string): Generator<KeyEvent> {
+  *getKeyEvents(aid: string): Generator<Message<KeyEventBody>> {
     yield* this.#storage.getKeyEvents(aid);
-  }
-
-  #sign(message: Message): string {
-    const rawSignature = ed25519.sign(message.raw, this.#privateKey);
-    return encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: rawSignature }));
   }
 }

@@ -1,46 +1,35 @@
-import { createCredential } from "./credential.ts";
-import { issue, revoke } from "./credential-event.ts";
-import { digest } from "./digest.ts";
-import { formatDate } from "./events.ts";
-import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
-import { generateKeyPair } from "./keys.ts";
-import { receipt } from "./receipt-event.ts";
-import { incept as registry } from "./registry-event.ts";
-import { exchange, query, reply } from "./routed-event.ts";
-import { sign } from "./sign.ts";
-import { verifyThreshold } from "./verify.ts";
-
-export {
+/**
+ * Aggregation point for the `core` submodule.
+ *
+ * Not the package's public surface — `src/main.ts` is, and it names what it
+ * exports explicitly. Anything listed here is reachable by the other submodules;
+ * only what `src/main.ts` re-exports reaches consumers.
+ */
+export type {
   Attachments,
-  type AttachmentsInit,
-  type FirstSeenReplayCouple,
-  type Frame,
-  Message,
-  type MessageBody,
-  type NonTransReceiptCouple,
-  type PathedMaterialCouple,
-  type SealSourceCouple,
-  type SealSourceTriple,
-  type TransIdxSigGroup,
-  type TransLastIdxSigGroup,
-  VersionString,
+  AttachmentsInit,
+  FirstSeenReplayCouple,
+  Frame,
+  MessageBody,
+  NonTransReceiptCouple,
+  ParseInput,
+  PathedMaterialCouple,
+  SealSourceCouple,
+  SealSourceTriple,
+  TransIdxSigGroup,
+  TransLastIdxSigGroup,
 } from "cesr";
 export type {
-  Credential,
+  CredentialArgs,
   CredentialBody,
-  CredentialBodyInit,
   CredentialEdges,
   CredentialRules,
   CredentialSaidResult,
   CredentialSubject,
 } from "./credential.ts";
-export { createCredential, credentialIssuee, disclosedAttributes, verifyCredentialSaid } from "./credential.ts";
-export type {
-  IssueEventBody as IssueEvent,
-  IssueEventInit,
-  RevokeEventBody as RevokeEvent,
-  RevokeEventInit,
-} from "./credential-event.ts";
+export { createCredential, disclosedAttributes, isCredential } from "./credential.ts";
+export type { IssueEventArgs, IssueEventBody, RevokeEventArgs, RevokeEventBody } from "./credential-event.ts";
+export { issue, revoke } from "./credential-event.ts";
 export type {
   CheckStatus,
   CredentialCheck,
@@ -48,10 +37,9 @@ export type {
   CredentialEdge,
   CredentialVerification,
 } from "./credential-verification.ts";
-export { verifyCredential, verifyCredentials } from "./credential-verification.ts";
-export type { Endpoint, EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
-export { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
+export { nextKeyDigest } from "./digest.ts";
 export { EventIndex } from "./event-index.ts";
+export { formatDate } from "./events.ts";
 export type {
   DelegatedInceptArgs,
   DelegatedRotateArgs,
@@ -61,58 +49,38 @@ export type {
   InceptEventBody,
   InteractArgs,
   InteractEventBody,
-  KeyEvent,
   KeyEventBody,
   KeyState,
   RotateArgs,
   RotateEventBody,
 } from "./key-event.ts";
-export { delegatedIncept, delegatedRotate } from "./key-event.ts";
-export { isKelEventType, KeyEventLog } from "./key-event-log.ts";
+export { delegatedIncept, delegatedRotate, incept, interact, isKeyEvent, rotate } from "./key-event.ts";
+export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
-export type { ReceiptEventBody, ReceiptEventInit } from "./receipt-event.ts";
-export type { RegistryInceptEventBody, RegistryInceptEventInit } from "./registry-event.ts";
+export type { ReceiptEventBody } from "./receipt-event.ts";
+export { receipt } from "./receipt-event.ts";
+export type { RegistryInceptEventArgs, RegistryInceptEventBody } from "./registry-event.ts";
+// Aliased because the package exposes two inceptions — this one is the registry's
+// `vcp`. At the root they are told apart by namespace, not by name.
+export { incept as inceptRegistry } from "./registry-event.ts";
 export type {
+  ExchangeEventArgs,
   ExchangeEventBody,
-  ExchangeEventInit,
+  QueryEventArgs,
   QueryEventBody,
-  QueryEventInit,
+  ReplyEventArgs,
   ReplyEventBody,
-  ReplyEventInit,
+  RoutedEventBody,
 } from "./routed-event.ts";
-export { embeds, IPEX_GRANT_ROUTE } from "./routed-event.ts";
-export type { SignOptions } from "./sign.ts";
-export { sign } from "./sign.ts";
+export { embeds, exchange, IPEX_GRANT_ROUTE, isRoutedEvent, query, reply } from "./routed-event.ts";
+export { saidify } from "./said.ts";
+export type { Ed25519SignerOptions, Signer } from "./sign.ts";
+export { ed25519Signer, signEvent } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";
 export type { CredentialStatus, TransactionEventBody } from "./transaction-event-log.ts";
-export { isTelEventType, verifyTransactionEventAnchor, verifyTransactionEventSaid } from "./transaction-event-log.ts";
-export type { VerifyOptions, VerifyResult } from "./verify.ts";
+export { isTransactionEvent } from "./transaction-event-log.ts";
+export type { VerifyResult } from "./verify.ts";
 export { verifySignature } from "./verify.ts";
-
-export const keri = {
-  // Key events
-  incept,
-  interact,
-  rotate,
-  delegatedIncept,
-  delegatedRotate,
-  // Registry
-  registry,
-  issue,
-  revoke,
-  credential: createCredential,
-  // Routed
-  exchange,
-  query,
-  reply,
-  // Receipt
-  receipt,
-  utils: {
-    sign,
-    verifyThreshold,
-    formatDate,
-    generateKeyPair,
-    digest,
-  },
-};
+export type { IdentifierVerification, RegistryVerification, VerifyReport } from "./verify-report.ts";
+export { collect, verify } from "./verify-report.ts";

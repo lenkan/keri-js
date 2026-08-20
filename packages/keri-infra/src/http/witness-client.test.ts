@@ -2,17 +2,18 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, Message } from "cesr";
-import { generateKeyPair, type KeyEvent, type KeyPair, keri, sign } from "keri";
+import { generateKeyPair, KeyEvent, type KeyEventBody, type KeyPair } from "keri";
+import { sign } from "./signing.test.ts";
 import { WitnessClient } from "./witness-client.ts";
 
 function makeEvent() {
   const sigKey = generateKeyPair();
   const witnessKey = generateKeyPair({ nonTransferable: true });
 
-  const event = keri.incept({
+  const event = KeyEvent.incept({
     signingKeys: [sigKey.publicKey],
-    nextKeys: [],
-    wits: [witnessKey.publicKey],
+    nextKeyDigests: [],
+    backers: [witnessKey.publicKey],
   });
 
   event.attachments.ControllerIdxSigs.push(sign(event.raw, { key: sigKey.privateKey, index: 0 }));
@@ -20,8 +21,8 @@ function makeEvent() {
   return { event, sigKey, witnessKey };
 }
 
-function makeReceiptResponse(event: KeyEvent, witnessKey: KeyPair) {
-  const rct = keri.receipt({ d: event.body.d, i: event.body.i, s: event.body.s });
+function makeReceiptResponse(event: Message<KeyEventBody>, witnessKey: KeyPair) {
+  const rct = KeyEvent.receipt(event);
   const witnessSig = sign(event.raw, { key: witnessKey.privateKey });
   const receiptMsg = new Message(rct.body, {
     NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: witnessSig }],
@@ -47,7 +48,7 @@ describe(basename(import.meta.url), () => {
       const { event, witnessKey } = makeEvent();
       const attackerKey = generateKeyPair({ nonTransferable: true });
 
-      const rct = keri.receipt({ d: event.body.d, i: event.body.i, s: event.body.s });
+      const rct = KeyEvent.receipt(event);
       const badSig = sign(event.raw, { key: attackerKey.privateKey });
       const receiptMsg = new Message(rct.body, {
         NonTransReceiptCouples: [{ prefix: witnessKey.publicKey, sig: badSig }],

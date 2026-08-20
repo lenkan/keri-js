@@ -72,7 +72,7 @@ async function listen(signal?: AbortSignal, port = 0): Promise<{ url: string; se
 export async function startKerijsWitness(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
   const { url, serve } = await listen(opts.signal, opts.port);
 
-  const witness = new Witness({
+  const witness = await Witness.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
     url,
   });
@@ -85,7 +85,7 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
 export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
   const { url, serve } = await listen(opts.signal, opts.port);
 
-  const mailbox = new Mailbox({
+  const mailbox = await Mailbox.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
     url,
   });
@@ -107,7 +107,7 @@ export async function startKerijsVerifier(opts: { port?: number; signal?: AbortS
     },
   };
 
-  const verifier = new Verifier({ url });
+  const verifier = await Verifier.create({ url });
   serve(createVerifierRouter(verifier, sessions, { logger: serverLogger }));
 
   return { aid: verifier.aid, url, oobi: verifier.oobi };

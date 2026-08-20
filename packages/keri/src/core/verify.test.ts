@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
-import { sign } from "./sign.ts";
+import { signRaw } from "./signing.test.ts";
 import { verifyThreshold, verifyThresholdOrThrow } from "./verify.ts";
+
+function sign(payload: Uint8Array, options: { key: Uint8Array; index: number }): string {
+  return signRaw(payload, options.key, options.index);
+}
 
 function generateKeys(count: number): KeyPair[] {
   const keys: KeyPair[] = [];

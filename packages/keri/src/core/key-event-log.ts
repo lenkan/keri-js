@@ -8,6 +8,7 @@ import type {
   KeyState,
   RotateEventBody,
 } from "./key-event.ts";
+import { isKelEventType } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 
 export interface AppendOptions {
@@ -232,10 +233,6 @@ export class KeyEventLog {
     const newState = reduceKeyState(this.#state, body);
     return new KeyEventLog([...this.#events, message], newState, delegator ?? null);
   }
-}
-
-export function isKelEventType(t: unknown): boolean {
-  return t === "icp" || t === "ixn" || t === "rot" || t === "dip" || t === "drt";
 }
 
 interface KeyEventSeal {

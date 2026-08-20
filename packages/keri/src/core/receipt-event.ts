@@ -1,11 +1,6 @@
 import { Message } from "cesr";
 import { DUMMY_VERSION, encodeEvent } from "./events.ts";
-
-export interface ReceiptEventInit {
-  d: string;
-  i: string;
-  s: string;
-}
+import type { KeyEventBody } from "./key-event.ts";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type ReceiptEventBody = {
@@ -16,16 +11,22 @@ export type ReceiptEventBody = {
   s: string;
 };
 
-export type ReceiptEvent = Message<ReceiptEventBody>;
-
-export function receipt(args: ReceiptEventInit): ReceiptEvent {
+/**
+ * Build the `rct` receipting `event`.
+ *
+ * Takes the event rather than its `d`/`i`/`s` because those three fields are
+ * exactly what a receipt copies from it.
+ *
+ * Note `rct` is not itself a KEL event type — a receipt is *about* a key event.
+ */
+export function receipt(event: Message<KeyEventBody>): Message<ReceiptEventBody> {
   const body = encodeEvent<ReceiptEventBody>(
     {
       v: DUMMY_VERSION,
       t: "rct",
-      d: args.d,
-      i: args.i,
-      s: args.s,
+      d: event.body.d,
+      i: event.body.i,
+      s: event.body.s,
     },
     { labels: [] },
   );

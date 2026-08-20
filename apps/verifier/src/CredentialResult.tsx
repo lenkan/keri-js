@@ -1,6 +1,6 @@
 import { Badge, Card, Group, Text } from "@mantine/core";
 import type { CredentialStatus, CredentialVerification } from "keri";
-import { disclosedAttributes } from "keri";
+import { Credential } from "keri";
 import { CHECK_LABELS } from "./checks.ts";
 import { CheckItem, CheckList, Field, FieldList, TONE_COLORS, type Tone } from "./components/main.ts";
 
@@ -11,7 +11,7 @@ const STATUS_TONES: Record<CredentialStatus, Tone> = {
 };
 
 export function CredentialResult({ result }: { result: CredentialVerification }) {
-  const claims = disclosedAttributes(result.credential.body);
+  const claims = Credential.disclosedAttributes(result.credential.body);
 
   return (
     <Card withBorder padding="lg" mt="xl">

@@ -4,6 +4,7 @@ import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { parse } from "cesr";
 import { EventIndex } from "./event-index.ts";
+import { collect } from "./verify-report.ts";
 
 const ISSUER = "EAK1H-RJM-mRzgNa7oNTv71FBvJERCHLunYI9ja9KW7w";
 const REGISTRY = "EEXV71avZSL6fKJnQky_oxHqRPlNYR3zNGD-OpJe0DJa";
@@ -20,7 +21,7 @@ async function messages(name: string) {
 
 describe(basename(import.meta.url), () => {
   test("should index the credential fixture by identifier and registry", async () => {
-    const index = await EventIndex.parse(await fixture("credential.cesr"));
+    const index = await collect(await fixture("credential.cesr"));
 
     assert.deepEqual(index.identifiers, [ISSUER]);
     assert.deepEqual(index.registries, [REGISTRY]);
@@ -31,7 +32,7 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should group key events and registry events under their identifiers", async () => {
-    const index = await EventIndex.parse(await fixture("credential.cesr"));
+    const index = await collect(await fixture("credential.cesr"));
 
     assert.deepEqual(
       index.keyEvents(ISSUER).map((event) => event.body.t),
@@ -44,14 +45,14 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should look up a credential by said", async () => {
-    const index = await EventIndex.parse(await fixture("credential.cesr"));
+    const index = await collect(await fixture("credential.cesr"));
 
     assert.equal(index.credential(CREDENTIAL)?.body.i, ISSUER);
     assert.equal(index.credential("EUnknown"), null);
   });
 
   test("should return empty results for unknown identifiers", async () => {
-    const index = await EventIndex.parse(await fixture("credential.cesr"));
+    const index = await collect(await fixture("credential.cesr"));
 
     assert.deepEqual(index.keyEvents("EUnknown"), []);
     assert.deepEqual(index.transactionEvents("EUnknown"), []);
@@ -88,14 +89,14 @@ describe(basename(import.meta.url), () => {
   // grant.cesr is a mailbox-forwarded grant, so reaching the ACDC means
   // unwrapping /fwd and then /ipex/grant.
   test("should index the credential embedded in an IPEX grant stream", async () => {
-    const index = await EventIndex.parse(await fixture("grant.cesr"));
+    const index = await collect(await fixture("grant.cesr"));
 
     assert.equal(index.credentials.length, 1);
     assert.equal(index.credentials[0].body.d, GRANT_CREDENTIAL);
   });
 
   test("should carry the embedded issuance seal through unwrapping", async () => {
-    const index = await EventIndex.parse(await fixture("grant.cesr"));
+    const index = await collect(await fixture("grant.cesr"));
     const credential = index.credential(GRANT_CREDENTIAL);
 
     assert.ok(credential);

@@ -1,7 +1,7 @@
 import { Attachments, encodeText, type Message, parse } from "cesr";
 import { encodeBase64Url } from "cesr/encoding";
 import type { ExchangeEventBody } from "keri";
-import { IPEX_GRANT_ROUTE } from "keri";
+import { RoutedEvent } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { SessionStore, Verifier } from "./verifier.ts";
 
@@ -43,7 +43,7 @@ function sessionToken(messages: readonly Message[]): TokenLookup {
   for (const message of messages) {
     const body = message.body as Partial<ExchangeEventBody>;
 
-    if (body.t === "exn" && body.r === IPEX_GRANT_ROUTE) {
+    if (body.t === "exn" && body.r === RoutedEvent.IPEX_GRANT_ROUTE) {
       const token = body.a?.m;
       return typeof token === "string" && token.length > 0 ? { ok: true, token } : { ok: false, reason: "no-token" };
     }

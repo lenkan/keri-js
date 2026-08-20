@@ -1,7 +1,7 @@
 import { Message } from "cesr";
 import { DUMMY_VERSION, encodeEvent, randomNonce } from "./events.ts";
 
-export interface RegistryInceptEventInit {
+export interface RegistryInceptEventArgs {
   ii: string;
   n?: string;
 }
@@ -27,9 +27,7 @@ export type RegistryEventBody = {
   [key: string]: unknown;
 };
 
-export type RegistryEvent = Message<RegistryEventBody>;
-
-export function incept(args: RegistryInceptEventInit): Message<RegistryInceptEventBody> {
+export function incept(args: RegistryInceptEventArgs): Message<RegistryInceptEventBody> {
   const body = encodeEvent<RegistryInceptEventBody>(
     {
       v: DUMMY_VERSION,
@@ -43,7 +41,7 @@ export function incept(args: RegistryInceptEventInit): Message<RegistryInceptEve
       b: [],
       n: args.n ?? randomNonce(),
     },
-    { labels: ["d", "i"], legacy: true },
+    { labels: ["d", "i"] },
   );
 
   return new Message(body);

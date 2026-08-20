@@ -4,20 +4,20 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { Attachments, encodeText, parse } from "cesr";
 import type { Message } from "keri";
-import { generateKeyPair, keri } from "keri";
+import { generateKeyPair, KeyEvent, RoutedEvent } from "keri";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 
 function makeMailbox(url?: string) {
-  return new Mailbox({
+  return Mailbox.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
     url,
   });
 }
 
-function makeApp(url?: string) {
-  return createRouter(makeMailbox(url));
+async function makeApp(url?: string) {
+  return createRouter(await makeMailbox(url));
 }
 
 function request(path: string, init: RequestInit = {}): Request {
@@ -52,10 +52,10 @@ function postMessage(message: Message): Request {
 
 function makeForward(pre: string, topic: string) {
   const { publicKey: senderPub } = generateKeyPair();
-  const sender = keri.incept({ signingKeys: [senderPub], nextKeys: [] });
+  const sender = KeyEvent.incept({ signingKeys: [senderPub], nextKeyDigests: [] });
   const { publicKey: innerPub } = generateKeyPair();
-  const inner = keri.incept({ signingKeys: [innerPub], nextKeys: [] });
-  return keri.exchange({
+  const inner = KeyEvent.incept({ signingKeys: [innerPub], nextKeyDigests: [] });
+  return RoutedEvent.exchange({
     sender: sender.body.i,
     route: "/fwd",
     query: { pre, topic },
@@ -65,13 +65,13 @@ function makeForward(pre: string, topic: string) {
 }
 
 function makeQuery(id: string, topics: Record<string, number>) {
-  return keri.query({ r: "mbx", q: { i: id, topics } });
+  return RoutedEvent.query({ r: "mbx", q: { i: id, topics } });
 }
 
 describe(basename(import.meta.url), () => {
   describe("GET /", () => {
     test("should return 200 with status ok", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const response = await app(request("/", { method: "GET" }));
       assert.strictEqual(response.status, 200);
       assert.deepStrictEqual(await response.json(), { status: "OK" });
@@ -80,9 +80,9 @@ describe(basename(import.meta.url), () => {
 
   describe("POST /", () => {
     test("should return 400 when CESR-ATTACHMENT header is missing", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const { publicKey } = generateKeyPair();
-      const icp = keri.incept({ signingKeys: [publicKey], nextKeys: [] });
+      const icp = KeyEvent.incept({ signingKeys: [publicKey], nextKeyDigests: [] });
       const response = await app(
         request("/", {
           method: "POST",
@@ -93,29 +93,29 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should return 204 when no reply messages are produced", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const { publicKey } = generateKeyPair();
-      const icp = keri.incept({ signingKeys: [publicKey], nextKeys: [] });
+      const icp = KeyEvent.incept({ signingKeys: [publicKey], nextKeyDigests: [] });
       const response = await app(postMessage(icp));
       assert.strictEqual(response.status, 204);
     });
 
     test("should return 204 for a /fwd message (store only, no reply)", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const fwd = makeForward("some-recipient", "credential");
       const response = await app(postMessage(fwd));
       assert.strictEqual(response.status, 204);
     });
 
     test("should return 204 for a mbx query when mailbox is empty", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const query = makeQuery("unknown-prefix", { "/credential": 0 });
       const response = await app(postMessage(query));
       assert.strictEqual(response.status, 204);
     });
 
     test("should return stored messages as text/event-stream on mbx query", async () => {
-      const app = createRouter(makeMailbox());
+      const app = createRouter(await makeMailbox());
       const pre = "test-recipient";
 
       await app(postMessage(makeForward(pre, "credential")));
@@ -133,7 +133,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should respect offset in mbx query", async () => {
-      const app = createRouter(makeMailbox());
+      const app = createRouter(await makeMailbox());
       const pre = "test-recipient";
 
       await app(postMessage(makeForward(pre, "credential")));
@@ -148,21 +148,21 @@ describe(basename(import.meta.url), () => {
 
   describe("GET /oobi", () => {
     test("should return 200 with application/json+cesr content type", async () => {
-      const app = makeApp("http://localhost:5640");
+      const app = await makeApp("http://localhost:5640");
       const response = await app(request("/oobi", { method: "GET" }));
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
     });
 
     test("should include Keri-Aid header with mailbox AID", async () => {
-      const mailbox = makeMailbox("http://localhost:5640");
+      const mailbox = await makeMailbox("http://localhost:5640");
       const app = createRouter(mailbox);
       const response = await app(request("/oobi", { method: "GET" }));
       assert.strictEqual(response.headers.get("Keri-Aid"), mailbox.aid);
     });
 
     test("should return inception event as first message", async () => {
-      const mailbox = makeMailbox("http://localhost:5640");
+      const mailbox = await makeMailbox("http://localhost:5640");
       const app = createRouter(mailbox);
       const response = await app(request("/oobi", { method: "GET" }));
       const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
@@ -172,7 +172,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should return location record", async () => {
-      const app = makeApp("http://localhost:5640");
+      const app = await makeApp("http://localhost:5640");
       const response = await app(request("/oobi", { method: "GET" }));
       const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
       const loc = messages.find((m) => m.body.r === "/loc/scheme");
@@ -180,7 +180,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should return end role record with mailbox role", async () => {
-      const app = makeApp("http://localhost:5640");
+      const app = await makeApp("http://localhost:5640");
       const response = await app(request("/oobi", { method: "GET" }));
       const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
       const endrole = messages.find((m) => m.body.r === "/end/role/add");
@@ -189,7 +189,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should return only inception event when no url is configured", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const response = await app(request("/oobi", { method: "GET" }));
       const messages = await Array.fromAsync(parse(response.body ?? new Uint8Array()));
       assert.strictEqual(messages.length, 1);
@@ -199,13 +199,13 @@ describe(basename(import.meta.url), () => {
 
   describe("unknown routes", () => {
     test("should return 404 for unknown path", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const response = await app(request("/unknown", { method: "GET" }));
       assert.strictEqual(response.status, 404);
     });
 
     test("should return 405 for unsupported method", async () => {
-      const app = makeApp();
+      const app = await makeApp();
       const response = await app(request("/", { method: "DELETE" }));
       assert.strictEqual(response.status, 405);
     });

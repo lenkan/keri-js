@@ -3,25 +3,25 @@ import { basename } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import type { Message } from "cesr";
-import { generateKeyPair, keri } from "keri";
+import { generateKeyPair, KeyEvent, RoutedEvent } from "keri";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Mailbox } from "./mailbox.ts";
 
 function makeMailbox() {
-  return new Mailbox({
+  return Mailbox.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
   });
 }
 
 function makeInnerMessage() {
   const { publicKey } = generateKeyPair();
-  return keri.incept({ signingKeys: [publicKey], nextKeys: [] });
+  return KeyEvent.incept({ signingKeys: [publicKey], nextKeyDigests: [] });
 }
 
 function makeForward(pre: string, topic: string, inner: Message) {
   const { publicKey: senderPub } = generateKeyPair();
-  const sender = keri.incept({ signingKeys: [senderPub], nextKeys: [] });
-  return keri.exchange({
+  const sender = KeyEvent.incept({ signingKeys: [senderPub], nextKeyDigests: [] });
+  return RoutedEvent.exchange({
     sender: sender.body.i,
     route: "/fwd",
     query: { pre, topic },
@@ -31,13 +31,13 @@ function makeForward(pre: string, topic: string, inner: Message) {
 }
 
 function makeQuery(id: string, topics: Record<string, number>) {
-  return keri.query({ r: "mbx", q: { i: id, topics } });
+  return RoutedEvent.query({ r: "mbx", q: { i: id, topics } });
 }
 
 describe(basename(import.meta.url), () => {
   describe("handleMessage()", () => {
     test("should be a no-op for unknown message types", async () => {
-      const mailbox = makeMailbox();
+      const mailbox = await makeMailbox();
       const icp = makeInnerMessage();
       const replies = await Array.fromAsync(mailbox.handleMessage(icp));
       assert.strictEqual(replies.length, 0);
@@ -45,7 +45,7 @@ describe(basename(import.meta.url), () => {
 
     describe("/fwd", () => {
       test("should store the inner evt message", async () => {
-        const mailbox = makeMailbox();
+        const mailbox = await makeMailbox();
         const inner = makeInnerMessage();
         const fwd = makeForward("recipient-prefix", "credential", inner);
 
@@ -61,12 +61,12 @@ describe(basename(import.meta.url), () => {
       });
 
       test("should be a no-op when pre is missing", async () => {
-        const mailbox = makeMailbox();
+        const mailbox = await makeMailbox();
         const { publicKey: senderPub } = generateKeyPair();
-        const sender = keri.incept({ signingKeys: [senderPub], nextKeys: [] });
+        const sender = KeyEvent.incept({ signingKeys: [senderPub], nextKeyDigests: [] });
         const inner = makeInnerMessage();
 
-        const fwd = keri.exchange({
+        const fwd = RoutedEvent.exchange({
           sender: sender.body.i,
           route: "/fwd",
           query: { topic: "credential" },
@@ -84,14 +84,14 @@ describe(basename(import.meta.url), () => {
 
     describe("mbx query", () => {
       test("should return empty for unknown recipient", async () => {
-        const mailbox = makeMailbox();
+        const mailbox = await makeMailbox();
         const query = makeQuery("unknown-prefix", { "/credential": 0 });
         const results = await Array.fromAsync(mailbox.handleMessage(query));
         assert.strictEqual(results.length, 0);
       });
 
       test("should return messages from the given offset", async () => {
-        const mailbox = makeMailbox();
+        const mailbox = await makeMailbox();
         const pre = "test-recipient";
 
         const msg1 = makeInnerMessage();
@@ -112,7 +112,7 @@ describe(basename(import.meta.url), () => {
       });
 
       test("should scope messages by topic", async () => {
-        const mailbox = makeMailbox();
+        const mailbox = await makeMailbox();
         const pre = "test-recipient";
 
         await Array.fromAsync(mailbox.handleMessage(makeForward(pre, "credential", makeInnerMessage())));

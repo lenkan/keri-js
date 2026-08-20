@@ -44,6 +44,10 @@ export function isTelEventType(t: unknown): boolean {
   return t === "vcp" || t === "iss" || t === "rev";
 }
 
+export function isTransactionEvent(message: Message): message is Message<TransactionEventBody> {
+  return isTelEventType(message.body.t);
+}
+
 export function verifyTransactionEventSaid(body: TransactionEventBody): VerifyResult {
   const labels = SAID_LABELS[body.t];
   if (!labels) {

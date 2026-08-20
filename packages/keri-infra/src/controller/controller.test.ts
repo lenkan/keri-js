@@ -4,9 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { Attachments, encodeText, Matter } from "cesr";
-import { type EndRoleRecord, keri, type LocationRecord } from "keri";
+import { RoutedEvent } from "keri";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Controller } from "./controller.ts";
+import type { EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
 
 class TestController extends Controller {
   fetch: test.Mock<typeof globalThis.fetch>;
@@ -27,7 +28,7 @@ class TestController extends Controller {
 
   saveEndRole(record: EndRoleRecord) {
     this.storage.saveMessage(
-      keri.reply({
+      RoutedEvent.reply({
         r: "/end/role/add",
         a: record,
       }),
@@ -36,7 +37,7 @@ class TestController extends Controller {
 
   saveLocation(record: LocationRecord) {
     this.storage.saveMessage(
-      keri.reply({
+      RoutedEvent.reply({
         r: "/loc/scheme",
         a: record,
       }),
@@ -388,7 +389,7 @@ describe(basename(import.meta.url), () => {
   describe("forward", () => {
     test("should forward exchange event", async () => {
       const controller = createController();
-      const timestamp = keri.utils.formatDate(new Date(Date.parse("2023-10-01T00:00:00Z")));
+      const timestamp = new Date(Date.parse("2023-10-01T00:00:00Z"));
 
       const mailbox = await controller.incept();
       await controller.reply({
@@ -414,7 +415,7 @@ describe(basename(import.meta.url), () => {
 
       const icp = await controller.incept();
 
-      const exn = keri.exchange({
+      const exn = RoutedEvent.exchange({
         timestamp: timestamp,
         sender: icp.event.i,
         route: "/challenge/response",

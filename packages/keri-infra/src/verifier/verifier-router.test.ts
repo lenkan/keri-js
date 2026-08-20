@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Attachments, encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody } from "keri";
-import { EventIndex, embeds, IPEX_GRANT_ROUTE, keri } from "keri";
+import { collect, RoutedEvent } from "keri";
 import { type SessionStore, Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
 
@@ -14,7 +14,7 @@ const URL_BASE = "http://localhost:3002";
 async function grantFixture(): Promise<Message<ExchangeEventBody>> {
   const raw = await readFile(new URL("../../../../fixtures/grant.cesr", import.meta.url));
   const [fwd] = await Array.fromAsync(parse(raw.toString()));
-  return embeds(fwd as Message<ExchangeEventBody>).evt as Message<ExchangeEventBody>;
+  return RoutedEvent.embeds(fwd as Message<ExchangeEventBody>).evt as Message<ExchangeEventBody>;
 }
 
 function encode(message: Message): string {
@@ -33,8 +33,13 @@ function makeSessions(): SessionStore & { size: () => number } {
   };
 }
 
-function makeApp(sessions: SessionStore) {
-  return createRouter(new Verifier({ url: URL_BASE }), sessions);
+async function makeApp(sessions: SessionStore) {
+  return createRouter(await Verifier.create({ url: URL_BASE }), sessions);
+}
+
+/** One request against a fresh verifier — the shape almost every case below wants. */
+async function send(sessions: SessionStore, req: Request): Promise<Response> {
+  return (await makeApp(sessions))(req);
 }
 
 function request(path: string, init: RequestInit = {}): Request {
@@ -46,11 +51,11 @@ async function presentation(token: string): Promise<string> {
   const grant = await grantFixture();
 
   return encode(
-    keri.exchange({
+    RoutedEvent.exchange({
       sender: grant.body.i,
-      route: IPEX_GRANT_ROUTE,
+      route: RoutedEvent.IPEX_GRANT_ROUTE,
       anchor: { m: token, i: grant.body.a.i },
-      embeds: embeds(grant),
+      embeds: RoutedEvent.embeds(grant),
     }),
   );
 }
@@ -59,7 +64,7 @@ const TOKEN = "abcdefghijklmnopqrstuvwx";
 
 describe(basename(import.meta.url), () => {
   test("should serve its own oobi with the controller role", async () => {
-    const verifier = new Verifier({ url: URL_BASE });
+    const verifier = await Verifier.create({ url: URL_BASE });
     const response = await createRouter(verifier, makeSessions())(request("/oobi"));
 
     assert.strictEqual(response.status, 200);
@@ -71,7 +76,7 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should hand out a session with the verifier aid and oobi", async () => {
-    const verifier = new Verifier({ url: URL_BASE });
+    const verifier = await Verifier.create({ url: URL_BASE });
     const sessions = makeSessions();
     const response = await createRouter(verifier, sessions)(request("/api/sessions", { method: "POST" }));
 
@@ -88,7 +93,7 @@ describe(basename(import.meta.url), () => {
 
   test("should store a presented grant against its session token", async () => {
     const sessions = makeSessions();
-    const app = makeApp(sessions);
+    const app = await makeApp(sessions);
 
     const put = await app(request("/", { method: "PUT", body: await presentation(TOKEN) }));
     assert.strictEqual(put.status, 204);
@@ -97,19 +102,19 @@ describe(basename(import.meta.url), () => {
     assert.strictEqual(read.status, 200);
 
     // The stored stream is what the browser verifies, so it must survive intact.
-    const index = await EventIndex.parse(await read.text());
+    const index = await collect(await read.text());
     assert.strictEqual(index.credentials.length, 1);
   });
 
   test("should report a pending session before anything is presented", async () => {
-    const response = await makeApp(makeSessions())(request(`/api/sessions/${TOKEN}`));
+    const response = await send(makeSessions(), request(`/api/sessions/${TOKEN}`));
 
     assert.strictEqual(response.status, 204);
   });
 
   test("should reject a stream carrying no grant", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(request("/", { method: "PUT", body: "" }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "" }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -117,7 +122,7 @@ describe(basename(import.meta.url), () => {
 
   test("should reject a grant whose message is not a usable token", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(request("/", { method: "PUT", body: await presentation("nope") }));
+    const response = await send(sessions, request("/", { method: "PUT", body: await presentation("nope") }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -125,7 +130,7 @@ describe(basename(import.meta.url), () => {
 
   test("should say so when a grant carries no session token at all", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(request("/", { method: "PUT", body: await presentation("") }));
+    const response = await send(sessions, request("/", { method: "PUT", body: await presentation("") }));
 
     assert.strictEqual(response.status, 400);
     // Forgetting `--message` is the likely mistake, so the two cases must not read alike.
@@ -137,7 +142,7 @@ describe(basename(import.meta.url), () => {
   // as a 400 rather than escaping the handler as a 500.
   test("should reject a body it cannot parse", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(request("/", { method: "PUT", body: "not a cesr stream at all" }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "not a cesr stream at all" }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -145,7 +150,7 @@ describe(basename(import.meta.url), () => {
 
   test("should reject a presentation too large to store", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(request("/", { method: "PUT", body: "x".repeat(64 * 1024) }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "x".repeat(64 * 1024) }));
 
     assert.strictEqual(response.status, 413);
     assert.strictEqual(sessions.size(), 0);
@@ -155,7 +160,8 @@ describe(basename(import.meta.url), () => {
   // the declared length being checked before the body was buffered.
   test("should reject an oversized presentation on its declared length", async () => {
     const sessions = makeSessions();
-    const response = await makeApp(sessions)(
+    const response = await send(
+      sessions,
       request("/", { method: "PUT", body: "x", headers: { "Content-Length": String(64 * 1024) } }),
     );
 
@@ -164,7 +170,7 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should not double the slash when the url carries one", async () => {
-    const verifier = new Verifier({ url: `${URL_BASE}/` });
+    const verifier = await Verifier.create({ url: `${URL_BASE}/` });
 
     assert.strictEqual(verifier.oobi, `${URL_BASE}/oobi`);
 
@@ -176,7 +182,7 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should allow the browser to read a session cross-origin", async () => {
-    const response = await makeApp(makeSessions())(request(`/api/sessions/${TOKEN}`));
+    const response = await send(makeSessions(), request(`/api/sessions/${TOKEN}`));
 
     assert.strictEqual(response.headers.get("Access-Control-Allow-Origin"), "*");
   });

@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, type Message, parse } from "cesr";
-import { generateKeyPair, type InceptEventBody, type KeyEvent, keri } from "keri";
+import { generateKeyPair, type InceptEventBody, KeyEvent } from "keri";
 import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
 import { Witness } from "./witness.ts";
 import { createRouter } from "./witness-router.ts";
@@ -21,9 +21,9 @@ async function collect(stream: ReadableStream<Uint8Array> | null): Promise<Messa
   return result;
 }
 
-function makeWitness(): Witness {
+function makeWitness(): Promise<Witness> {
   const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
-  return new Witness({
+  return Witness.create({
     privateKey: generateKeyPair().privateKey,
     url: "http://localhost:5631",
     storage,
@@ -33,16 +33,20 @@ function makeWitness(): Witness {
 class TestContext {
   app: (request: Request) => Promise<Response>;
   witness: Witness;
-  icp: KeyEvent<InceptEventBody>;
+  icp: Message<InceptEventBody>;
   sigs: string[];
 
-  constructor() {
-    this.witness = makeWitness();
+  static async create(): Promise<TestContext> {
+    return new TestContext(await makeWitness());
+  }
+
+  private constructor(witness: Witness) {
+    this.witness = witness;
     this.app = createRouter(this.witness);
-    this.icp = keri.incept({
+    this.icp = KeyEvent.incept({
       signingKeys: [pubKey0],
-      nextKeys: [pubKey1],
-      wits: [this.witness.aid],
+      nextKeyDigests: [pubKey1],
+      backers: [this.witness.aid],
     });
     this.sigs = [Indexer.crypto.ed25519_sig(ed25519.sign(this.icp.raw, privateKey0), 0)].map(encodeText);
   }
@@ -51,7 +55,7 @@ class TestContext {
     return this.app(input);
   }
 
-  async receipt(event: KeyEvent<InceptEventBody>, sigs: string[]): Promise<Response> {
+  async receipt(event: Message<InceptEventBody>, sigs: string[]): Promise<Response> {
     const result = await this.fetch(
       request("/receipts", {
         method: "POST",
@@ -73,14 +77,14 @@ const { publicKey: pubKey1 } = generateKeyPair();
 describe(basename(import.meta.url), () => {
   describe("oobi request", () => {
     test("should reply with status 200", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers.get("Content-Type"), "application/json+cesr");
     });
 
     test("should reply with incept event", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
       const messages = await collect(response.body);
 
@@ -90,7 +94,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should reply with location record", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
       const messages = await collect(response.body);
 
@@ -102,7 +106,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should reply with end role", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.fetch(request("/oobi", { method: "GET" }));
 
       const messages = await collect(response.body);
@@ -115,7 +119,7 @@ describe(basename(import.meta.url), () => {
 
   describe("message request", () => {
     test("should return 400 when CESR-ATTACHMENT header is missing", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.fetch(
         request("/", {
           method: "POST",
@@ -127,10 +131,10 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should return 200 for a valid rct message", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       await context.receipt(context.icp, context.sigs);
 
-      const rct = keri.receipt({ d: context.icp.body.d, i: context.icp.body.i, s: "0" });
+      const rct = KeyEvent.receipt(context.icp);
       const rctAtc = new Attachments({ NonTransReceiptCouples: [] });
 
       const response = await context.fetch(
@@ -145,14 +149,14 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should merge witness receipt signatures into stored event", async () => {
-      const context1 = new TestContext();
-      const context2 = new TestContext();
+      const context1 = await TestContext.create();
+      const context2 = await TestContext.create();
 
-      const icpWithWitnesses = keri.incept({
+      const icpWithWitnesses = KeyEvent.incept({
         signingKeys: [pubKey0],
-        nextKeys: [pubKey1],
-        wits: [context1.witness.aid, context2.witness.aid],
-        toad: 1,
+        nextKeyDigests: [pubKey1],
+        backers: [context1.witness.aid, context2.witness.aid],
+        backerThreshold: 1,
       });
       const icpSigs = [Indexer.crypto.ed25519_sig(ed25519.sign(icpWithWitnesses.raw, privateKey0), 0)].map(encodeText);
 
@@ -160,7 +164,7 @@ describe(basename(import.meta.url), () => {
       const rctResponse = await context2.receipt(icpWithWitnesses, icpSigs);
       const [rctMessage] = await collect(rctResponse.body);
 
-      const rct = keri.receipt({ d: icpWithWitnesses.body.d, i: icpWithWitnesses.body.i, s: "0" });
+      const rct = KeyEvent.receipt(icpWithWitnesses);
       const rctAtc = new Attachments({
         NonTransReceiptCouples: rctMessage.attachments.NonTransReceiptCouples,
       });
@@ -184,7 +188,7 @@ describe(basename(import.meta.url), () => {
 
   describe("receipt request", () => {
     test("should reply with valid http response", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
 
       const response = await context.receipt(context.icp, context.sigs);
 
@@ -193,7 +197,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should reply with valid witness receipt", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       const response = await context.receipt(context.icp, context.sigs);
 
       const messages = await collect(response.body);
@@ -212,7 +216,7 @@ describe(basename(import.meta.url), () => {
     });
 
     test("should respond on oobi request for the new identifier", async () => {
-      const context = new TestContext();
+      const context = await TestContext.create();
       await context.receipt(context.icp, context.sigs);
       const oobiResponse = await context.fetch(request(`/oobi/${context.icp.body.i}`, { method: "GET" }));
       assert.strictEqual(oobiResponse.status, 200);

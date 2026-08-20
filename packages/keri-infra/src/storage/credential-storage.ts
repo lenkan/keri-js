@@ -1,7 +1,7 @@
-import type { CredentialBody, IssueEvent, Message, RegistryInceptEventBody, RevokeEvent } from "keri";
+import type { CredentialBody, IssueEventBody, Message, RegistryInceptEventBody, RevokeEventBody } from "keri";
 
 export interface CredentialStorage {
-  getCredentialEvents(id: string): Generator<Message<IssueEvent | RevokeEvent>>;
+  getCredentialEvents(id: string): Generator<Message<IssueEventBody | RevokeEventBody>>;
   getRegistry(id: string): Message<RegistryInceptEventBody> | null;
   getRegistriesByOwner(owner: string): Generator<Message<RegistryInceptEventBody>>;
   getCredential(id: string): CredentialBody | null;

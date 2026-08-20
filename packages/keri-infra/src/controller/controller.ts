@@ -1,33 +1,36 @@
 import { encodeText, Indexer, Matter, parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/encoding";
 import {
+  Credential,
   type CredentialBody,
   type DipEventBody,
-  type Endpoint,
   type ExchangeEventBody,
-  embeds,
+  ed25519Signer,
+  formatDate,
+  generateKeyPair,
   type InceptEventBody,
   type InteractEventBody,
-  IPEX_GRANT_ROUTE,
-  type IssueEvent,
-  isKelEventType,
-  type KeyEvent,
+  type IssueEventBody,
+  KeyEvent,
   type KeyEventBody,
   KeyEventLog,
   type KeyState,
-  keri,
   Message,
+  nextKeyDigest,
   type RegistryInceptEventBody,
   type ReplyEventBody,
   type RotateEventBody,
-  resolveEndRole,
-  resolveLocation,
-  sign,
+  RoutedEvent,
+  type Signer,
+  signEvent,
+  TransactionEvent,
 } from "keri";
 import { MailboxClient, submitToWitnesses } from "../http/main.ts";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "../storage/main.ts";
 import { type Encrypter, PassphraseEncrypter } from "./encrypt.ts";
+import type { Endpoint } from "./endpoint-discovery.ts";
+import { resolveEndRole, resolveLocation } from "./endpoint-discovery.ts";
 
 export type { CredentialStorage, KeyEventStorage, MailboxStorage, PrivateKeyStorage } from "../storage/main.ts";
 export type { Encrypter } from "./encrypt.ts";
@@ -39,7 +42,7 @@ export interface ForwardArgs {
   recipient: string;
   topic: string;
   message: Message;
-  timestamp?: string;
+  timestamp?: Date;
 }
 
 export interface ControllerDeps {
@@ -74,7 +77,7 @@ export interface ControllerDelegatedInceptArgs {
 
 export interface DelegatedInceptResult {
   id: string;
-  event: KeyEvent<DipEventBody>;
+  event: Message<DipEventBody>;
 }
 
 export interface AnchorResult {
@@ -109,7 +112,7 @@ export interface CreateCredentialArgs {
 export interface IpexGrantArgs {
   credential: CredentialBody;
   recipient?: string;
-  timestamp?: string;
+  timestamp?: Date;
 }
 
 export class Controller {
@@ -126,7 +129,7 @@ export class Controller {
   }
 
   private async generateKey(): Promise<string> {
-    const key = keri.utils.generateKeyPair();
+    const key = generateKeyPair();
     if (!key.privateKey || !key.publicKey || !key.publicKeyDigest) {
       throw new Error("Failed to generate key pair");
     }
@@ -136,11 +139,20 @@ export class Controller {
     return key.publicKey;
   }
 
-  private async signWithKey(publicKey: string, raw: Uint8Array): Promise<string> {
-    const encoded = this.#storage.getEncryptedPrivateKey(publicKey);
-    const encrypted = decodeBase64Url(encoded);
-    const privateKey = await this.#encrypter.decrypt(encrypted);
-    return sign(raw, { key: privateKey });
+  /**
+   * A {@link Signer} over one stored key. The private key is decrypted per
+   * signature and never held on the controller — which is why `Signer.sign` is
+   * async.
+   */
+  signer(publicKey: string): Signer {
+    return {
+      publicKey,
+      sign: async (payload: Uint8Array): Promise<string> => {
+        const encoded = this.#storage.getEncryptedPrivateKey(publicKey);
+        const privateKey = await this.#encrypter.decrypt(decodeBase64Url(encoded));
+        return ed25519Signer(privateKey).sign(payload);
+      },
+    };
   }
 
   async introduce(oobi: string): Promise<KeyState> {
@@ -161,7 +173,7 @@ export class Controller {
     const otherMessages: Message[] = [];
 
     for await (const message of parse(response.body)) {
-      if (isKelEventType(message.body.t)) {
+      if (KeyEvent.isKeyEvent(message)) {
         kelMessages.push(message as Message<KeyEventBody>);
       } else if (message.body.t === "rpy") {
         otherMessages.push(new Message(message.body as ReplyEventBody));
@@ -219,7 +231,7 @@ export class Controller {
   async sign(raw: Uint8Array, keys: string[]): Promise<string[]> {
     return Promise.all(
       keys.map(async (key, idx) => {
-        const sig = await this.signWithKey(key, raw);
+        const sig = await this.signer(key).sign(raw);
         return encodeText(Indexer.convert(Matter.parse(sig), idx));
       }),
     );
@@ -228,13 +240,13 @@ export class Controller {
   async incept(args: ControllerInceptArgs = {}): Promise<InceptResult> {
     const publicKey = await this.generateKey();
     const nextPublicKey = await this.generateKey();
-    const nextPublicKeyDigest = keri.utils.digest(nextPublicKey);
+    const nextPublicKeyDigest = nextKeyDigest(nextPublicKey);
 
-    const event = keri.incept({
+    const event = KeyEvent.incept({
       signingKeys: [publicKey],
-      nextKeys: [nextPublicKeyDigest],
-      wits: args.wits ?? [],
-      toad: args.toad,
+      nextKeyDigests: [nextPublicKeyDigest],
+      backers: args.wits ?? [],
+      backerThreshold: args.toad,
     });
 
     const body = event.body as InceptEventBody;
@@ -263,13 +275,13 @@ export class Controller {
   async delegatedIncept(args: ControllerDelegatedInceptArgs): Promise<DelegatedInceptResult> {
     const publicKey = await this.generateKey();
     const nextPublicKey = await this.generateKey();
-    const nextPublicKeyDigest = keri.utils.digest(nextPublicKey);
+    const nextPublicKeyDigest = nextKeyDigest(nextPublicKey);
 
-    const event = keri.delegatedIncept({
+    const event = KeyEvent.delegatedIncept({
       signingKeys: [publicKey],
-      nextKeys: [nextPublicKeyDigest],
-      wits: args.wits ?? [],
-      toad: args.toad,
+      nextKeyDigests: [nextPublicKeyDigest],
+      backers: args.wits ?? [],
+      backerThreshold: args.toad,
       delegator: args.delegator,
     });
 
@@ -334,13 +346,15 @@ export class Controller {
     }
   }
 
-  async commit(log: KeyEventLog, event: KeyEvent): Promise<void> {
+  async commit(log: KeyEventLog, event: Message<KeyEventBody>): Promise<void> {
     const body = event.body as KeyEventBody;
     const isInception = body.t === "icp" || body.t === "dip";
     const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
     const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
-    const sigs = await this.sign(event.raw, signingKeys);
-    event.attachments.ControllerIdxSigs.push(...sigs);
+    await signEvent(
+      event,
+      signingKeys.map((key) => this.signer(key)),
+    );
     this.#log.debug("commit: submitting to witnesses", {
       t: body.t,
       aid: body.i,
@@ -356,7 +370,7 @@ export class Controller {
 
   async anchor(id: string, anchor: AnchorArgs): Promise<AnchorResult> {
     const log = await this.loadEventLog(id);
-    const event = keri.interact(log.state, { data: anchor.data });
+    const event = KeyEvent.interact(log.state, { data: anchor.data });
 
     this.#log.debug("anchor: created interaction", { aid: id, s: (event.body as InteractEventBody).s });
     await this.commit(log, event);
@@ -374,9 +388,9 @@ export class Controller {
       state.nextKeyDigests.map((digest) => this.#storage.getPublicKeyByDigest(digest)),
     );
     const nextPublicKey = await this.generateKey();
-    const nextPublicKeyDigest = keri.utils.digest(nextPublicKey);
+    const nextPublicKeyDigest = nextKeyDigest(nextPublicKey);
 
-    const event = keri.rotate(state, {
+    const event = KeyEvent.rotate(state, {
       signingKeys: publicKeys,
       nextKeyDigests: [nextPublicKeyDigest],
       data: args.data,
@@ -398,7 +412,7 @@ export class Controller {
     const log = await this.loadEventLog(args.id);
     const state = log.state;
 
-    const rpy = keri.reply({
+    const rpy = RoutedEvent.reply({
       r: args.route,
       a: args.record,
     });
@@ -450,7 +464,7 @@ export class Controller {
       });
     }
 
-    const fwd = keri.exchange({
+    const fwd = RoutedEvent.exchange({
       sender: args.sender,
       route: "/fwd",
       timestamp: args.timestamp,
@@ -484,7 +498,7 @@ export class Controller {
   async createRegistry(owner: string): Promise<RegistryInceptEventBody> {
     const log = await this.loadEventLog(owner);
 
-    const vcp = keri.registry({
+    const vcp = TransactionEvent.incept({
       ii: owner,
     });
 
@@ -533,14 +547,14 @@ export class Controller {
     const log = await this.loadEventLog(registry.body.ii);
     const state = log.state;
 
-    const credential = keri.credential({
+    const credential = Credential.create({
       i: state.identifier,
       ri: registry.body.i,
       s: args.schemaId,
       u: args.salt,
       a: {
         i: args.holder,
-        dt: keri.utils.formatDate(args.timestamp ?? new Date()),
+        dt: formatDate(args.timestamp ?? new Date()),
         ...args.data,
       },
       r: args.rules,
@@ -570,10 +584,10 @@ export class Controller {
     const log = await this.loadEventLog(credential.i);
     this.#log.debug("issueCredential: issuing", { credential: credential.d, issuer: credential.i });
 
-    const iss = keri.issue({
+    const iss = TransactionEvent.issue({
       i: credential.d,
       ri: credential.ri,
-      dt: credential.a.dt,
+      dt: credential.a.dt ? new Date(credential.a.dt) : undefined,
     });
 
     const anchor = await this.anchor(credential.i, {
@@ -601,8 +615,8 @@ export class Controller {
     await this.processMessage(iss);
   }
 
-  private getIssueEvent(credentialSaid: string): Message<IssueEvent> {
-    const [iss] = [...this.#storage.getCredentialEvents(credentialSaid)] as Message<IssueEvent>[];
+  private getIssueEvent(credentialSaid: string): Message<IssueEventBody> {
+    const [iss] = [...this.#storage.getCredentialEvents(credentialSaid)] as Message<IssueEventBody>[];
 
     if (!iss) {
       throw new Error(`No issuance found for said ${credentialSaid}`);
@@ -623,7 +637,7 @@ export class Controller {
   }
 
   private buildCredentialMessage(credential: CredentialBody): Message<CredentialBody> | null {
-    const [iss] = [...this.#storage.getCredentialEvents(credential.d)] as Message<IssueEvent>[];
+    const [iss] = [...this.#storage.getCredentialEvents(credential.d)] as Message<IssueEventBody>[];
 
     if (!iss) {
       return null;
@@ -749,9 +763,9 @@ export class Controller {
 
     const anchor = this.getAnchorFromSeal(args.credential.i, anchorSeal.digest);
 
-    const grant = keri.exchange({
+    const grant = RoutedEvent.exchange({
       sender: state.identifier,
-      route: IPEX_GRANT_ROUTE,
+      route: RoutedEvent.IPEX_GRANT_ROUTE,
       timestamp: args.timestamp,
       query: {},
       anchor: {
@@ -808,7 +822,7 @@ export class Controller {
 
     const offset = this.#storage.getMailboxOffset(id, topic);
 
-    const queryMessage = keri.query({
+    const queryMessage = RoutedEvent.query({
       r: "mbx",
       q: {
         src: endpoint.aid,
@@ -845,11 +859,11 @@ export class Controller {
 
     for (const message of messages) {
       const body = message.body as ExchangeEventBody;
-      if (body.t !== "exn" || body.r !== IPEX_GRANT_ROUTE) {
+      if (body.t !== "exn" || body.r !== RoutedEvent.IPEX_GRANT_ROUTE) {
         continue;
       }
 
-      const { acdc, iss } = embeds(message as Message<ExchangeEventBody>);
+      const { acdc, iss } = RoutedEvent.embeds(message as Message<ExchangeEventBody>);
 
       if (!acdc || !iss) {
         this.#log.warn("receiveGrants: invalid grant", { holder: holderId });

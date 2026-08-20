@@ -1,7 +1,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter, type Message } from "cesr";
+import type { Message } from "cesr";
 import type { ExchangeEventBody, QueryEventBody } from "keri";
-import { embeds, KeyEventLog, keri } from "keri";
+import { ed25519Signer, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { MailboxServerStorage } from "../storage/main.ts";
 
@@ -25,17 +25,13 @@ export interface MailboxReply {
 
 export class Mailbox {
   readonly #storage: MailboxServerStorage;
-  readonly #privateKey: Uint8Array;
   readonly #kel: KeyEventLog;
   readonly #log: KeriLogger;
   readonly events: readonly MailboxEvent[];
 
-  static createKEL(privateKey: Uint8Array): KeyEventLog {
-    const publicKey = encodeText(new Matter({ code: Matter.Code.Ed25519N, raw: ed25519.getPublicKey(privateKey) }));
-    const icp = keri.incept({ signingKeys: [publicKey], nextKeys: [] });
-    icp.attachments = {
-      ControllerIdxSigs: [encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(icp.raw, privateKey), 0))],
-    };
+  static async createKEL(signer: Signer): Promise<KeyEventLog> {
+    const icp = KeyEvent.incept({ signingKeys: [signer.publicKey], nextKeyDigests: [] });
+    await signEvent(icp, [signer]);
     return KeyEventLog.from([icp]);
   }
 
@@ -43,40 +39,46 @@ export class Mailbox {
     return this.#kel.state.identifier;
   }
 
-  constructor(options: MailboxOptions) {
-    this.#storage = options.storage;
-    this.#privateKey = options.privateKey ?? ed25519.utils.randomSecretKey();
-    this.#kel = Mailbox.createKEL(this.#privateKey);
-    this.#log = new KeriLogger(options.logger);
+  static async create(options: MailboxOptions): Promise<Mailbox> {
+    const signer = ed25519Signer(options.privateKey ?? ed25519.utils.randomSecretKey(), { nonTransferable: true });
+    const kel = await Mailbox.createKEL(signer);
+    const aid = kel.state.identifier;
 
-    const events: MailboxEvent[] = [{ message: this.#kel.events[0], timestamp: new Date() }];
+    const events: MailboxEvent[] = [{ message: kel.events[0], timestamp: new Date() }];
 
     if (options.url) {
       const url = new URL(options.url);
       const scheme = url.protocol.replace(":", "");
 
-      const location = keri.reply({
+      const location = RoutedEvent.reply({
         r: "/loc/scheme",
-        a: { eid: this.aid, scheme, url: options.url },
+        a: { eid: aid, scheme, url: options.url },
       });
 
-      const endrole = keri.reply({
+      const endrole = RoutedEvent.reply({
         r: "/end/role/add",
-        a: { cid: this.aid, role: "mailbox", eid: this.aid },
+        a: { cid: aid, role: "mailbox", eid: aid },
       });
 
       location.attachments = {
-        NonTransReceiptCouples: [{ prefix: this.aid, sig: this.#sign(location) }],
+        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(location.raw) }],
       };
 
       endrole.attachments = {
-        NonTransReceiptCouples: [{ prefix: this.aid, sig: this.#sign(endrole) }],
+        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(endrole.raw) }],
       };
 
       events.push({ message: location, timestamp: new Date() });
       events.push({ message: endrole, timestamp: new Date() });
     }
 
+    return new Mailbox(options, kel, events);
+  }
+
+  private constructor(options: MailboxOptions, kel: KeyEventLog, events: MailboxEvent[]) {
+    this.#storage = options.storage;
+    this.#kel = kel;
+    this.#log = new KeriLogger(options.logger);
     this.events = events;
   }
 
@@ -108,7 +110,7 @@ export class Mailbox {
       return;
     }
 
-    const innerMessage = embeds(message).evt;
+    const innerMessage = RoutedEvent.embeds(message).evt;
     if (!innerMessage) {
       this.#log.warn("ignoring forward: missing e.evt", { pre, topic });
       return;
@@ -136,10 +138,5 @@ export class Mailbox {
         yield { id: entry.id, topic: topicPath, message: entry.message };
       }
     }
-  }
-
-  #sign(message: Message): string {
-    const rawSignature = ed25519.sign(message.raw, this.#privateKey);
-    return encodeText(new Matter({ code: Matter.Code.Ed25519_Sig, raw: rawSignature }));
   }
 }
