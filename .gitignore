@@ -1,6 +1,7 @@
 node_modules/
 .venv/
-dist/
+packages/*/dist/
+apps/*/dist/
 *.tsbuildinfo
 .keri/
 .pack/
