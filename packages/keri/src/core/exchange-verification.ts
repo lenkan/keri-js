@@ -10,7 +10,7 @@ export type ExchangeVerificationFailure =
   | { kind: "stale-establishment"; error: string }
   | { kind: "invalid-signature"; error: string };
 
-export type ExchangeVerification = { ok: true; error?: null } | ({ ok: false } & ExchangeVerificationFailure);
+export type ExchangeVerification = { ok: true } | ({ ok: false } & ExchangeVerificationFailure);
 
 function verifyGroupSignatures(
   message: Message<ExchangeEventBody>,
@@ -43,11 +43,14 @@ export function verifyExchange(message: Message<ExchangeEventBody>, state: KeySt
   const group = message.attachments.TransIdxSigGroups.find((g) => g.prefix === state.identifier);
   if (group) {
     const establishment = state.lastEstablishment;
-    if (BigInt(`0x${group.snu}`) !== BigInt(`0x${establishment.s}`) || group.digest !== establishment.d) {
+    const sealed = BigInt(`0x${group.snu}`);
+    const current = BigInt(`0x${establishment.s}`);
+
+    if (sealed !== current || group.digest !== establishment.d) {
       return {
         ok: false,
         kind: "stale-establishment",
-        error: `Signature seals establishment event ${group.digest} at sn ${BigInt(`0x${group.snu}`)}, but the key state's last establishment is ${establishment.d} at sn ${BigInt(`0x${establishment.s}`)}`,
+        error: `Signature seals establishment event ${group.digest} at sn ${sealed}, but the key state's last establishment is ${establishment.d} at sn ${current}`,
       };
     }
 

@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Identity } from "@keri-js/infra/verifier";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { type Endpoint, startKerijsVerifier } from "./utils.ts";
 
@@ -20,7 +21,7 @@ interface LoginStatus {
   aid?: string;
   words?: string[];
   error?: string;
-  identity?: { aid: string; sequenceNumber: number; signingKeys: string[]; witnesses: string[] };
+  identity?: Identity;
 }
 
 async function mintSession(): Promise<string> {

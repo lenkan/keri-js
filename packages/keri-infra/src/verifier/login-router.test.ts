@@ -5,7 +5,7 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, type Message } from "cesr";
 import type { KeyEventBody, KeyPair, KeyState } from "keri";
 import { generateKeyPair, KeyEvent, RoutedEvent } from "keri";
-import type { KeyEventHead, KeyEventStore, StoredKeyEvent } from "./login.ts";
+import { makeKeyEvents, makeSessions } from "./stores.test.ts";
 import type { SessionStore } from "./verifier.ts";
 import { Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
@@ -42,7 +42,6 @@ function makeUser(): User {
   };
 }
 
-/** Extends `user` with a rotation to its next key, returning the new establishment seal. */
 function rotateUser(user: User): User {
   const [key0, key1] = user.keys.slice(-2);
   const key2 = generateKeyPair();
@@ -101,32 +100,6 @@ function respond(user: User, words: string[], overrides: { key?: KeyPair; seal?:
       "CESR-ATTACHMENT": encodeText(attachments.frames().slice(1)),
     },
   });
-}
-
-function makeSessions(): SessionStore & { size: () => number } {
-  const entries = new Map<string, string>();
-  return {
-    get: async (token) => entries.get(token) ?? null,
-    put: async (token, cesr) => {
-      entries.set(token, cesr);
-    },
-    size: () => entries.size,
-  };
-}
-
-function makeKeyEvents(): KeyEventStore {
-  const events = new Map<string, StoredKeyEvent>();
-  const heads = new Map<string, KeyEventHead>();
-  return {
-    getEvent: async (aid, sn) => events.get(`${aid}:${sn}`) ?? null,
-    putEvent: async (aid, sn, event) => {
-      events.set(`${aid}:${sn}`, event);
-    },
-    getHead: async (aid) => heads.get(aid) ?? null,
-    putHead: async (aid, head) => {
-      heads.set(aid, head);
-    },
-  };
 }
 
 function request(path: string, init: RequestInit = {}): Request {

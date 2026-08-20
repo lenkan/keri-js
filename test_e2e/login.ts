@@ -21,6 +21,8 @@ export async function waitForApi(): Promise<void> {
   throw new Error(`${BASE_URL}/api/login/sessions did not answer. Start the verifier ("pnpm run dev:verifier").`);
 }
 
+const resolved = new Set<string>();
+
 /**
  * Logs `kli` into the portal by executing the commands the page prints —
  * reading them back out is itself an assertion that the page printed usable
@@ -37,7 +39,13 @@ export async function login(page: Page, kli: KERIPy): Promise<void> {
     throw new Error(`The first step's commands were missing a session token or oobi:\n${push}`);
   }
 
-  await kli.oobi.resolve(oobi, "portal");
+  // Resolving updates one `portal` contact in place, so once per keystore is
+  // enough — and each call is a `kli` subprocess.
+  const contact = `${kli.name}:${oobi}`;
+  if (!resolved.has(contact)) {
+    await kli.oobi.resolve(oobi, "portal");
+    resolved.add(contact);
+  }
 
   const submitted = await fetch(`${BASE_URL}/api/login/sessions/${token}/kel`, {
     method: "POST",

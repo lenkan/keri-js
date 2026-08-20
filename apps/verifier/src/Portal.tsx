@@ -17,7 +17,6 @@ kli vc export --name demo --alias issuer \\
   --said "$(kli vc list --name demo --alias issuer --said --issued | tail -n 1)" \\
   --full > credential.cesr`;
 
-/** Everything behind the login gate: who you are, and what you can do here. */
 export function Portal({ identity, onLogout }: { identity: Identity; onLogout: () => void }) {
   return (
     <>

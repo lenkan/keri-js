@@ -173,7 +173,6 @@ export class KERIPy {
     return this.run(["aid", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }
 
-  /** The full KEL as a CESR stream, events and attachments included. */
   async export(opts: { alias?: string } = {}): Promise<string> {
     return this.run(["export", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }

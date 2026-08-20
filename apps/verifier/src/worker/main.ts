@@ -33,16 +33,13 @@ function sessions(kv: KVNamespace): SessionStore {
 }
 
 // Key events are first-seen evidence, so they never expire — unlike sessions.
-// Sequence numbers are stored as padded hex so the keys sort, should a future
-// feature need to list them.
+// Sequence numbers are padded hex so the keys sort.
 function keyEvents(kv: KVNamespace): KeyEventStore {
   const eventKey = (aid: string, sn: bigint) => `kel:${aid}:${sn.toString(16).padStart(16, "0")}`;
 
   return {
     getEvent: (aid, sn) => kv.get(eventKey(aid, sn), "json"),
     putEvent: (aid, sn, event) => kv.put(eventKey(aid, sn), JSON.stringify(event)),
-    getHead: (aid) => kv.get(`kel:${aid}`, "json"),
-    putHead: (aid, head) => kv.put(`kel:${aid}`, JSON.stringify(head)),
   };
 }
 

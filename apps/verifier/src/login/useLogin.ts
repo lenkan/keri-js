@@ -1,17 +1,10 @@
+import type { Identity } from "@keri-js/infra/verifier";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const POLL_MS = 2000;
 const STORAGE_KEY = "keri-login-token";
 
-export interface Identity {
-  aid: string;
-  sequenceNumber: number;
-  signingKeys: string[];
-  signingThreshold: string | string[];
-  witnesses: string[];
-  lastEstablishment: { s: string; d: string };
-  authenticatedAt: string;
-}
+export type { Identity };
 
 export type LoginPhase =
   | { kind: "resuming"; token: string }
@@ -36,16 +29,19 @@ export interface Login {
   submitOobi: (url: string) => Promise<string | null>;
 }
 
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
 /**
- * The login lifecycle, from minting a session to holding an authenticated
- * identity. The token lives in sessionStorage so a reload resumes where the
- * wizard left off — per tab, and no longer than the server's session TTL.
+ * The token lives in sessionStorage so a reload resumes where the wizard left
+ * off — per tab, and no longer than the server's session TTL.
  */
 export function useLogin(): Login {
-  const [phase, setPhase] = useState<LoginPhase>(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    return stored ? { kind: "resuming", token: stored } : { kind: "resuming", token: "" };
-  });
+  const [phase, setPhase] = useState<LoginPhase>(() => ({
+    kind: "resuming",
+    token: sessionStorage.getItem(STORAGE_KEY) ?? "",
+  }));
   const started = useRef(false);
 
   const start = useCallback(async () => {
@@ -60,7 +56,7 @@ export function useLogin(): Login {
       sessionStorage.setItem(STORAGE_KEY, token);
       setPhase({ kind: "supply-kel", token });
     } catch (cause) {
-      setPhase({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
+      setPhase({ kind: "error", message: errorMessage(cause) });
     }
   }, []);
 
@@ -70,10 +66,10 @@ export function useLogin(): Login {
     }
     started.current = true;
 
-    if (phase.kind === "resuming" && !phase.token) {
+    if (!sessionStorage.getItem(STORAGE_KEY)) {
       void start();
     }
-  }, [phase, start]);
+  }, [start]);
 
   const token =
     phase.kind === "supply-kel" || phase.kind === "challenged" || (phase.kind === "resuming" && phase.token)
@@ -88,7 +84,7 @@ export function useLogin(): Login {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
 
-    async function poll() {
+    const poll = async (): Promise<void> => {
       try {
         const response = await fetch(`/api/login/sessions/${token}`, { signal: controller.signal });
 
@@ -109,15 +105,13 @@ export function useLogin(): Login {
               current.words.join(" ") === words.join(" ") &&
               current.lastError === error
                 ? current
-                : { kind: "challenged", token: token as string, aid, words, lastError: error },
+                : { kind: "challenged", token, aid, words, lastError: error },
             );
           }
         } else if (response.status === 204) {
           // Nothing submitted yet — a resumed token lands here when its record
           // expired, and the token itself is still fine to reuse.
-          setPhase((current) =>
-            current.kind === "resuming" ? { kind: "supply-kel", token: token as string } : current,
-          );
+          setPhase((current) => (current.kind === "resuming" ? { kind: "supply-kel", token } : current));
         } else {
           setPhase({ kind: "error", message: `Server returned ${response.status}` });
           return;
@@ -126,12 +120,12 @@ export function useLogin(): Login {
         if (controller.signal.aborted) {
           return;
         }
-        setPhase({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
+        setPhase({ kind: "error", message: errorMessage(cause) });
         return;
       }
 
-      timer = setTimeout(poll, POLL_MS);
-    }
+      timer = setTimeout(() => void poll(), POLL_MS);
+    };
 
     void poll();
 
@@ -162,7 +156,7 @@ export function useLogin(): Login {
         setPhase({ kind: "challenged", token, aid: body.aid, words: body.words });
         return null;
       } catch (cause) {
-        return cause instanceof Error ? cause.message : String(cause);
+        return errorMessage(cause);
       }
     },
     [token],

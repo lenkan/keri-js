@@ -22,11 +22,7 @@ export function IdentityCard({ identity, onLogout }: { identity: Identity; onLog
             {identity.aid}
           </Field>
           <Field label="Sequence number">{identity.sequenceNumber}</Field>
-          <Field label="Signing threshold">
-            {Array.isArray(identity.signingThreshold)
-              ? identity.signingThreshold.join(", ")
-              : identity.signingThreshold}
-          </Field>
+          <Field label="Signing threshold">{[identity.signingThreshold].flat().join(", ")}</Field>
           {identity.signingKeys.map((key, index) => (
             <Field
               key={key}

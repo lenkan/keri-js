@@ -1,7 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { encodeText } from "cesr";
-import { encodeBase64Url, encodeUtf8 } from "cesr/encoding";
+import { decodeUtf8, encodeBase64Url, encodeUtf8 } from "cesr/encoding";
 import type { KeyEventLog, KeyState } from "keri";
 
 /**
@@ -13,18 +13,11 @@ import type { KeyEventLog, KeyState } from "keri";
 export interface KeyEventStore {
   getEvent(aid: string, sn: bigint): Promise<StoredKeyEvent | null>;
   putEvent(aid: string, sn: bigint, event: StoredKeyEvent): Promise<void>;
-  getHead(aid: string): Promise<KeyEventHead | null>;
-  putHead(aid: string, head: KeyEventHead): Promise<void>;
 }
 
 export interface StoredKeyEvent {
   digest: string;
   raw: string;
-}
-
-export interface KeyEventHead {
-  latestSn: string;
-  latestDigest: string;
 }
 
 export type LoginRecord =
@@ -80,31 +73,25 @@ export type RecordKeyEventsResult = { ok: true } | { ok: false; aid: string; sn:
  * handling depends on it.
  */
 export async function recordKeyEvents(store: KeyEventStore, log: KeyEventLog): Promise<RecordKeyEventsResult> {
-  const events = log.events.map((message) => ({
-    aid: message.body.i,
-    sn: BigInt(`0x${message.body.s}`),
-    digest: message.body.d,
-    raw: new TextDecoder().decode(message.raw) + encodeText(message.attachments.frames()),
-  }));
+  const aid = log.state.identifier;
+  const events = log.events.map((message) => ({ message, sn: BigInt(`0x${message.body.s}`), digest: message.body.d }));
+  const seen = await Promise.all(events.map((event) => store.getEvent(aid, event.sn)));
 
-  for (const event of events) {
-    const seen = await store.getEvent(event.aid, event.sn);
-    if (seen && seen.digest !== event.digest) {
-      return { ok: false, aid: event.aid, sn: event.sn };
-    }
+  const conflict = events.findIndex((event, index) => seen[index] && seen[index].digest !== event.digest);
+  if (conflict !== -1) {
+    return { ok: false, aid, sn: events[conflict].sn };
   }
 
-  for (const event of events) {
-    const seen = await store.getEvent(event.aid, event.sn);
-    if (!seen) {
-      await store.putEvent(event.aid, event.sn, { digest: event.digest, raw: event.raw });
-    }
-
-    const head = await store.getHead(event.aid);
-    if (!head || BigInt(`0x${head.latestSn}`) < event.sn) {
-      await store.putHead(event.aid, { latestSn: event.sn.toString(16), latestDigest: event.digest });
-    }
-  }
+  await Promise.all(
+    events
+      .filter((_, index) => !seen[index])
+      .map((event) =>
+        store.putEvent(aid, event.sn, {
+          digest: event.digest,
+          raw: decodeUtf8(event.message.raw) + encodeText(event.message.attachments.frames()),
+        }),
+      ),
+  );
 
   return { ok: true };
 }

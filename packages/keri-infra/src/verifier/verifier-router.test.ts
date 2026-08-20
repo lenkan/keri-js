@@ -5,7 +5,7 @@ import { describe, test } from "node:test";
 import { Attachments, encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody } from "keri";
 import { collect, RoutedEvent } from "keri";
-import type { KeyEventHead, KeyEventStore, StoredKeyEvent } from "./login.ts";
+import { makeKeyEvents, makeSessions } from "./stores.test.ts";
 import { type SessionStore, Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
 
@@ -21,32 +21,6 @@ async function grantFixture(): Promise<Message<ExchangeEventBody>> {
 function encode(message: Message): string {
   const atc = new Attachments({ PathedMaterialCouples: message.attachments.PathedMaterialCouples });
   return new TextDecoder().decode(message.raw) + encodeText(atc.frames());
-}
-
-function makeSessions(): SessionStore & { size: () => number } {
-  const entries = new Map<string, string>();
-  return {
-    get: async (token) => entries.get(token) ?? null,
-    put: async (token, cesr) => {
-      entries.set(token, cesr);
-    },
-    size: () => entries.size,
-  };
-}
-
-function makeKeyEvents(): KeyEventStore {
-  const events = new Map<string, StoredKeyEvent>();
-  const heads = new Map<string, KeyEventHead>();
-  return {
-    getEvent: async (aid, sn) => events.get(`${aid}:${sn}`) ?? null,
-    putEvent: async (aid, sn, event) => {
-      events.set(`${aid}:${sn}`, event);
-    },
-    getHead: async (aid) => heads.get(aid) ?? null,
-    putHead: async (aid, head) => {
-      heads.set(aid, head);
-    },
-  };
 }
 
 async function makeApp(sessions: SessionStore) {

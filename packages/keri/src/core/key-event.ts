@@ -287,3 +287,12 @@ export function isKelEventType(t: unknown): boolean {
 export function isKeyEvent(message: Message): message is Message<KeyEventBody> {
   return isKelEventType(message.body.t);
 }
+
+/**
+ * Whether the event establishes keys — and so is signed by the keys it lists in
+ * `k`, which for a rotation are the newly exposed ones. An `ixn` is signed by
+ * the current state's keys instead.
+ */
+export function isEstablishment(t: unknown): boolean {
+  return t === "icp" || t === "dip" || t === "rot" || t === "drt";
+}

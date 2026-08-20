@@ -7,12 +7,10 @@ const SETUP_COMMANDS = `pip install keri==1.3.3
 kli init --name demo --nopasscode
 kli incept --name demo --alias issuer --icount 1 --isith 1 --ncount 1 --nsith 1 --toad 0 --transferable`;
 
-function resolveCommand(): string {
-  return `kli oobi resolve --name demo --oobi ${window.location.origin}/oobi --oobi-alias portal`;
-}
+const RESOLVE_COMMAND = `kli oobi resolve --name demo --oobi ${window.location.origin}/oobi --oobi-alias portal`;
 
 function pushCommands(token: string): string {
-  return `${resolveCommand()}
+  return `${RESOLVE_COMMAND}
 kli export --name demo --alias issuer | curl -fsS -X POST \\
   --data-binary @- ${window.location.origin}/api/login/sessions/${token}/kel`;
 }
@@ -23,7 +21,6 @@ function respondCommand(words: string[]): string {
   --recipient portal`;
 }
 
-/** The steps from "stranger" to "authenticated": KEL in, challenge words out, signed response back. */
 export function LoginWizard({ phase, restart, submitOobi }: Login) {
   const [intake, setIntake] = useState<"push" | "oobi">("push");
   const [oobiUrl, setOobiUrl] = useState("");
@@ -37,15 +34,6 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
           <Button onClick={restart}>Try again</Button>
         </Group>
       </Stack>
-    );
-  }
-
-  if (phase.kind === "resuming" || phase.kind === "authenticated") {
-    return (
-      <Group mt="md" gap="xs">
-        <Loader size="sm" />
-        <Text>Starting a session…</Text>
-      </Group>
     );
   }
 
@@ -77,6 +65,15 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
           </Button>
         </Group>
       </Stack>
+    );
+  }
+
+  if (phase.kind !== "supply-kel") {
+    return (
+      <Group mt="md" gap="xs">
+        <Loader size="sm" />
+        <Text>Starting a session…</Text>
+      </Group>
     );
   }
 
@@ -117,7 +114,7 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
           <Text>
             Resolve this portal as a <code>kli</code> contact — the challenge response is sent to it later:
           </Text>
-          <CommandBlock>{resolveCommand()}</CommandBlock>
+          <CommandBlock>{RESOLVE_COMMAND}</CommandBlock>
           <Text>Then paste an OOBI URL that serves your key event log — a witness OOBI works:</Text>
           <Group align="end">
             <TextInput

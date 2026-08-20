@@ -56,7 +56,15 @@ export type {
   RotateArgs,
   RotateEventBody,
 } from "./key-event.ts";
-export { delegatedIncept, delegatedRotate, incept, interact, isKeyEvent, rotate } from "./key-event.ts";
+export {
+  delegatedIncept,
+  delegatedRotate,
+  incept,
+  interact,
+  isEstablishment,
+  isKeyEvent,
+  rotate,
+} from "./key-event.ts";
 export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";

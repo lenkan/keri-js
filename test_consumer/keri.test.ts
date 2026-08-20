@@ -74,6 +74,7 @@ describe("keri", () => {
       "delegatedRotate",
       "incept",
       "interact",
+      "isEstablishment",
       "isKeyEvent",
       "receipt",
       "rotate",
