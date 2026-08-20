@@ -199,17 +199,10 @@ jobs:
       - name: Build packages
         run: pnpm run build
 
-      # wrangler serves the built app through its assets binding, so the worker
-      # needs it on disk before it starts.
-      - name: Build verifier app
-        run: pnpm --filter @keri-js/verifier run build
-
       # The suite waits for the server rather than starting it, so it goes up here and stays up.
+      # One process: vite serves the app and runs the worker.
       - name: Start verifier
         run: nohup pnpm --filter @keri-js/verifier run dev > /tmp/verifier.log 2>&1 &
-
-      - name: Start verifier server
-        run: nohup pnpm --filter @keri-js/verifier-server run dev > /tmp/verifier-server.log 2>&1 &
 
       - name: Run e2e tests
         run: pnpm run test:e2e

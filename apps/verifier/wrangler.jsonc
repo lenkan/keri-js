@@ -3,11 +3,13 @@
   "name": "keri-verifier",
   // No account_id: the account comes from the environment wrangler runs in, not
   // from this file.
-  "main": "src/main.ts",
+  "main": "src/worker/main.ts",
   "compatibility_date": "2026-08-20",
   "assets": {
-    "directory": "../verifier/dist",
     "binding": "ASSETS",
+    // No `directory`: the vite plugin points it at the client build output and
+    // writes the resolved config into the build itself.
+    //
     // `POST /` is the presentation endpoint KERIpy's sendDirect targets, and the
     // asset server's behaviour for non-GET methods is unspecified. Running the
     // worker first keeps the route table in one place, at the cost of an
@@ -23,7 +25,7 @@
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      // `wrangler dev` simulates the namespace locally and ignores this id.
+      // `vite dev` simulates the namespace locally and ignores this id.
       "id": "2be39371eb904495803b562216244296"
     }
   ],

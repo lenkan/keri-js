@@ -1,0 +1,19 @@
+{
+  "include": ["vite.config.ts"],
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true,
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["esnext"],
+    "strict": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    // Scoped to this file alone: @cloudflare/vite-plugin's declarations pull in
+    // wrangler's and miniflare's, which reference packages pnpm does not hoist
+    // into scope. Nothing we author is exempted.
+    "skipLibCheck": true,
+    "types": ["node"]
+  }
+}
