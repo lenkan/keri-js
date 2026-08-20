@@ -39,7 +39,6 @@ export type {
 } from "./credential-verification.ts";
 export { nextKeyDigest } from "./digest.ts";
 export { EventIndex } from "./event-index.ts";
-export type { ProtocolVersion } from "./events.ts";
 export { formatDate } from "./events.ts";
 export type {
   DelegatedInceptArgs,
@@ -59,7 +58,7 @@ export { delegatedIncept, delegatedRotate, incept, interact, isKeyEvent, rotate 
 export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
-export type { ReceiptEventArgs, ReceiptEventBody } from "./receipt-event.ts";
+export type { ReceiptEventBody } from "./receipt-event.ts";
 export { receipt } from "./receipt-event.ts";
 export type { RegistryInceptEventArgs, RegistryInceptEventBody } from "./registry-event.ts";
 // Aliased because the package exposes two inceptions — this one is the registry's

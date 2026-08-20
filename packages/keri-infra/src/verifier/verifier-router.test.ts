@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Attachments, encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody } from "keri";
-import { EventIndex, RoutedEvent } from "keri";
+import { collect, RoutedEvent } from "keri";
 import { type SessionStore, Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
 
@@ -35,6 +35,11 @@ function makeSessions(): SessionStore & { size: () => number } {
 
 async function makeApp(sessions: SessionStore) {
   return createRouter(await Verifier.create({ url: URL_BASE }), sessions);
+}
+
+/** One request against a fresh verifier — the shape almost every case below wants. */
+async function send(sessions: SessionStore, req: Request): Promise<Response> {
+  return (await makeApp(sessions))(req);
 }
 
 function request(path: string, init: RequestInit = {}): Request {
@@ -97,19 +102,19 @@ describe(basename(import.meta.url), () => {
     assert.strictEqual(read.status, 200);
 
     // The stored stream is what the browser verifies, so it must survive intact.
-    const index = await EventIndex.parse(await read.text());
+    const index = await collect(await read.text());
     assert.strictEqual(index.credentials.length, 1);
   });
 
   test("should report a pending session before anything is presented", async () => {
-    const response = await (await makeApp(makeSessions()))(request(`/api/sessions/${TOKEN}`));
+    const response = await send(makeSessions(), request(`/api/sessions/${TOKEN}`));
 
     assert.strictEqual(response.status, 204);
   });
 
   test("should reject a stream carrying no grant", async () => {
     const sessions = makeSessions();
-    const response = await (await makeApp(sessions))(request("/", { method: "PUT", body: "" }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "" }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -117,7 +122,7 @@ describe(basename(import.meta.url), () => {
 
   test("should reject a grant whose message is not a usable token", async () => {
     const sessions = makeSessions();
-    const response = await (await makeApp(sessions))(request("/", { method: "PUT", body: await presentation("nope") }));
+    const response = await send(sessions, request("/", { method: "PUT", body: await presentation("nope") }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -125,7 +130,7 @@ describe(basename(import.meta.url), () => {
 
   test("should say so when a grant carries no session token at all", async () => {
     const sessions = makeSessions();
-    const response = await (await makeApp(sessions))(request("/", { method: "PUT", body: await presentation("") }));
+    const response = await send(sessions, request("/", { method: "PUT", body: await presentation("") }));
 
     assert.strictEqual(response.status, 400);
     // Forgetting `--message` is the likely mistake, so the two cases must not read alike.
@@ -137,7 +142,7 @@ describe(basename(import.meta.url), () => {
   // as a 400 rather than escaping the handler as a 500.
   test("should reject a body it cannot parse", async () => {
     const sessions = makeSessions();
-    const response = await (await makeApp(sessions))(request("/", { method: "PUT", body: "not a cesr stream at all" }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "not a cesr stream at all" }));
 
     assert.strictEqual(response.status, 400);
     assert.strictEqual(sessions.size(), 0);
@@ -145,7 +150,7 @@ describe(basename(import.meta.url), () => {
 
   test("should reject a presentation too large to store", async () => {
     const sessions = makeSessions();
-    const response = await (await makeApp(sessions))(request("/", { method: "PUT", body: "x".repeat(64 * 1024) }));
+    const response = await send(sessions, request("/", { method: "PUT", body: "x".repeat(64 * 1024) }));
 
     assert.strictEqual(response.status, 413);
     assert.strictEqual(sessions.size(), 0);
@@ -177,7 +182,7 @@ describe(basename(import.meta.url), () => {
   });
 
   test("should allow the browser to read a session cross-origin", async () => {
-    const response = await (await makeApp(makeSessions()))(request(`/api/sessions/${TOKEN}`));
+    const response = await send(makeSessions(), request(`/api/sessions/${TOKEN}`));
 
     assert.strictEqual(response.headers.get("Access-Control-Allow-Origin"), "*");
   });

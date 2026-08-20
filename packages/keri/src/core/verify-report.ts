@@ -1,9 +1,8 @@
-import type { ParseInput } from "cesr";
-import type { CredentialVerification } from "./credential-verification.ts";
-import { verifyCredentials } from "./credential-verification.ts";
+import { type ParseInput, parse } from "cesr";
+import type { CredentialVerification, VerificationContext } from "./credential-verification.ts";
+import { issuerLog, newContext, verifyCredentials } from "./credential-verification.ts";
 import { EventIndex } from "./event-index.ts";
 import type { KeyState } from "./key-event.ts";
-import { KeyEventLog } from "./key-event-log.ts";
 import type { RegistryInceptEventBody } from "./registry-event.ts";
 import { verifyTransactionEventSaid } from "./transaction-event-log.ts";
 
@@ -42,7 +41,7 @@ export interface VerifyReport {
  * have all been seen.
  */
 export async function collect(input: ParseInput): Promise<EventIndex> {
-  return EventIndex.parse(input);
+  return new EventIndex(await Array.fromAsync(parse(input)));
 }
 
 /**
@@ -54,9 +53,12 @@ export async function collect(input: ParseInput): Promise<EventIndex> {
  * same way, so a caller holding storage can seed the index and try again.
  */
 export function verify(index: EventIndex): VerifyReport {
-  const identifiers = index.identifiers.map((aid) => verifyIdentifier(index, aid));
+  // One context across all three passes: without it every issuer's KEL is
+  // verified twice, once here and once inside verifyCredentials.
+  const context = newContext(index);
+  const identifiers = index.identifiers.map((aid) => verifyIdentifier(context, aid));
   const registries = index.registries.map((registry) => verifyRegistry(index, registry));
-  const credentials = verifyCredentials(index);
+  const credentials = verifyCredentials(index, context);
 
   const problems: string[] = [];
 
@@ -83,13 +85,10 @@ export function verify(index: EventIndex): VerifyReport {
   return { identifiers, registries, credentials, problems };
 }
 
-function verifyIdentifier(index: EventIndex, aid: string): IdentifierVerification {
-  try {
-    const log = KeyEventLog.fromMessages(index.keyEvents(aid));
-    return { aid, state: log.state, ok: true };
-  } catch (error) {
-    return { aid, state: null, ok: false, detail: error instanceof Error ? error.message : String(error) };
-  }
+function verifyIdentifier(context: VerificationContext, aid: string): IdentifierVerification {
+  const log = issuerLog(context, aid);
+
+  return typeof log === "string" ? { aid, state: null, ok: false, detail: log } : { aid, state: log.state, ok: true };
 }
 
 function verifyRegistry(index: EventIndex, registry: string): RegistryVerification {

@@ -1,8 +1,7 @@
-import type { Message, ParseInput } from "cesr";
-import { parse } from "cesr";
+import type { Message } from "cesr";
 import type { CredentialBody } from "./credential.ts";
 import type { DipEventBody, KeyEventBody } from "./key-event.ts";
-import { isKelEventType } from "./key-event-log.ts";
+import { isKelEventType } from "./key-event.ts";
 import type { ExchangeEventBody } from "./routed-event.ts";
 import { embeds } from "./routed-event.ts";
 import type { TransactionEventBody } from "./transaction-event-log.ts";
@@ -58,10 +57,6 @@ export class EventIndex {
     for (const events of this.#keyEvents.values()) {
       events.sort((a, b) => Number.parseInt(a.body.s, 16) - Number.parseInt(b.body.s, 16));
     }
-  }
-
-  static async parse(input: ParseInput): Promise<EventIndex> {
-    return new EventIndex(await Array.fromAsync(parse(input)));
   }
 
   /**

@@ -1,5 +1,5 @@
 import { Attachments, Message, type MessageBody } from "cesr";
-import { DUMMY_VERSION, encodeEvent, formatDate, type ProtocolVersion } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent, formatDate } from "./events.ts";
 import { saidify } from "./said.ts";
 
 export interface QueryEventArgs {
@@ -7,7 +7,6 @@ export interface QueryEventArgs {
   r?: string;
   rr?: string;
   q: Record<string, unknown>;
-  version?: ProtocolVersion;
 }
 
 export type QueryEventBody = {
@@ -24,7 +23,6 @@ export interface ReplyEventArgs {
   dt?: Date;
   r: string;
   a: Record<string, unknown>;
-  version?: ProtocolVersion;
 }
 
 export type ReplyEventBody = {
@@ -45,34 +43,28 @@ export type RoutedEventBody = {
 };
 
 export function query(args: QueryEventArgs): Message<QueryEventBody> {
-  const body = encodeEvent<QueryEventBody>(
-    {
-      v: DUMMY_VERSION,
-      t: "qry",
-      d: "",
-      dt: formatDate(args.dt ?? new Date()),
-      r: args.r ?? "",
-      rr: args.rr ?? "",
-      q: args.q,
-    },
-    { version: args.version },
-  );
+  const body = encodeEvent<QueryEventBody>({
+    v: DUMMY_VERSION,
+    t: "qry",
+    d: "",
+    dt: formatDate(args.dt ?? new Date()),
+    r: args.r ?? "",
+    rr: args.rr ?? "",
+    q: args.q,
+  });
 
   return new Message(body);
 }
 
 export function reply(args: ReplyEventArgs): Message<ReplyEventBody> {
-  const body = encodeEvent<ReplyEventBody>(
-    {
-      v: DUMMY_VERSION,
-      t: "rpy",
-      d: "",
-      dt: formatDate(args.dt ?? new Date()),
-      r: args.r,
-      a: args.a,
-    },
-    { version: args.version },
-  );
+  const body = encodeEvent<ReplyEventBody>({
+    v: DUMMY_VERSION,
+    t: "rpy",
+    d: "",
+    dt: formatDate(args.dt ?? new Date()),
+    r: args.r,
+    a: args.a,
+  });
 
   return new Message(body);
 }
@@ -86,7 +78,6 @@ export interface ExchangeEventArgs {
   query?: Record<string, unknown>;
   anchor?: Record<string, unknown>;
   embeds?: Record<string, Message>;
-  version?: ProtocolVersion;
 }
 
 export interface ExchangeEmbedding {
@@ -123,22 +114,19 @@ export function exchange(args: ExchangeEventArgs): Message<ExchangeEventBody> {
     });
   }
 
-  const body = encodeEvent<ExchangeEventBody>(
-    {
-      v: DUMMY_VERSION,
-      t: "exn",
-      d: "",
-      i: args.sender,
-      rp: args.recipient ?? "",
-      p: args.p ?? "",
-      dt: formatDate(args.timestamp ?? new Date()),
-      r: args.route,
-      q: args.query ?? {},
-      a: args.anchor ?? {},
-      e: args.embeds ? saidify(block, ["d"]) : {},
-    },
-    { version: args.version },
-  );
+  const body = encodeEvent<ExchangeEventBody>({
+    v: DUMMY_VERSION,
+    t: "exn",
+    d: "",
+    i: args.sender,
+    rp: args.recipient ?? "",
+    p: args.p ?? "",
+    dt: formatDate(args.timestamp ?? new Date()),
+    r: args.route,
+    q: args.query ?? {},
+    a: args.anchor ?? {},
+    e: args.embeds ? saidify(block, ["d"]) : {},
+  });
 
   return new Message(body, attachments);
 }

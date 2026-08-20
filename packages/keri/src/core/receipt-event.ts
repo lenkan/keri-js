@@ -1,10 +1,6 @@
 import { Message } from "cesr";
-import { DUMMY_VERSION, encodeEvent, type ProtocolVersion } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent } from "./events.ts";
 import type { KeyEventBody } from "./key-event.ts";
-
-export interface ReceiptEventArgs {
-  version?: ProtocolVersion;
-}
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type ReceiptEventBody = {
@@ -23,7 +19,7 @@ export type ReceiptEventBody = {
  *
  * Note `rct` is not itself a KEL event type — a receipt is *about* a key event.
  */
-export function receipt(event: Message<KeyEventBody>, args: ReceiptEventArgs = {}): Message<ReceiptEventBody> {
+export function receipt(event: Message<KeyEventBody>): Message<ReceiptEventBody> {
   const body = encodeEvent<ReceiptEventBody>(
     {
       v: DUMMY_VERSION,
@@ -32,7 +28,7 @@ export function receipt(event: Message<KeyEventBody>, args: ReceiptEventArgs = {
       i: event.body.i,
       s: event.body.s,
     },
-    { labels: [], version: args.version },
+    { labels: [] },
   );
 
   return new Message<ReceiptEventBody>(body);

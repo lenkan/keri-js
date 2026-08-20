@@ -22,6 +22,7 @@ import {
   type RotateEventBody,
   RoutedEvent,
   type Signer,
+  signEvent,
   TransactionEvent,
 } from "keri";
 import { MailboxClient, submitToWitnesses } from "../http/main.ts";
@@ -350,8 +351,10 @@ export class Controller {
     const isInception = body.t === "icp" || body.t === "dip";
     const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
     const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
-    const sigs = await this.sign(event.raw, signingKeys);
-    event.attachments.ControllerIdxSigs.push(...sigs);
+    await signEvent(
+      event,
+      signingKeys.map((key) => this.signer(key)),
+    );
     this.#log.debug("commit: submitting to witnesses", {
       t: body.t,
       aid: body.i,

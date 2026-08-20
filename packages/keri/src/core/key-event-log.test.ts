@@ -2,15 +2,11 @@ import assert from "node:assert/strict";
 import { createReadStream } from "node:fs";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Message } from "cesr";
+import { Message } from "cesr";
 import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
-
-function sign(event: Message, keys: KeyPair[]): string[] {
-  return keys.map((key, idx) => encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(event.raw, key.privateKey), idx)));
-}
+import { signWith as sign } from "./signing.test.ts";
 
 function inceptLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
   const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [nextKey.publicKeyDigest] });

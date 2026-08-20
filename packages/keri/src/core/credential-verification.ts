@@ -81,8 +81,10 @@ export interface CredentialVerification {
  * edge referencing another credential in the same index resolves against the
  * result computed for it here.
  */
-export function verifyCredentials(index: EventIndex): CredentialVerification[] {
-  const context = newContext(index);
+export function verifyCredentials(
+  index: EventIndex,
+  context: VerificationContext = newContext(index),
+): CredentialVerification[] {
   return index.credentials.map((credential) => resolve(context, credential.body.d) as CredentialVerification);
 }
 
@@ -100,19 +102,26 @@ export function verifyCredential(index: EventIndex, said: string): CredentialVer
   return result;
 }
 
-interface Context {
+/**
+ * Per-run caches. Share one across calls and each AID's KEL is verified once
+ * rather than once per caller — a KEL verification is a signature check per
+ * signature per event, so the saving is not marginal.
+ */
+export interface VerificationContext {
   index: EventIndex;
   logs: Map<string, KeyEventLog | string>;
   results: Map<string, CredentialVerification>;
   visiting: Set<string>;
 }
 
-function newContext(index: EventIndex): Context {
+type Context = VerificationContext;
+
+export function newContext(index: EventIndex): VerificationContext {
   return { index, logs: new Map(), results: new Map(), visiting: new Set() };
 }
 
 /** Verified KEL for `aid`, or the reason it could not be built. Cached per run. */
-function issuerLog(context: Context, aid: string): KeyEventLog | string {
+export function issuerLog(context: Context, aid: string): KeyEventLog | string {
   const cached = context.logs.get(aid);
   if (cached !== undefined) {
     return cached;

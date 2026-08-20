@@ -5,7 +5,8 @@ import { describe, test } from "node:test";
 import { Message, parse } from "cesr";
 import type { IssueEventBody } from "./credential-event.ts";
 import type { KeyEventBody } from "./key-event.ts";
-import { isKelEventType, KeyEventLog } from "./key-event-log.ts";
+import { isKelEventType } from "./key-event.ts";
+import { KeyEventLog } from "./key-event-log.ts";
 import type { RegistryInceptEventBody } from "./registry-event.ts";
 import type { TransactionEventBody } from "./transaction-event-log.ts";
 import {

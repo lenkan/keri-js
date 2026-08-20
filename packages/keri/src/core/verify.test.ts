@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer } from "cesr";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
+import { signRaw } from "./signing.test.ts";
 import { verifyThreshold, verifyThresholdOrThrow } from "./verify.ts";
 
 function sign(payload: Uint8Array, options: { key: Uint8Array; index: number }): string {
-  return encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(payload, options.key), options.index));
+  return signRaw(payload, options.key, options.index);
 }
 
 function generateKeys(count: number): KeyPair[] {

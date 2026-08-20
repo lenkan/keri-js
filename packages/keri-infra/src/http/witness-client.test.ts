@@ -1,17 +1,10 @@
 import assert from "node:assert";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Matter, Message } from "cesr";
+import { encodeText, Message } from "cesr";
 import { generateKeyPair, KeyEvent, type KeyEventBody, type KeyPair } from "keri";
+import { sign } from "./signing.test.ts";
 import { WitnessClient } from "./witness-client.ts";
-
-function sign(payload: Uint8Array, options: { key: Uint8Array; index?: number }): string {
-  const raw = ed25519.sign(payload, options.key);
-  return options.index === undefined
-    ? encodeText(Matter.crypto.ed25519_sig(raw))
-    : encodeText(Indexer.crypto.ed25519_sig(raw, options.index));
-}
 
 function makeEvent() {
   const sigKey = generateKeyPair();

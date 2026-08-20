@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { encodeText, Indexer, Message, parse } from "cesr";
+import { Message, parse } from "cesr";
 import type { CredentialBody } from "./credential.ts";
 import { createCredential } from "./credential.ts";
 import type { IssueEventBody } from "./credential-event.ts";
@@ -15,6 +14,7 @@ import { incept, interact } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair } from "./keys.ts";
 import { incept as registry } from "./registry-event.ts";
+import { signWith } from "./signing.test.ts";
 
 const SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao";
 const OTHER_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY";
@@ -62,7 +62,7 @@ async function fixtureIndex(mutate?: (body: CredentialBody) => CredentialBody): 
 function newIssuer() {
   const key = generateKeyPair();
   const next = generateKeyPair();
-  const sign = (event: Message) => [encodeText(Indexer.crypto.ed25519_sig(ed25519.sign(event.raw, key.privateKey), 0))];
+  const sign = (event: Message) => signWith(event, [key]);
 
   const icp = incept({ signingKeys: [key.publicKey], nextKeyDigests: [next.publicKeyDigest] });
   const icpMessage = new Message(icp.body, { ControllerIdxSigs: sign(icp) });

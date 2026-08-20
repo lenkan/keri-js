@@ -114,13 +114,12 @@ const iss = TransactionEvent.issue({ i: acdc.body.d, ri: vcp.body.i });
 
 ## Protocol versions
 
-Constructors emit KERI v1 by default. Pass `version: 2` to emit v2:
+Constructors emit KERI v1. Reading is version-tolerant: `parse`, `collect` and `verify` accept any
+version string a message carries, and SAIDs are recomputed against the version the body declares —
+minor version and serialization kind included.
 
-```ts
-KeyEvent.incept({ signingKeys, nextKeyDigests, version: 2 });
-```
-
-`parse`, `collect` and `verify` accept either version without configuration.
+Writing v2 is not supported yet. It needs CESR attachment groups to be emitted with v2 counter
+codes, which `cesr` does not do.
 
 ## Entry points
 

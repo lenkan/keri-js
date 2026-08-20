@@ -1,5 +1,5 @@
 import { Matter, Message } from "cesr";
-import { DUMMY_VERSION, encodeEvent, type ProtocolVersion } from "./events.ts";
+import { DUMMY_VERSION, encodeEvent } from "./events.ts";
 import type { Threshold } from "./threshold.ts";
 
 export interface KeyState {
@@ -32,12 +32,10 @@ export interface InceptArgs {
   nextThreshold?: Threshold;
   backers?: string[];
   backerThreshold?: number;
-  version?: ProtocolVersion;
 }
 
 export interface InteractArgs {
   data?: Record<string, unknown>;
-  version?: ProtocolVersion;
 }
 
 export interface RotateArgs {
@@ -48,7 +46,6 @@ export interface RotateArgs {
   removeBackers?: string[];
   addBackers?: string[];
   backerThreshold?: number;
-  version?: ProtocolVersion;
 }
 
 export interface DelegatedInceptArgs extends InceptArgs {
@@ -162,7 +159,7 @@ export function incept(args: InceptArgs): Message<InceptEventBody> {
       c: [] as string[],
       a: [] as Record<string, unknown>[],
     },
-    { labels, version: args.version },
+    { labels },
   );
 
   return new Message(body);
@@ -179,7 +176,7 @@ export function interact(state: KeyState, args: InteractArgs = {}): Message<Inte
       p: state.lastEvent.d,
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
     },
-    { labels: ["d"], version: args.version },
+    { labels: ["d"] },
   );
 
   return new Message(body);
@@ -209,7 +206,7 @@ export function rotate(state: KeyState, args: RotateArgs): Message<RotateEventBo
       c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
     },
-    { labels: ["d"], version: args.version },
+    { labels: ["d"] },
   );
 
   return new Message(body);
@@ -240,7 +237,7 @@ export function delegatedIncept(args: DelegatedInceptArgs): Message<DipEventBody
       a: [] as Record<string, unknown>[],
       di: args.delegator,
     },
-    { labels: ["d", "i"], version: args.version },
+    { labels: ["d", "i"] },
   );
 
   return new Message(body);
@@ -275,14 +272,19 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Mes
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
       di: state.delegator,
     },
-    { labels: ["d"], version: args.version },
+    { labels: ["d"] },
   );
 
   return new Message(body);
 }
 
-const KEL_EVENT_TYPES = new Set(["icp", "ixn", "rot", "dip", "drt"]);
+/** The `t` values that belong in a Key Event Log. `rct` is not one — a receipt is *about* an event. */
+const KEL_EVENT_TYPES: ReadonlySet<string> = new Set(["icp", "ixn", "rot", "dip", "drt"]);
+
+export function isKelEventType(t: unknown): boolean {
+  return typeof t === "string" && KEL_EVENT_TYPES.has(t);
+}
 
 export function isKeyEvent(message: Message): message is Message<KeyEventBody> {
-  return KEL_EVENT_TYPES.has(message.body.t as string);
+  return isKelEventType(message.body.t);
 }

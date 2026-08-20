@@ -35,22 +35,13 @@ function verifyRaw(payload: Uint8Array, key: Matter, sig: Uint8Array): boolean {
  * is reported for that message instead of aborting the whole pass.
  */
 export function verifySignature(payload: Uint8Array, publicKey: string, signature: string): VerifyResult {
-  let key: Matter;
-  let sig: Matter;
-
   try {
-    key = Matter.parse(publicKey);
-    sig = Matter.parse(signature);
+    const key = Matter.parse(publicKey);
+    const sig = Matter.parse(signature);
+    return verifyRaw(payload, key, sig.raw) ? { ok: true } : { ok: false, error: "Invalid signature" };
   } catch (error) {
+    // Covers both a malformed primitive and verifyRaw's unsupported-code throw.
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-
-  switch (key.code) {
-    case Matter.Code.Ed25519:
-    case Matter.Code.Ed25519N:
-      return ed25519.verify(sig.raw, payload, key.raw) ? { ok: true } : { ok: false, error: "Invalid signature" };
-    default:
-      return { ok: false, error: `Unsupported key code: ${key.code}` };
   }
 }
 

@@ -1,5 +1,5 @@
 import { Message } from "cesr";
-import { DUMMY_SAID, DUMMY_VERSION, encodeEvent, type ProtocolVersion, verifyEventSaid } from "./events.ts";
+import { DUMMY_SAID, DUMMY_VERSION, encodeEvent, verifyEventSaid } from "./events.ts";
 import { saidify } from "./said.ts";
 import type { VerifyResult } from "./verify.ts";
 
@@ -18,7 +18,6 @@ export interface CredentialArgs {
   };
   r?: Record<string, unknown>;
   e?: Record<string, unknown>;
-  version?: ProtocolVersion;
 }
 
 export interface CredentialSubject {
@@ -187,7 +186,7 @@ export function createCredential(data: CredentialArgs): Message<CredentialBody> 
       ...(data.e && { e: saidify({ d: DUMMY_SAID, ...data.e }, ["d"]) }),
       r: saidify({ d: DUMMY_SAID, ...data.r }, ["d"]),
     },
-    { labels: ["d"], protocol: "ACDC", version: data.version },
+    { labels: ["d"], protocol: "ACDC" },
   );
 
   return new Message<CredentialBody>(body);

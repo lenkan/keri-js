@@ -17,7 +17,6 @@ export type {
   InteractEventBody,
   KeyEventBody,
   KeyState,
-  ReceiptEventArgs,
   ReceiptEventBody,
   RotateArgs,
   RotateEventBody,
