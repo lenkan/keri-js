@@ -348,7 +348,11 @@ export class Controller {
   async commit(log: KeyEventLog, event: Message<KeyEventBody>): Promise<void> {
     const body = event.body as KeyEventBody;
     const isInception = body.t === "icp" || body.t === "dip";
-    const signingKeys = isInception ? (event.body as InceptEventBody).k : log.state.signingKeys;
+    // Establishment events are signed by the keys they list — for rotations
+    // those are the newly exposed keys, per spec — while an ixn is signed by
+    // the current state's keys.
+    const isEstablishment = isInception || body.t === "rot" || body.t === "drt";
+    const signingKeys = isEstablishment ? (event.body as InceptEventBody).k : log.state.signingKeys;
     const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
     await signEvent(
       event,

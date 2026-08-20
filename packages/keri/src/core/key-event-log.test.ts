@@ -50,10 +50,36 @@ describe(basename(import.meta.url), () => {
 
     const log = inceptLog(key0, key1);
     const event = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
-    const sigs = sign(event, [key0]);
+    // Signed by the newly exposed key, whose digest the icp committed to.
+    const sigs = sign(event, [key1]);
     const log2 = log.append(new Message(event.body, { ControllerIdxSigs: sigs }));
     assert.equal(log2.state.lastEvent.s, "1");
     assert.deepEqual(log2.state.signingKeys, [key1.publicKey]);
+  });
+
+  test("should reject a rot signed by the superseded key", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+
+    const log = inceptLog(key0, key1);
+    const event = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
+    const sigs = sign(event, [key0]);
+    assert.throws(() => log.append(new Message(event.body, { ControllerIdxSigs: sigs })), {
+      message: /Invalid signature/,
+    });
+  });
+
+  test("should reject a rot exposing a key the prior event never committed to", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+    const intruder = generateKeyPair();
+
+    const log = inceptLog(key0, key1);
+    const event = rotate(log.state, { signingKeys: [intruder.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
+    const sigs = sign(event, [intruder]);
+    assert.throws(() => log.append(new Message(event.body, { ControllerIdxSigs: sigs })), {
+      message: /was not committed by the prior establishment event/,
+    });
   });
 
   test("should parse alice.cesr into a valid key event log", async () => {
@@ -227,7 +253,7 @@ describe(basename(import.meta.url), () => {
         signingKeys: [key1.publicKey],
         nextKeyDigests: [key2.publicKeyDigest],
       });
-      const sigs = sign(event, [key0]);
+      const sigs = sign(event, [key1]);
       const log2 = log.append(new Message(event.body, { ControllerIdxSigs: sigs }));
       assert.equal(log2.state.lastEvent.s, "1");
       assert.equal(log2.state.delegator, delegator);
@@ -403,7 +429,7 @@ describe(basename(import.meta.url), () => {
         nextKeyDigests: [delegateNext2.publicKeyDigest],
       });
       const drtAnchored = anchorDip(delegator, delegatorKey, drt.body);
-      const drtSigs = sign(drt, [delegateKey]);
+      const drtSigs = sign(drt, [delegateNext]);
       const drtLog = dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator: drtAnchored });
 
       assert.equal(drtLog.state.lastEvent.s, "2");
@@ -436,7 +462,7 @@ describe(basename(import.meta.url), () => {
         signingKeys: [delegateNext.publicKey],
         nextKeyDigests: [delegateNext2.publicKeyDigest],
       });
-      const drtSigs = sign(drt, [delegateKey]);
+      const drtSigs = sign(drt, [delegateNext]);
 
       assert.throws(() => dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator }), {
         message: /No anchoring event found in delegator KEL/,

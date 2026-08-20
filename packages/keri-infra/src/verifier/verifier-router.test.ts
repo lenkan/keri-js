@@ -5,6 +5,7 @@ import { describe, test } from "node:test";
 import { Attachments, encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody } from "keri";
 import { collect, RoutedEvent } from "keri";
+import type { KeyEventHead, KeyEventStore, StoredKeyEvent } from "./login.ts";
 import { type SessionStore, Verifier } from "./verifier.ts";
 import { createRouter } from "./verifier-router.ts";
 
@@ -33,8 +34,23 @@ function makeSessions(): SessionStore & { size: () => number } {
   };
 }
 
+function makeKeyEvents(): KeyEventStore {
+  const events = new Map<string, StoredKeyEvent>();
+  const heads = new Map<string, KeyEventHead>();
+  return {
+    getEvent: async (aid, sn) => events.get(`${aid}:${sn}`) ?? null,
+    putEvent: async (aid, sn, event) => {
+      events.set(`${aid}:${sn}`, event);
+    },
+    getHead: async (aid) => heads.get(aid) ?? null,
+    putHead: async (aid, head) => {
+      heads.set(aid, head);
+    },
+  };
+}
+
 async function makeApp(sessions: SessionStore) {
-  return createRouter(await Verifier.create({ url: URL_BASE }), sessions);
+  return createRouter(await Verifier.create({ url: URL_BASE }), sessions, makeKeyEvents());
 }
 
 /** One request against a fresh verifier — the shape almost every case below wants. */
@@ -65,7 +81,7 @@ const TOKEN = "abcdefghijklmnopqrstuvwx";
 describe(basename(import.meta.url), () => {
   test("should serve its own oobi with the controller role", async () => {
     const verifier = await Verifier.create({ url: URL_BASE });
-    const response = await createRouter(verifier, makeSessions())(request("/oobi"));
+    const response = await createRouter(verifier, makeSessions(), makeKeyEvents())(request("/oobi"));
 
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.headers.get("Keri-Aid"), verifier.aid);
@@ -78,7 +94,11 @@ describe(basename(import.meta.url), () => {
   test("should hand out a session with the verifier aid and oobi", async () => {
     const verifier = await Verifier.create({ url: URL_BASE });
     const sessions = makeSessions();
-    const response = await createRouter(verifier, sessions)(request("/api/sessions", { method: "POST" }));
+    const response = await createRouter(
+      verifier,
+      sessions,
+      makeKeyEvents(),
+    )(request("/api/sessions", { method: "POST" }));
 
     assert.strictEqual(response.status, 200);
     const body = (await response.json()) as { token: string; aid: string; oobi: string };
@@ -174,7 +194,7 @@ describe(basename(import.meta.url), () => {
 
     assert.strictEqual(verifier.oobi, `${URL_BASE}/oobi`);
 
-    const response = await createRouter(verifier, makeSessions())(request("/oobi"));
+    const response = await createRouter(verifier, makeSessions(), makeKeyEvents())(request("/oobi"));
     const body = await response.text();
 
     // KERIpy appends its own `/` to whatever this advertises, and `//` routes nowhere.

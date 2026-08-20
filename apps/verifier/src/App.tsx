@@ -1,6 +1,6 @@
 import { Container, Stack, Tabs, Text, Title } from "@mantine/core";
 import { CommandBlock, Disclosure } from "./components/main.ts";
-import { IpexMode, StreamMode } from "./modes/main.ts";
+import { IpexMode, LoginMode, StreamMode } from "./modes/main.ts";
 
 const TRY_IT_INSTALL_COMMANDS = "pip install keri==1.3.3";
 
@@ -56,6 +56,7 @@ export function App() {
         <Tabs.List>
           <Tabs.Tab value="stream">Bring a stream</Tabs.Tab>
           <Tabs.Tab value="ipex">Present over IPEX</Tabs.Tab>
+          <Tabs.Tab value="login">Log in with KERI</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="stream">
@@ -64,6 +65,10 @@ export function App() {
 
         <Tabs.Panel value="ipex">
           <IpexMode />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="login">
+          <LoginMode />
         </Tabs.Panel>
       </Tabs>
     </Container>

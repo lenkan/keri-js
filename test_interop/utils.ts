@@ -7,7 +7,14 @@ import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
 import { createListener, type Logger, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
-import { createVerifierRouter, type SessionStore, Verifier } from "@keri-js/infra/verifier";
+import {
+  createVerifierRouter,
+  type KeyEventHead,
+  type KeyEventStore,
+  type SessionStore,
+  type StoredKeyEvent,
+  Verifier,
+} from "@keri-js/infra/verifier";
 import { createRouter, Witness } from "@keri-js/infra/witness";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { allocatePorts } from "../test_utils/ports.ts";
@@ -107,8 +114,21 @@ export async function startKerijsVerifier(opts: { port?: number; signal?: AbortS
     },
   };
 
+  const events = new Map<string, StoredKeyEvent>();
+  const heads = new Map<string, KeyEventHead>();
+  const keyEvents: KeyEventStore = {
+    getEvent: async (aid, sn) => events.get(`${aid}:${sn}`) ?? null,
+    putEvent: async (aid, sn, event) => {
+      events.set(`${aid}:${sn}`, event);
+    },
+    getHead: async (aid) => heads.get(aid) ?? null,
+    putHead: async (aid, head) => {
+      heads.set(aid, head);
+    },
+  };
+
   const verifier = await Verifier.create({ url });
-  serve(createVerifierRouter(verifier, sessions, { logger: serverLogger }));
+  serve(createVerifierRouter(verifier, sessions, keyEvents, { logger: serverLogger }));
 
   return { aid: verifier.aid, url, oobi: verifier.oobi };
 }
