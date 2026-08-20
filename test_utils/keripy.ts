@@ -1,7 +1,8 @@
 import type { Buffer } from "node:buffer";
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import debug, { type Debugger } from "debug";
@@ -9,6 +10,17 @@ import debug, { type Debugger } from "debug";
 const KLI = join(dirname(fileURLToPath(import.meta.url)), "..", ".venv/bin/kli");
 const TIMEOUT = 20000;
 const TAIL = 2000;
+
+// KERIpy creates the shared config directory with an unguarded exists-then-makedirs (hio
+// `Filer.remake`), so two `kli` processes starting at once can both try to create it and the loser
+// dies with "[Errno 17] File exists". A recursive mkdir from here is idempotent between callers.
+function ensureConfigDir(base?: string): void {
+  try {
+    mkdirSync(join(homedir(), ".keri", "cf", base ?? ""), { recursive: true });
+  } catch {
+    // Whatever KERIpy does next will report it better than we can.
+  }
+}
 
 function format(args: string[]): string {
   return `kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`;
@@ -27,6 +39,8 @@ export class KERIPy {
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
     this.debug = debug(`keripy:${this.name}`);
+
+    ensureConfigDir(this.base);
   }
 
   private get baseArgs(): string[] {
