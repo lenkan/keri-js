@@ -1,3 +1,7 @@
 {
-  "nodeModulesDir": "manual"
+  "nodeModulesDir": "manual",
+  "deploy": {
+    "org": "lenkan",
+    "app": "keri"
+  }
 }
