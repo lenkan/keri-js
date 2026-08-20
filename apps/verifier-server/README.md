@@ -61,16 +61,13 @@ repository. The build settings live in the Cloudflare dashboard, under the
 | --- | --- |
 | Root directory | `apps/verifier-server` |
 | Build command | `pnpm install --frozen-lockfile && pnpm -w run build:apps` |
-| Deploy command | `pnpm exec wrangler deploy` |
+| Deploy command | `pnpm run deploy` |
 | Build variables | `NODE_VERSION=24`, `PNPM_VERSION=11.21.0`, `SKIP_DEPENDENCY_INSTALL=1` |
 
-`SKIP_DEPENDENCY_INSTALL` turns off the build image's own install so the build
-command can run `pnpm install --frozen-lockfile`, which the automatic one does
-not. The image's default pnpm is older than the `packageManager` pin in the root
-manifest, hence `PNPM_VERSION`.
-
-Nothing gates the build on CI, so a red `main` still ships. The tests run on the
-pull request instead.
+`SKIP_DEPENDENCY_INSTALL` is what lets the build command install with
+`--frozen-lockfile`, which the image's own install does not. `PNPM_VERSION` has
+to match the `packageManager` pin in the root manifest, which the image's older
+pnpm would otherwise refuse.
 
 To deploy by hand:
 
@@ -78,9 +75,6 @@ To deploy by hand:
 pnpm run build:apps
 pnpm --filter @keri-js/verifier-server run deploy
 ```
-
-`build:apps` builds the packages and the app; `wrangler deploy` bundles the
-worker and uploads it with the assets directory.
 
 The KV namespace already exists. To recreate it elsewhere:
 

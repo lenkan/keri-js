@@ -1,8 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "keri-verifier",
-  // No account_id: the Workers Build runs inside the account that owns the
-  // worker, and locally wrangler takes it from whoever is logged in.
+  // No account_id: the account comes from the environment wrangler runs in, not
+  // from this file.
   "main": "src/main.ts",
   "compatibility_date": "2026-08-20",
   "assets": {
