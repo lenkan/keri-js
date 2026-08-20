@@ -36,6 +36,7 @@
     "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev",
     "predev:controller": "pnpm run build",
     "dev:controller": "pnpm --filter @keri-js/controller run dev",
+    "predeploy:verifier": "pnpm run build",
     "deploy:verifier": "pnpm --filter @keri-js/verifier run deploy"
   },
   "type": "module",

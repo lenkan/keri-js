@@ -71,7 +71,6 @@ repository root.
 To deploy by hand:
 
 ```sh
-pnpm run build
 pnpm run deploy:verifier
 ```
 
