@@ -14,16 +14,11 @@ export function App() {
       ) : (
         <>
           <Text c="dimmed" maw={640}>
-            Prove who you are to enter — no password, no email. Your KERI identifier is the account, your keystore holds
-            the keys, and this portal only ever sees your public key event log and a signed challenge.
+            Log in by proving control of a KERI identifier: supply your key event log, then sign a challenge with your
+            current keys. Once in, you can inspect your key state and verify ACDC credentials.
           </Text>
 
           <LoginWizard {...login} />
-
-          <Text size="sm" c="dimmed" mt="xl" maw={640}>
-            Inside: your live key state, and ACDC credential verification over IPEX. Rotate your keys and log in again —
-            it still works, because the portal verifies against your key event log, not a stored password.
-          </Text>
         </>
       )}
     </Container>

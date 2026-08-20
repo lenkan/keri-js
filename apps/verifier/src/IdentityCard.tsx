@@ -53,13 +53,6 @@ export function IdentityCard({ identity, onLogout }: { identity: Identity; onLog
       </Card.Section>
 
       <Card.Section>
-        <Text size="sm" c="dimmed">
-          This session is bound to your key state, not a password. Rotate your keys with <code>kli rotate</code> and the
-          next login verifies against the new state.
-        </Text>
-      </Card.Section>
-
-      <Card.Section>
         <Group>
           <Button variant="default" onClick={onLogout}>
             Log out

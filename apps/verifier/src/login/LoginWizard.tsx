@@ -49,9 +49,12 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
     return (
       <Stack gap="md" mt="md">
         <Text>
-          Found your key event log — <Text span ff="monospace">{`${phase.aid.slice(0, 12)}…`}</Text> is challenged. Sign
-          these twelve words to prove you hold its keys. First resolve this portal so <code>kli</code> knows where to
-          send, then respond:
+          Key event log received for{" "}
+          <Text span ff="monospace">
+            {`${phase.aid.slice(0, 12)}…`}
+          </Text>
+          . Two commands left: the first resolves this portal as a <code>kli</code> contact, the second signs the
+          challenge words and sends the response.
         </Text>
 
         <CommandBlock>{respondCommands(phase.words)}</CommandBlock>
@@ -60,7 +63,9 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
 
         <Group gap="xs">
           <Loader size="sm" />
-          <Text>Waiting for your signed response — watch this page, not the terminal.</Text>
+          <Text>
+            Waiting for the signed response. The result appears here — <code>kli</code> does not check the reply.
+          </Text>
         </Group>
 
         <Group>
@@ -95,7 +100,7 @@ export function LoginWizard({ phase, restart, submitOobi }: Login) {
 
       {intake === "push" ? (
         <>
-          <Text>Export your key event log straight into this session:</Text>
+          <Text>Export your key event log into this session:</Text>
           <CommandBlock>{pushCommand(phase.token)}</CommandBlock>
           <Group gap="xs">
             <Loader size="sm" />
