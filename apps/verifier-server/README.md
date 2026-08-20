@@ -54,8 +54,15 @@ openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | \
 ## Deployment
 
 Pushing to `main` deploys, from the `deploy` job in `.github/workflows/ci.yaml`.
-It needs the `build`, `apps` and `e2e` jobs, so a red build cannot ship. The job
-authenticates with a `CLOUDFLARE_API_TOKEN` repository secret.
+It needs the `build`, `apps` and `e2e` jobs, so a red build cannot ship.
+
+It requires two repository settings, and skips itself when they are absent, so a
+fork gets a skipped job rather than a failing one:
+
+| | |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | variable — the account to deploy to, and the switch that enables the job |
+| `CLOUDFLARE_API_TOKEN` | secret — needs Workers Scripts and Workers KV write |
 
 To deploy by hand:
 

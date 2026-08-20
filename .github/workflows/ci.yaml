@@ -224,8 +224,13 @@ jobs:
 
   # Deploying from here rather than a separate workflow is what gates production
   # on the tests: a red build cannot ship.
+  #
+  # The CLOUDFLARE_ACCOUNT_ID variable both selects the account and decides
+  # whether to deploy at all, so a fork without it gets a skipped job rather
+  # than a red one. It has to be a variable rather than a secret: the secrets
+  # context is not available in a job-level `if`.
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
     needs: [build, apps, e2e]
     runs-on: ubuntu-24.04
     concurrency:
@@ -255,4 +260,5 @@ jobs:
       - name: Deploy worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @keri-js/verifier-server run deploy
