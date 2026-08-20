@@ -52,7 +52,6 @@ export interface DelegatedInceptArgs extends InceptArgs {
 
 export type DelegatedRotateArgs = RotateArgs;
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type InceptEventBody = {
   v: string;
   t: "icp";

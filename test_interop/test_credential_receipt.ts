@@ -42,14 +42,12 @@ test("KERIpy issues credential to KERIjs via IPEX", async () => {
     record: { cid: jsState.id, eid: wan.aid, role: "mailbox" },
   });
 
-  // Cross-resolve OOBIs
   const keripy_oobi = `${wil.url}/oobi/${keripy_aid}`;
   const kerijs_oobi = `${wan.url}/oobi/${jsState.id}/mailbox`;
 
   await controller.introduce(keripy_oobi);
   await keripy.oobi.resolve(kerijs_oobi, "kerijs");
 
-  // KERIpy creates registry and issues credential to KERIjs
   const REGISTRY_NAME = "test-registry";
   await keripy.registry.incept({ registryName: REGISTRY_NAME });
 
@@ -60,12 +58,10 @@ test("KERIpy issues credential to KERIjs via IPEX", async () => {
     data: { LEI: "12312312312312321" },
   });
 
-  // Get the credential SAID from keripy's issued credentials
   const credSaid = (await keripy.vc.saids()).at(-1);
 
   assert.ok(credSaid, "Expected credential SAID after issuance");
 
-  // KERIpy grants credential to KERIjs
   await keripy.ipex.grant({ said: credSaid, recipient: jsState.id });
 
   // KeriJS queries its mailbox and receives the grant (retry until delivered)
@@ -81,7 +77,6 @@ test("KERIpy issues credential to KERIjs via IPEX", async () => {
   assert.ok(credentials.length > 0, "Expected at least one credential to be received");
   assert.strictEqual(credentials[0].s, SCHEMA_SAID, "Credential schema should match");
 
-  // Verify credential is persisted in KeriJS storage
   const stored = await controller.getCredential(credentials[0].d);
   assert.ok(stored, "Expected credential to be retrievable from storage");
 });

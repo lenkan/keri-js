@@ -32,7 +32,6 @@ after(() => {
 test("KERIjs issues credential to KERIpy via IPEX", async () => {
   const keripy = new KERIPy();
 
-  // Set up KERIpy identity on wil
   await keripy.init();
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${QVI_SCHEMA}`);
   await keripy.oobi.resolve(wil.oobi, "wil");
@@ -41,7 +40,6 @@ test("KERIjs issues credential to KERIpy via IPEX", async () => {
 
   const keripy_aid = await keripy.aid();
 
-  // Set up KeriJS identity on wan
   const controller = createController();
   await controller.introduce(wan.oobi);
 
@@ -53,14 +51,12 @@ test("KERIjs issues credential to KERIpy via IPEX", async () => {
     record: { cid: jsState.id, eid: wan.aid, role: "mailbox" },
   });
 
-  // Cross-resolve OOBIs
   const keripy_oobi = `${wil.url}/oobi/${keripy_aid}`;
   const kerijs_oobi = `${wan.url}/oobi/${jsState.id}`;
 
   await controller.introduce(keripy_oobi);
   await keripy.oobi.resolve(kerijs_oobi, "kerijs");
 
-  // KeriJS creates registry and credential
   const registry = await controller.createRegistry(jsState.id);
 
   const credential = await controller.createCredential({
@@ -75,7 +71,6 @@ test("KERIjs issues credential to KERIpy via IPEX", async () => {
   await controller.sendCredentialArtifacts(credential, keripy_aid);
   await controller.grant({ credential });
 
-  // KERIpy polls and admits the grant
   await keripy.query({ prefix: jsState.id });
   await keripy.ipex.list({ type: "grant", poll: true });
 
@@ -93,7 +88,6 @@ test("KERIjs issues credential to KERIpy via IPEX", async () => {
 test("KERIjs issues chained vLEI credentials to KERIpy via IPEX", async () => {
   const keripy = new KERIPy();
 
-  // Set up KERIpy identity on wil
   await keripy.init();
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${QVI_SCHEMA}`);
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${LE_SCHEMA}`);
@@ -104,7 +98,6 @@ test("KERIjs issues chained vLEI credentials to KERIpy via IPEX", async () => {
 
   const keripy_aid = await keripy.aid();
 
-  // Set up KeriJS identity on wan
   const controller = createController();
   await controller.introduce(wan.oobi);
 
@@ -116,14 +109,12 @@ test("KERIjs issues chained vLEI credentials to KERIpy via IPEX", async () => {
     record: { cid: jsState.id, eid: wan.aid, role: "mailbox" },
   });
 
-  // Cross-resolve OOBIs
   const keripy_oobi = `${wil.url}/oobi/${keripy_aid}`;
   const kerijs_oobi = `${wan.url}/oobi/${jsState.id}/witness`;
 
   await controller.introduce(keripy_oobi);
   await keripy.oobi.resolve(kerijs_oobi, "kerijs");
 
-  // Create registry
   const registry = await controller.createRegistry(jsState.id);
 
   // QVI credential (issued to self)
@@ -166,7 +157,6 @@ test("KERIjs issues chained vLEI credentials to KERIpy via IPEX", async () => {
   await controller.sendCredentialArtifacts(ecrCredential, keripy_aid);
   await controller.grant({ credential: ecrCredential });
 
-  // KERIpy polls and admits the grant
   await keripy.query({ prefix: jsState.id });
   await keripy.ipex.list({ type: "grant", poll: true });
 
@@ -184,7 +174,6 @@ test("KERIjs issues chained vLEI credentials to KERIpy via IPEX", async () => {
 test("KERIjs issues credential to KERIpy without witness mailbox", async () => {
   const keripy = new KERIPy();
 
-  // Set up KERIpy identity on wan
   await keripy.init();
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${QVI_SCHEMA}`);
   await keripy.oobi.resolve(wan.oobi, "wan");
@@ -197,11 +186,9 @@ test("KERIjs issues credential to KERIpy without witness mailbox", async () => {
   const controller = createController();
   const jsState = await controller.incept({});
 
-  // KeriJS resolves KERIpy OOBI through wan
   const keripy_oobi = `${wan.url}/oobi/${keripy_aid}`;
   await controller.introduce(keripy_oobi);
 
-  // KeriJS creates registry and credential
   const registry = await controller.createRegistry(jsState.id);
 
   const credential = await controller.createCredential({
@@ -216,7 +203,6 @@ test("KERIjs issues credential to KERIpy without witness mailbox", async () => {
   await controller.sendCredentialArtifacts(credential, keripy_aid);
   await controller.grant({ credential });
 
-  // KERIpy polls and admits the grant
   await keripy.ipex.list({ type: "grant", poll: true });
 
   const grants = await keripy.ipex.list({ type: "grant", said: true });
@@ -233,7 +219,6 @@ test("KERIjs issues credential to KERIpy without witness mailbox", async () => {
 test("KERIjs issues chained credentials to KERIpy without witness mailbox", async () => {
   const keripy = new KERIPy();
 
-  // Set up KERIpy identity on wan
   await keripy.init();
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${QVI_SCHEMA}`);
   await keripy.oobi.resolve(`https://weboftrust.github.io/oobi/${LE_SCHEMA}`);
@@ -248,11 +233,9 @@ test("KERIjs issues chained credentials to KERIpy without witness mailbox", asyn
   const controller = createController();
   const jsState = await controller.incept({});
 
-  // KeriJS resolves KERIpy OOBI through wan
   const keripy_oobi = `${wan.url}/oobi/${keripy_aid}`;
   await controller.introduce(keripy_oobi);
 
-  // Create registry
   const registry = await controller.createRegistry(jsState.id);
 
   // QVI credential (issued to self)
@@ -295,7 +278,6 @@ test("KERIjs issues chained credentials to KERIpy without witness mailbox", asyn
   await controller.sendCredentialArtifacts(ecrCredential, keripy_aid);
   await controller.grant({ credential: ecrCredential });
 
-  // KERIpy polls and admits the grant
   await keripy.ipex.list({ type: "grant", poll: true });
 
   const grants = await keripy.ipex.list({ type: "grant", said: true });

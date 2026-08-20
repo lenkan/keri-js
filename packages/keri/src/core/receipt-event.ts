@@ -7,7 +7,6 @@ export interface ReceiptEventInit {
   s: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type ReceiptEventBody = {
   v: string;
   t: "rct";

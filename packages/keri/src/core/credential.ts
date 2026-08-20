@@ -49,13 +49,12 @@ export interface CredentialRules {
 
 export interface CredentialEdges {
   /**
-   * Rules SAID
+   * Edges SAID
    */
   d: string;
   [key: string]: string | Record<string, unknown> | undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type CredentialBody = {
   v: string;
 
