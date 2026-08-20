@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "deno run --allow-net --allow-env --allow-read --unstable-kv src/main.ts",
-    "build": "deno bundle src/main.ts -o dist/main.js",
     "check": "deno check src/main.ts"
   },
   "dependencies": {
