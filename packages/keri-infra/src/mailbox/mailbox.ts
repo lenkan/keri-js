@@ -2,7 +2,7 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { type Message, parse } from "cesr";
 import { encodeUtf8 } from "cesr/encoding";
 import type { ExchangeEventBody, QueryEventBody, ReplyEventBody } from "keri";
-import { ed25519Signer, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
+import { ed25519Signer, endorse, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
 import type { KeyEventStorage, MailboxServerStorage } from "../storage/main.ts";
 
@@ -176,7 +176,7 @@ export class Mailbox {
 
   static async createKEL(signer: Signer): Promise<KeyEventLog> {
     const icp = KeyEvent.incept({ signingKeys: [signer.publicKey], nextKeyDigests: [] });
-    await signEvent(icp, [signer]);
+    signEvent(icp, { signers: [signer] });
     return KeyEventLog.from([icp]);
   }
 
@@ -205,13 +205,8 @@ export class Mailbox {
         a: { cid: aid, role: "mailbox", eid: aid },
       });
 
-      location.attachments = {
-        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(location.raw) }],
-      };
-
-      endrole.attachments = {
-        NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(endrole.raw) }],
-      };
+      endorse(location, { signers: [signer], state: kel.state });
+      endorse(endrole, { signers: [signer], state: kel.state });
 
       events.push({ message: location, timestamp: new Date() });
       events.push({ message: endrole, timestamp: new Date() });

@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { encodeText, type Message } from "cesr";
-import { RoutedEvent } from "keri";
+import { endorse, RoutedEvent } from "keri";
 import { KERIPy } from "../test_utils/keripy.ts";
 import { createController, type Endpoint, startKerijsPortal } from "./utils.ts";
 
@@ -34,30 +34,16 @@ function encode(messages: readonly Message[]): string {
 }
 
 /** The keri-js side of the `kli mailbox add` contract: POST the KEL and a signed end-role rpy. */
-async function enrollController(
-  controller: ReturnType<typeof createController>,
-  id: string,
-  signingKeys: string[],
-): Promise<void> {
+async function enrollController(controller: ReturnType<typeof createController>, id: string): Promise<void> {
   const rpy = RoutedEvent.reply({
     r: "/end/role/add",
     a: { cid: id, role: "mailbox", eid: portal.aid },
   });
 
   const kel = await controller.export(id);
-  const establishment = kel.at(0);
-  assert(establishment);
+  const { state } = await controller.loadEventLog(id);
 
-  rpy.attachments = {
-    TransIdxSigGroups: [
-      {
-        prefix: id,
-        snu: establishment.body.s as string,
-        digest: establishment.body.d as string,
-        ControllerIdxSigs: await controller.sign(rpy.raw, signingKeys),
-      },
-    ],
-  };
+  endorse(rpy, { signatures: await controller.sign(rpy.raw, state.signingKeys), state });
 
   const form = new FormData();
   form.set("kel", encode(kel));
@@ -89,7 +75,7 @@ test("witness-less KERIpy receives and admits a credential through the portal", 
   const controller = createController();
   await controller.introduce(portal.oobi);
   const issuer = await controller.incept({});
-  await enrollController(controller, issuer.id, issuer.event.k);
+  await enrollController(controller, issuer.id);
 
   // Cross-introduction runs entirely through the portal's enrolled OOBIs —
   // no external witness serves anyone's KEL.

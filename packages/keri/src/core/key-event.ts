@@ -102,7 +102,7 @@ export type DipEventBody = Omit<InceptEventBody, "t"> & { t: "dip"; di: string }
 
 export type DrtEventBody = Omit<RotateEventBody, "t"> & { t: "drt"; di: string };
 
-function isTransferable(key: string) {
+export function isTransferable(key: string) {
   const raw = Matter.parse(key);
   switch (raw.code) {
     case Matter.Code.ECDSA_256k1N:

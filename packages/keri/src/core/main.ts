@@ -93,8 +93,8 @@ export {
   reply,
 } from "./routed-event.ts";
 export { saidify } from "./said.ts";
-export type { Ed25519SignerOptions, Signer } from "./sign.ts";
-export { ed25519Signer, signEvent } from "./sign.ts";
+export type { Ed25519SignerOptions, EndorseOptions, Signature, SignEventOptions, Signer } from "./sign.ts";
+export { ed25519Signer, endorse, signEvent } from "./sign.ts";
 export type { Threshold } from "./threshold.ts";
 export type { CredentialStatus, TransactionEventBody } from "./transaction-event-log.ts";
 export { isTransactionEvent } from "./transaction-event-log.ts";

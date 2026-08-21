@@ -4,21 +4,29 @@ import * as surface from "keri";
 import { Credential, ed25519Signer, generateKeyPair, KeyEvent, KeyEventLog, signEvent, verifySignature } from "keri";
 
 describe("keri", () => {
-  test("builds and verifies a key event log without storage or transport", async () => {
+  test("builds and verifies a key event log without storage or transport", () => {
     const current = generateKeyPair();
     const next = generateKeyPair();
-    const signer = ed25519Signer(current.privateKey);
 
     const icp = KeyEvent.incept({ signingKeys: [current.publicKey], nextKeyDigests: [next.publicKeyDigest] });
-    await signEvent(icp, [signer]);
+    signEvent(icp, { signers: [current] });
 
     const log = KeyEventLog.empty().append(icp);
 
     assert.equal(log.state.identifier, icp.body.i);
     assert.deepEqual(log.state.signingKeys, [current.publicKey]);
 
-    const detached = await signer.sign(icp.raw);
+    const detached = current.sign(icp.raw);
     assert.deepEqual(verifySignature(icp.raw, current.publicKey, detached), { ok: true });
+  });
+
+  test("adopts a private key held elsewhere", () => {
+    const key = generateKeyPair();
+    const adopted = ed25519Signer(key.privateKey);
+    const payload = new TextEncoder().encode("payload");
+
+    assert.equal(adopted.publicKey, key.publicKey);
+    assert.deepEqual(verifySignature(payload, key.publicKey, adopted.sign(payload)), { ok: true });
   });
 
   test("builds an ACDC and reads back its disclosed claims", () => {
@@ -57,6 +65,7 @@ describe("keri", () => {
       "VersionString",
       "collect",
       "ed25519Signer",
+      "endorse",
       "formatDate",
       "generateKeyPair",
       "nextKeyDigest",

@@ -6,6 +6,7 @@ import type { ExchangeEventBody } from "./routed-event.ts";
 import { embeds } from "./routed-event.ts";
 import type { TransactionEventBody } from "./transaction-event-log.ts";
 import { isTelEventType } from "./transaction-event-log.ts";
+import { unique } from "./unique.ts";
 
 /**
  * The key events, registry events and credentials carried by a CESR stream,
@@ -181,18 +182,4 @@ function merge(copies: Attachments[]): AttachmentsInit {
 
 function firstPresent<T>(copies: Attachments[], select: (attachments: Attachments) => T[]): T[] {
   return copies.map(select).find((entries) => entries.length > 0) ?? [];
-}
-
-// A replayed stream would otherwise double every signature it carries.
-function unique<T>(entries: T[]): T[] {
-  const seen = new Set<string>();
-
-  return entries.filter((entry) => {
-    const key = JSON.stringify(entry);
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
 }
