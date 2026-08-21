@@ -7,7 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
 import { createListener, type Logger, NodeSqliteDatabase } from "@keri-js/infra/node";
-import { createPortalRouter } from "@keri-js/infra/portal";
+import { createPortalRouter, Portal } from "@keri-js/infra/portal";
 import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import {
   createVerifierRouter,
@@ -90,26 +90,16 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
 }
 
-/**
- * The full portal composition — mailbox + receipting witness + intake
- * dispatch under one identity — as the deployed worker runs it, served from
- * Node for the interop harness.
- */
+/** The portal as the deployed worker runs it, served from Node for the interop harness. */
 export async function startKerijsPortal(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
   const { url, serve } = await listen(opts.signal, opts.port);
 
   const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
-  // One key for both faces, so mailbox and witness ARE the same portal identity.
-  const privateKey = crypto.getRandomValues(new Uint8Array(32));
+  const portal = await Portal.create({ storage, url });
 
-  const [mailbox, witness] = await Promise.all([
-    Mailbox.create({ storage, privateKey, url }),
-    Witness.create({ storage, privateKey, url }),
-  ]);
+  serve(createPortalRouter(portal, storage, { logger: serverLogger }));
 
-  serve(createPortalRouter(mailbox, witness, storage, { logger: serverLogger }));
-
-  return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
+  return { aid: portal.aid, url, oobi: `${url}/oobi` };
 }
 
 export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
