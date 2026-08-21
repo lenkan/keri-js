@@ -192,8 +192,8 @@ function index(signatures: Signature[], keys: string[]): string[] {
 
 /**
  * Fold into the group already naming this establishment event rather than
- * adding a second one — `verifyExchange` reads only the first group matching a
- * prefix, so a split set would silently lose signatures.
+ * adding a second one — `verifyReply` and `verifyExchange` read only the first
+ * group matching a prefix, so a split set would silently lose signatures.
  */
 function group<T>(groups: T[], match: (group: T) => boolean, create: () => T): T {
   const existing = groups.find(match);

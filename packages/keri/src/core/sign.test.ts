@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, Indexer, Matter } from "cesr";
-import { incept, interact, type KeyState } from "./key-event.ts";
+import { verifyReply } from "./exchange-verification.ts";
+import { incept, interact } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { reply } from "./routed-event.ts";
@@ -11,11 +12,6 @@ import { verifyThreshold } from "./verify.ts";
 
 describe(basename(import.meta.url), () => {
   const payload = new TextEncoder().encode("test message");
-
-  /** Verify a group's signatures the way `verifyExchange` resolves them. */
-  function verifyGroup(raw: Uint8Array, sigs: string[], state: KeyState) {
-    return verifyThreshold(raw, { keys: state.signingKeys, sigs, threshold: state.signingThreshold });
-  }
 
   /** A signed inception plus the log it opens, so `state` is available. */
   function inceptLog(keys: KeyPair[], options?: { nonTransferable?: boolean }) {
@@ -218,7 +214,7 @@ describe(basename(import.meta.url), () => {
       assert.equal(group.prefix, log.state.identifier);
       assert.equal(group.snu, log.state.lastEstablishment.s);
       assert.equal(group.digest, log.state.lastEstablishment.d);
-      assert.deepEqual(verifyGroup(rpy.raw, group.ControllerIdxSigs, log.state), { ok: true });
+      assert.deepEqual(verifyReply(rpy, log.state), { ok: true });
     });
 
     test("should attach a last-establishment group when latest is set", () => {
@@ -231,7 +227,7 @@ describe(basename(import.meta.url), () => {
       assert.equal(rpy.attachments.TransIdxSigGroups.length, 0);
       const [group] = rpy.attachments.TransLastIdxSigGroups;
       assert.equal(group.prefix, log.state.identifier);
-      assert.deepEqual(verifyGroup(rpy.raw, group.ControllerIdxSigs, log.state), { ok: true });
+      assert.deepEqual(verifyReply(rpy, log.state), { ok: true });
     });
 
     test("should attach a bare couple for a non-transferable identifier", () => {
@@ -247,7 +243,7 @@ describe(basename(import.meta.url), () => {
       ]);
     });
 
-    // Two groups for one prefix would silently lose signatures: verifyExchange
+    // Two groups for one prefix would silently lose signatures: verifyReply
     // reads only the first group that matches.
     test("should fold a second endorsement into the group already present", () => {
       const key0 = generateKeyPair();
@@ -261,7 +257,7 @@ describe(basename(import.meta.url), () => {
       assert.equal(rpy.attachments.TransIdxSigGroups.length, 1);
       const [group] = rpy.attachments.TransIdxSigGroups;
       assert.equal(group.ControllerIdxSigs.length, 2);
-      assert.deepEqual(verifyGroup(rpy.raw, group.ControllerIdxSigs, log.state), { ok: true });
+      assert.deepEqual(verifyReply(rpy, log.state), { ok: true });
     });
 
     test("should not duplicate a signature already attached", () => {
