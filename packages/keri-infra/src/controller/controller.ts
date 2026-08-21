@@ -1,4 +1,4 @@
-import { encodeText, Indexer, Matter, parse } from "cesr";
+import { parse } from "cesr";
 import { decodeBase64Url, encodeBase64Url } from "cesr/encoding";
 import {
   Credential,
@@ -6,6 +6,7 @@ import {
   type DipEventBody,
   type ExchangeEventBody,
   ed25519Signer,
+  endorse,
   formatDate,
   generateKeyPair,
   type InceptEventBody,
@@ -21,7 +22,7 @@ import {
   type ReplyEventBody,
   type RotateEventBody,
   RoutedEvent,
-  type Signer,
+  type Signature,
   signEvent,
   TransactionEvent,
 } from "keri";
@@ -139,22 +140,6 @@ export class Controller {
     return key.publicKey;
   }
 
-  /**
-   * A {@link Signer} over one stored key. The private key is decrypted per
-   * signature and never held on the controller — which is why `Signer.sign` is
-   * async.
-   */
-  signer(publicKey: string): Signer {
-    return {
-      publicKey,
-      sign: async (payload: Uint8Array): Promise<string> => {
-        const encoded = this.#storage.getEncryptedPrivateKey(publicKey);
-        const privateKey = await this.#encrypter.decrypt(decodeBase64Url(encoded));
-        return ed25519Signer(privateKey).sign(payload);
-      },
-    };
-  }
-
   async introduce(oobi: string): Promise<KeyState> {
     this.#log.debug("introduce: fetching oobi", { oobi });
     const response = await this.#fetch(oobi);
@@ -228,11 +213,17 @@ export class Controller {
     };
   }
 
-  async sign(raw: Uint8Array, keys: string[]): Promise<string[]> {
+  /**
+   * Unindexed signatures over `raw`, one per key. Async because each stored key
+   * is decrypted for the signature and never held on the controller — which is
+   * why these go to `signEvent`/`endorse` as `signatures` rather than `signers`.
+   */
+  async sign(raw: Uint8Array, keys: string[]): Promise<Signature[]> {
     return Promise.all(
-      keys.map(async (key, idx) => {
-        const sig = await this.signer(key).sign(raw);
-        return encodeText(Indexer.convert(Matter.parse(sig), idx));
+      keys.map(async (publicKey) => {
+        const encoded = this.#storage.getEncryptedPrivateKey(publicKey);
+        const privateKey = await this.#encrypter.decrypt(decodeBase64Url(encoded));
+        return { publicKey, signature: ed25519Signer(privateKey).sign(raw) };
       }),
     );
   }
@@ -348,12 +339,16 @@ export class Controller {
   async commit(log: KeyEventLog, event: Message<KeyEventBody>): Promise<void> {
     const body = event.body as KeyEventBody;
     const isInception = body.t === "icp" || body.t === "dip";
-    const signingKeys = KeyEvent.isEstablishment(body.t) ? (event.body as InceptEventBody).k : log.state.signingKeys;
+    const isEstablishment = KeyEvent.isEstablishment(body.t);
+    const signingKeys = isEstablishment ? (event.body as InceptEventBody).k : log.state.signingKeys;
     const backers = isInception ? ((event.body as InceptEventBody).b ?? []) : (log.state.backers ?? []);
-    await signEvent(
-      event,
-      signingKeys.map((key) => this.signer(key)),
-    );
+
+    // `log` is an empty KEL for an inception, and reading `.state` off one
+    // throws — so only reach for it when the event does not carry its own keys.
+    signEvent(event, {
+      signatures: await this.sign(event.raw, signingKeys),
+      state: isEstablishment ? undefined : log.state,
+    });
     this.#log.debug("commit: submitting to witnesses", {
       t: body.t,
       aid: body.i,
@@ -417,13 +412,7 @@ export class Controller {
       a: args.record,
     });
 
-    const sigs = await this.sign(rpy.raw, state.signingKeys);
-    rpy.attachments.TransIdxSigGroups.push({
-      snu: state.lastEstablishment.s,
-      digest: state.lastEstablishment.d,
-      prefix: state.identifier,
-      ControllerIdxSigs: sigs,
-    });
+    endorse(rpy, { signatures: await this.sign(rpy.raw, state.signingKeys), state });
 
     await this.processMessage(rpy);
 
@@ -454,14 +443,12 @@ export class Controller {
     const log = await this.loadEventLog(args.sender);
     const state = log.state;
 
+    // Also the only thing keeping `endorse` off the sender's own key events:
+    // `sendCredentialArtifacts` forwards them, and they arrive already carrying
+    // ControllerIdxSigs, so the frame count is what makes this branch skip them.
     const hasAttachments = args.message.attachments.frames().length > 1;
     if (!hasAttachments) {
-      args.message.attachments.TransIdxSigGroups.push({
-        snu: state.lastEstablishment.s,
-        digest: state.lastEstablishment.d,
-        prefix: args.sender,
-        ControllerIdxSigs: await this.sign(args.message.raw, state.signingKeys),
-      });
+      endorse(args.message, { signatures: await this.sign(args.message.raw, state.signingKeys), state });
     }
 
     const fwd = RoutedEvent.exchange({
@@ -475,21 +462,14 @@ export class Controller {
       },
     });
 
-    const fwdsigs = await this.sign(fwd.raw, state.signingKeys);
     fwd.attachments = {
-      TransIdxSigGroups: [
-        {
-          prefix: args.sender,
-          ControllerIdxSigs: fwdsigs,
-          snu: state.lastEstablishment.s,
-          digest: state.lastEstablishment.d,
-        },
-      ],
       PathedMaterialCouples: fwd.attachments.PathedMaterialCouples.map((couple) => ({
         ...couple,
         grouped: false,
       })),
     };
+
+    endorse(fwd, { signatures: await this.sign(fwd.raw, state.signingKeys), state });
 
     await client.sendMessage(fwd);
   }
@@ -796,13 +776,7 @@ export class Controller {
       },
     });
 
-    const grantsigs = await this.sign(grant.raw, state.signingKeys);
-    grant.attachments.TransIdxSigGroups.push({
-      snu: state.lastEstablishment.s,
-      digest: state.lastEstablishment.d,
-      prefix: state.identifier,
-      ControllerIdxSigs: grantsigs,
-    });
+    endorse(grant, { signatures: await this.sign(grant.raw, state.signingKeys), state });
 
     await this.forward({
       message: grant,
@@ -830,14 +804,11 @@ export class Controller {
       },
     });
 
-    queryMessage.attachments = {
-      TransLastIdxSigGroups: [
-        {
-          prefix: id,
-          ControllerIdxSigs: await this.sign(queryMessage.raw, state.signingKeys),
-        },
-      ],
-    };
+    endorse(queryMessage, {
+      signatures: await this.sign(queryMessage.raw, state.signingKeys),
+      state,
+      latest: true,
+    });
 
     this.#log.debug("query: sending", { aid: id, topic, offset });
     const result = await client.sendMessage(queryMessage, AbortSignal.timeout(10000));

@@ -49,6 +49,7 @@ export type {
   DipEventBody,
   DrtEventBody,
   Ed25519SignerOptions,
+  EndorseOptions,
   ExchangeEventArgs,
   ExchangeEventBody,
   ExchangeVerification,
@@ -77,6 +78,8 @@ export type {
   RotateArgs,
   RotateEventBody,
   RoutedEventBody,
+  Signature,
+  SignEventOptions,
   Signer,
   Threshold,
   TransactionEventBody,
@@ -87,6 +90,7 @@ export {
   collect,
   EventIndex,
   ed25519Signer,
+  endorse,
   // Public because an ACDC's attribute-section `dt` is caller data, not a
   // constructor argument — the event constructors all take a `Date`.
   formatDate,

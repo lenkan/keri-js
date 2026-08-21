@@ -2,7 +2,7 @@ import assert from "node:assert";
 import test, { after, before } from "node:test";
 import { submitToWitnesses } from "@keri-js/infra/http";
 import { parse } from "cesr";
-import { ed25519Signer, generateKeyPair, KeyEvent, signEvent } from "keri";
+import { generateKeyPair, KeyEvent, signEvent } from "keri";
 import { collectAsync, createController, type Endpoint, startKeripyWitness } from "./utils.ts";
 
 let wan: Endpoint;
@@ -112,7 +112,7 @@ test("Single witness returns one witness receipt", async () => {
     backerThreshold: 1,
   });
 
-  await signEvent(event, [ed25519Signer(key.privateKey)]);
+  signEvent(event, { signers: [key] });
 
   const wigs = await submitToWitnesses(event, [wan]);
   assert.strictEqual(wigs.length, 1);
@@ -130,7 +130,7 @@ test("Two witnesses return two witness receipts", async () => {
     backerThreshold: 2,
   });
 
-  await signEvent(event, [ed25519Signer(key.privateKey)]);
+  signEvent(event, { signers: [key] });
 
   const wigs = await submitToWitnesses(event, [wan, wil]);
   assert.strictEqual(wigs.length, 2);
@@ -148,7 +148,7 @@ test("Three witnesses return three witness receipts", async () => {
     backerThreshold: 3,
   });
 
-  await signEvent(event, [ed25519Signer(key.privateKey)]);
+  signEvent(event, { signers: [key] });
 
   const wigs = await submitToWitnesses(event, [wan, wil, wes]);
   assert.strictEqual(wigs.length, 3);

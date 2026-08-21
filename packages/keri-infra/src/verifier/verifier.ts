@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import type { Message } from "cesr";
-import { ed25519Signer, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
+import { ed25519Signer, endorse, KeyEvent, KeyEventLog, RoutedEvent, type Signer, signEvent } from "keri";
 
 /**
  * TTL'd string KV holding everything a session needs: the presentation waiting
@@ -29,7 +29,7 @@ export class Verifier {
 
   static async createKEL(signer: Signer): Promise<KeyEventLog> {
     const icp = KeyEvent.incept({ signingKeys: [signer.publicKey], nextKeyDigests: [] });
-    await signEvent(icp, [signer]);
+    signEvent(icp, { signers: [signer] });
     return KeyEventLog.from([icp]);
   }
 
@@ -71,13 +71,8 @@ export class Verifier {
       a: { cid: aid, role: "controller", eid: aid },
     });
 
-    location.attachments = {
-      NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(location.raw) }],
-    };
-
-    endrole.attachments = {
-      NonTransReceiptCouples: [{ prefix: aid, sig: await signer.sign(endrole.raw) }],
-    };
+    endorse(location, { signers: [signer], state: kel.state });
+    endorse(endrole, { signers: [signer], state: kel.state });
 
     return new Verifier(kel, base, [kel.events[0], location, endrole]);
   }
