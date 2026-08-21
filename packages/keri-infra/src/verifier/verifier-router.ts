@@ -235,7 +235,7 @@ export function createRouter(
       });
     }
 
-    if ((pathname === "/mailboxes" || pathname === "/receipts") && method === "POST") {
+    if (pathname === "/mailboxes" && method === "POST") {
       if (!options.mailbox) {
         return new Response("Not Found", { status: 404 });
       }

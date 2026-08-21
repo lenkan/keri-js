@@ -2,39 +2,39 @@ import { encodeText, type Message, parse } from "cesr";
 import type { ExchangeEventBody, QueryEventBody } from "keri";
 import { KeyEvent, TransactionEvent } from "keri";
 import { KeriLogger, type Logger } from "../logging/main.ts";
-import {
-  createMailboxResponse,
-  createMailboxRouter,
-  type Mailbox,
-  type MailboxReply,
-  queryMailbox,
-  storeForward,
-} from "../mailbox/main.ts";
-import type { CredentialStorage, KeyEventStorage, MailboxServerStorage } from "../storage/main.ts";
-import { createRouter as createWitnessRouter, type Witness } from "../witness/main.ts";
-
-export type PortalStorage = MailboxServerStorage & KeyEventStorage & CredentialStorage;
+import { createMailboxResponse, type MailboxReply, queryMailbox, storeForward } from "../mailbox/main.ts";
+import type { Portal, PortalStorage } from "./portal.ts";
 
 export interface PortalRouterOptions {
   logger?: Logger;
 }
 
+function encodeMessages(messages: readonly Message[]): string {
+  return messages
+    .flatMap((message) => [new TextDecoder().decode(message.raw), encodeText(message.attachments.frames())])
+    .join("");
+}
+
+function createOobiResponse(messages: readonly Message[], aid: string): Response {
+  return new Response(encodeMessages(messages), {
+    status: 200,
+    headers: { "Content-Type": "application/json+cesr", "Keri-Aid": aid },
+  });
+}
+
 /**
- * One CESR service front for a portal identity: the mailbox face (enrollment,
- * store-and-forward, polling, enrolled-AID OOBIs), the witness face (receipts
- * only), and the intake dispatch KERIpy expects of the location it posts to —
- * including answering `tels`/`logs` queries by depositing the requested events
- * into the requester's mailbox under `/replay`, the way KERIpy witnesses do.
+ * The portal's CESR service front: enrollment, store-and-forward, polling,
+ * OOBIs for itself and its enrolled users, and the intake dispatch KERIpy
+ * expects of the location it posts to — including answering `tels`/`logs`
+ * queries by depositing the requested events into the requester's mailbox
+ * under `/replay`, the way KERIpy witnesses do.
  */
 export function createRouter(
-  mailbox: Mailbox,
-  witness: Witness,
+  portal: Portal,
   storage: PortalStorage,
   options: PortalRouterOptions = {},
 ): (request: Request) => Promise<Response> {
   const log = new KeriLogger(options.logger);
-  const mailboxRouter = createMailboxRouter(mailbox, options);
-  const witnessRouter = createWitnessRouter(witness, options);
 
   /** Answer a `tels`/`logs` query by depositing the events into the requester's `/replay` mailbox. */
   function replay(message: Message<QueryEventBody>): void {
@@ -93,11 +93,9 @@ export function createRouter(
         replies.push(...queryMailbox(storage, message as Message<QueryEventBody>, log));
       } else if (body.t === "qry" && (body.r === "tels" || body.r === "logs")) {
         replay(message as Message<QueryEventBody>);
-      } else if (body.t === "rct") {
-        witness.handleMessage(message);
       } else if (KeyEvent.isKeyEvent(message) || TransactionEvent.isTransactionEvent(message)) {
         // Unverified upsert, same policy as Controller ingest: these are the
-        // KEL/TEL artifacts senders push at their witness so queries can be
+        // KEL/TEL artifacts senders push at the portal so queries can be
         // answered later.
         storage.saveMessage(message);
       } else {
@@ -109,36 +107,90 @@ export function createRouter(
     return queried ? createMailboxResponse(replies) : new Response(null, { status: 204 });
   }
 
+  // The `kli mailbox add` contract: multipart form with the controller's full
+  // KEL and its signed /end/role/add naming this portal; a plain 200 means
+  // enrolled.
+  async function handleEnrollment(request: Request): Promise<Response> {
+    let kel: unknown;
+    let rpy: unknown;
+    try {
+      const form = await request.formData();
+      kel = form.get("kel");
+      rpy = form.get("rpy");
+    } catch (cause) {
+      log.warn("rejecting POST /mailboxes: unreadable form data", {
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
+      return Response.json({ error: "Expected multipart form data with kel and rpy fields" }, { status: 400 });
+    }
+
+    if (typeof kel !== "string" || typeof rpy !== "string") {
+      return Response.json({ error: "Expected multipart form data with kel and rpy fields" }, { status: 400 });
+    }
+
+    const result = await portal.enroll(kel, rpy);
+    if (!result.ok) {
+      log.warn("rejecting enrollment", { error: result.error });
+      return Response.json({ error: result.error }, { status: 400 });
+    }
+
+    log.debug("enrolled", { aid: result.aid });
+    return Response.json({ aid: result.aid });
+  }
+
+  function handleOobi(pathname: string): Response {
+    const aid = pathname.split("/")[2];
+
+    // The deployed worker serves the portal's own identity before reaching this
+    // router; this covers the standalone composition.
+    if (!aid || aid === portal.aid) {
+      log.debug("GET /oobi: serving self", { count: portal.events.length });
+      return createOobiResponse(
+        portal.events.map((event) => event.message),
+        portal.aid,
+      );
+    }
+
+    const messages = portal.serveOobi(aid);
+    if (!messages) {
+      log.debug("GET /oobi: unknown aid", { aid });
+      return new Response("Not Found", { status: 404 });
+    }
+
+    log.debug("GET /oobi: serving enrolled aid", { aid, count: messages.length });
+    return createOobiResponse(messages, aid);
+  }
+
   return async function handler(request: Request): Promise<Response> {
+    const { method } = request;
     const pathname = new URL(request.url).pathname;
 
-    if (pathname === "/receipts") {
-      return witnessRouter(request);
-    }
-    // KERIpy's streaming senders PUT the whole stream inline; everything else
-    // POSTs with detached attachments. Both are intake.
-    if (pathname === "/" && (request.method === "POST" || request.method === "PUT")) {
-      return handleIntake(request);
-    }
-
-    // The self OOBI comes from the witness face: its events advertise the
-    // `controller` role, which is what makes senders deliver direct and lets
-    // witness clients resolve the receipting endpoint. (The deployed worker
-    // serves its own identity before reaching this router; this covers the
-    // standalone composition.)
-    if (request.method === "GET" && pathname.startsWith("/oobi")) {
-      const aid = pathname.split("/")[2];
-      if (!aid || aid === witness.aid) {
-        const body = witness.events
-          .flatMap(({ message }) => [new TextDecoder().decode(message.raw), encodeText(message.attachments.frames())])
-          .join("");
-        return new Response(body, {
-          status: 200,
-          headers: { "Content-Type": "application/json+cesr", "Keri-Aid": witness.aid },
-        });
+    if (pathname === "/") {
+      // KERIpy's streaming senders PUT the whole stream inline; everything else
+      // POSTs with detached attachments. Both are intake.
+      if (method === "POST" || method === "PUT") {
+        return handleIntake(request);
       }
+      if (method === "GET") {
+        return Response.json({ status: "OK" });
+      }
+      return new Response("Method Not Allowed", { status: 405 });
     }
 
-    return mailboxRouter(request);
+    if (pathname === "/mailboxes") {
+      if (method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+      return handleEnrollment(request);
+    }
+
+    if (pathname.startsWith("/oobi")) {
+      if (method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+      return handleOobi(pathname);
+    }
+
+    return new Response("Not Found", { status: 404 });
   };
 }

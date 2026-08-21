@@ -1,10 +1,8 @@
 /** biome-ignore-all lint/suspicious/noConsole: worker entrypoint */
 
 import { DurableObject } from "cloudflare:workers";
-import { Mailbox } from "@keri-js/infra/mailbox";
-import { createPortalRouter } from "@keri-js/infra/portal";
+import { createPortalRouter, Portal } from "@keri-js/infra/portal";
 import { type Database, type Params, type Row, SqliteControllerStorage } from "@keri-js/infra/sqlite";
-import { Witness } from "@keri-js/infra/witness";
 import { decodeSeed } from "./seed.ts";
 
 /**
@@ -56,11 +54,10 @@ class DurableObjectDatabase implements Database {
 }
 
 /**
- * The portal's stateful side: mailbox (enrollment, store-and-forward, polls,
- * enrolled-AID OOBIs), receipts, and query replay — one named instance owning
- * the SQLite storage, so every append is serialized by the runtime. That
- * serialization is the property the issuer's KEL will rely on when it moves
- * in here.
+ * The portal's stateful side: enrollment, store-and-forward, polls,
+ * enrolled-AID OOBIs and query replay — one named instance owning the SQLite
+ * storage, so every append is serialized by the runtime. That serialization is
+ * the property the issuer's KEL will rely on when it moves in here.
  */
 export class PortalStore extends DurableObject<Env> {
   readonly #storage: SqliteControllerStorage;
@@ -82,15 +79,12 @@ export class PortalStore extends DurableObject<Env> {
         console.warn("VERIFIER_SEED is not set; the portal store identity will not match the worker's");
       }
 
-      // Same seed as the worker's Verifier, so both faces ARE the portal
-      // identity: the mailbox holds enrolled users' mail, the witness face
-      // receipts (KERIpy refuses a KEL with witnesses listed and toad 0, so an
-      // issuer naming the portal as witness needs real receipts).
+      // Same seed as the worker's Verifier, so the stateful side and the app
+      // side are one identity.
       const privateKey = seed ? decodeSeed(seed) : undefined;
-      router = Promise.all([
-        Mailbox.create({ storage: this.#storage, privateKey, url }),
-        Witness.create({ storage: this.#storage, privateKey, url }),
-      ]).then(([mailbox, witness]) => createPortalRouter(mailbox, witness, this.#storage, { logger: console }));
+      router = Portal.create({ storage: this.#storage, privateKey, url }).then((portal) =>
+        createPortalRouter(portal, this.#storage, { logger: console }),
+      );
       this.#routers.set(url, router);
     }
 
