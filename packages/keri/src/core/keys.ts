@@ -1,6 +1,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { encodeText, Matter } from "cesr";
+import { nextKeyDigest } from "./digest.ts";
 
 export interface KeyPair {
   privateKey: Uint8Array;
@@ -30,12 +31,5 @@ export function generateKeyPair(options?: GenerateKeyPairOptions): KeyPair {
   const code = options?.nonTransferable ? Matter.Code.Ed25519N : Matter.Code.Ed25519;
   const publicKey = encodeText(new Matter({ code, raw: rawPublicKey }));
 
-  const publicKeyDigest = encodeText(
-    new Matter({
-      code: Matter.Code.Blake3_256,
-      raw: blake3.create({ dkLen: 32 }).update(new TextEncoder().encode(publicKey)).digest(),
-    }),
-  );
-
-  return { privateKey, publicKey, publicKeyDigest };
+  return { privateKey, publicKey, publicKeyDigest: nextKeyDigest(publicKey) };
 }
