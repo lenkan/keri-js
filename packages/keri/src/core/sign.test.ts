@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, Indexer, Matter } from "cesr";
 import { verifyReply } from "./exchange-verification.ts";
-import { incept, interact } from "./key-event.ts";
+import { incept, interact, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { reply } from "./routed-event.ts";
@@ -269,6 +269,61 @@ describe(basename(import.meta.url), () => {
       endorse(rpy, { signers: [key], state: log.state });
 
       assert.equal(rpy.attachments.TransIdxSigGroups[0].ControllerIdxSigs.length, 1);
+    });
+
+    test("should replace a group left by a superseded establishment event", () => {
+      const key0 = generateKeyPair();
+      const key1 = generateKeyPair();
+      const icp = incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
+      signEvent(icp, { signers: [key0] });
+      const log = KeyEventLog.from([icp]);
+
+      const rpy = reply({ r: "/end/role/add", a: { cid: log.state.identifier } });
+      endorse(rpy, { signers: [key0], state: log.state });
+
+      const rot = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
+      signEvent(rot, { signers: [key1] });
+      const rotated = log.append(rot);
+
+      endorse(rpy, { signers: [key1], state: rotated.state });
+
+      assert.equal(rpy.attachments.TransIdxSigGroups.length, 1);
+      assert.equal(rpy.attachments.TransIdxSigGroups[0].digest, rotated.state.lastEstablishment.d);
+      assert.deepEqual(verifyReply(rpy, rotated.state), { ok: true });
+    });
+
+    test("should replace a pinned group when re-endorsed with latest", () => {
+      const key = generateKeyPair();
+      const { log } = inceptLog([key]);
+      const rpy = reply({ r: "/end/role/add", a: { cid: log.state.identifier } });
+
+      endorse(rpy, { signers: [key], state: log.state });
+      endorse(rpy, { signers: [key], state: log.state, latest: true });
+
+      assert.equal(rpy.attachments.TransIdxSigGroups.length, 0);
+      assert.equal(rpy.attachments.TransLastIdxSigGroups.length, 1);
+      assert.deepEqual(verifyReply(rpy, log.state), { ok: true });
+    });
+
+    // The prefix decides the group, not the current keys: a transferable AID
+    // stays transferable however it rotates.
+    test("should sign as transferable after rotating to a non-transferable key", () => {
+      const key0 = generateKeyPair();
+      const key1 = generateKeyPair({ nonTransferable: true });
+      const icp = incept({ signingKeys: [key0.publicKey], nextKeyDigests: [key1.publicKeyDigest] });
+      signEvent(icp, { signers: [key0] });
+      const log = KeyEventLog.from([icp]);
+
+      const rot = rotate(log.state, { signingKeys: [key1.publicKey], nextKeyDigests: [key0.publicKeyDigest] });
+      signEvent(rot, { signers: [key1] });
+      const rotated = log.append(rot);
+
+      const rpy = reply({ r: "/end/role/add", a: { cid: rotated.state.identifier } });
+      endorse(rpy, { signers: [key1], state: rotated.state });
+
+      assert.equal(rpy.attachments.NonTransReceiptCouples.length, 0);
+      assert.equal(rpy.attachments.TransIdxSigGroups.length, 1);
+      assert.deepEqual(verifyReply(rpy, rotated.state), { ok: true });
     });
 
     test("should reject a key event", () => {

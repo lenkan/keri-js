@@ -118,7 +118,7 @@ export function endorse<T extends Message>(message: T, options: EndorseOptions):
   const { state, latest } = options;
   const signatures = collectSignatures(message, options);
 
-  if (state.signingKeys.length === 1 && !isTransferable(state.signingKeys[0])) {
+  if (!isTransferable(state.identifier)) {
     if (latest) {
       throw new Error("latest is meaningless for a non-transferable identifier: it can never rotate");
     }
@@ -134,26 +134,35 @@ export function endorse<T extends Message>(message: T, options: EndorseOptions):
   }
 
   const sigs = index(signatures, state.signingKeys);
+  const { TransIdxSigGroups, TransLastIdxSigGroups } = message.attachments;
 
-  const target = latest
-    ? group<TransLastIdxSigGroup>(
-        message.attachments.TransLastIdxSigGroups,
-        (g) => g.prefix === state.identifier,
-        () => ({ prefix: state.identifier, ControllerIdxSigs: [] }),
-      )
-    : group<TransIdxSigGroup>(
-        message.attachments.TransIdxSigGroups,
-        (g) =>
-          g.prefix === state.identifier &&
-          g.snu === state.lastEstablishment.s &&
-          g.digest === state.lastEstablishment.d,
-        () => ({
-          prefix: state.identifier,
-          snu: state.lastEstablishment.s,
-          digest: state.lastEstablishment.d,
-          ControllerIdxSigs: [],
-        }),
-      );
+  let target: TransIdxSigGroup | TransLastIdxSigGroup;
+  if (latest) {
+    discard(TransIdxSigGroups, state.identifier);
+    target = group(TransLastIdxSigGroups, state.identifier, () => ({
+      prefix: state.identifier,
+      ControllerIdxSigs: [],
+    }));
+  } else {
+    discard(TransLastIdxSigGroups, state.identifier);
+    const pinned = group(TransIdxSigGroups, state.identifier, () => ({
+      prefix: state.identifier,
+      snu: state.lastEstablishment.s,
+      digest: state.lastEstablishment.d,
+      ControllerIdxSigs: [],
+    }));
+
+    // A group left by an earlier establishment holds signatures indexed against
+    // keys that are no longer current, so re-endorsing after a rotation
+    // replaces the seal and drops them rather than keeping both.
+    if (pinned.snu !== state.lastEstablishment.s || pinned.digest !== state.lastEstablishment.d) {
+      pinned.snu = state.lastEstablishment.s;
+      pinned.digest = state.lastEstablishment.d;
+      pinned.ControllerIdxSigs.length = 0;
+    }
+
+    target = pinned;
+  }
 
   target.ControllerIdxSigs.push(...sigs);
   dedupe(target.ControllerIdxSigs);
@@ -191,12 +200,12 @@ function index(signatures: Signature[], keys: string[]): string[] {
 }
 
 /**
- * Fold into the group already naming this establishment event rather than
- * adding a second one — `verifyReply` and `verifyExchange` read only the first
- * group matching a prefix, so a split set would silently lose signatures.
+ * Fold into the group already carrying this prefix rather than adding a second
+ * one — `verifyReply` and `verifyExchange` read only the first group matching a
+ * prefix, so a split set would silently lose signatures.
  */
-function group<T>(groups: T[], match: (group: T) => boolean, create: () => T): T {
-  const existing = groups.find(match);
+function group<T extends { prefix: string }>(groups: T[], prefix: string, create: () => T): T {
+  const existing = groups.find((g) => g.prefix === prefix);
   if (existing) {
     return existing;
   }
@@ -204,6 +213,18 @@ function group<T>(groups: T[], match: (group: T) => boolean, create: () => T): T
   const created = create();
   groups.push(created);
   return created;
+}
+
+/**
+ * Drop this prefix from the group kind we are not writing to. The verifier
+ * prefers `TransIdxSigGroups`, so leaving both kinds behind would hide one.
+ */
+function discard(groups: { prefix: string }[], prefix: string): void {
+  for (let i = groups.length - 1; i >= 0; i--) {
+    if (groups[i].prefix === prefix) {
+      groups.splice(i, 1);
+    }
+  }
 }
 
 function dedupe<T>(entries: T[]): void {

@@ -36,7 +36,7 @@ the grouping is what tells them apart.
 ### Create and sign key events
 
 ```ts
-import { ed25519Signer, generateKeyPair, KeyEvent, nextKeyDigest, signEvent } from "keri";
+import { generateKeyPair, KeyEvent, signEvent } from "keri";
 
 const current = generateKeyPair();
 const next = generateKeyPair();
@@ -46,23 +46,18 @@ const icp = KeyEvent.incept({
   nextKeyDigests: [next.publicKeyDigest],
 });
 
-await signEvent(icp, [ed25519Signer(current.privateKey)]);
+signEvent(icp, { signers: [current] });
 ```
+
+`generateKeyPair()` returns a `Signer`, so it can be passed to `signEvent` as it is. Use
+`ed25519Signer(privateKey)` for a key you already hold.
 
 `nextKeyDigests` takes digests of the next keys, not the keys themselves. Use
 `nextKeyDigest(publicKey)` when rotating with a key you already hold.
 
-Keys that never leave an HSM or a non-extractable WebCrypto `CryptoKey` implement `Signer`
-directly:
-
-```ts
-import type { Signer } from "keri";
-
-const signer: Signer = {
-  publicKey,
-  sign: (payload) => hsm.sign(payload), // returns a CESR-encoded signature
-};
-```
+A key that must be awaited — an HSM, a hardware wallet, a non-extractable WebCrypto `CryptoKey` —
+is not a `Signer`, because `Signer.sign` is synchronous. Sign with it yourself and pass the result
+as `signatures: [{ publicKey, signature }]` instead.
 
 ### Read a key event log from a stream
 
