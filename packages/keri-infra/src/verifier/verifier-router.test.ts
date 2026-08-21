@@ -171,9 +171,9 @@ describe(basename(import.meta.url), () => {
     const response = await createRouter(verifier, makeSessions(), makeKeyEvents())(request("/oobi"));
     const body = await response.text();
 
-    // The advertised location is the stripped base plus the "/." suffix that
-    // keeps every path KERIpy composes onto it valid — see Verifier.create.
-    assert.ok(body.includes(`"url":"${URL_BASE}/."`), `expected the location scheme to carry ${URL_BASE}/.`);
+    // KERIpy composes request paths onto whatever this advertises, so it must
+    // be a bare origin (see Verifier.create).
+    assert.ok(body.includes(`"url":"${URL_BASE}"`), `expected the location scheme to carry ${URL_BASE}`);
   });
 
   test("should allow the browser to read a session cross-origin", async () => {

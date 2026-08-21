@@ -48,18 +48,16 @@ export class Verifier {
 
     const url = new URL(options.url);
 
-    // Stripped once: KERIpy composes request paths onto whatever the location
-    // advertises, so the base must be a bare origin.
+    // Stripped once, and advertised in the same form: KERIpy composes request
+    // paths onto whatever the location advertises (kli mailbox add appends
+    // /mailboxes, sendDirect appends /), so the base must be a bare origin.
+    // Requires keripy >= 1.3.6 — older kli composed a bare-origin location
+    // into the scheme-relative "//mailboxes" and refused it.
     const base = options.url.replace(/\/+$/, "");
 
-    // The "/." path suffix keeps every path KERIpy composes valid: hio defaults
-    // an empty location path to "/", so `kli mailbox add`'s `{path}/mailboxes`
-    // would become the scheme-relative "//mailboxes" and be refused, while
-    // sendDirect's hardcoded "/" becomes "/./" — servers normalize the dot
-    // segment away either way.
     const location = RoutedEvent.reply({
       r: "/loc/scheme",
-      a: { eid: aid, scheme: url.protocol.replace(":", ""), url: `${base}/.` },
+      a: { eid: aid, scheme: url.protocol.replace(":", ""), url: base },
     });
 
     // `controller`, and deliberately NOT `mailbox`: controller is what makes

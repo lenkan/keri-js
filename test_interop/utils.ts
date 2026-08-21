@@ -102,10 +102,9 @@ export async function startKerijsPortal(opts: { port?: number; signal?: AbortSig
   // One key for both faces, so mailbox and witness ARE the same portal identity.
   const privateKey = crypto.getRandomValues(new Uint8Array(32));
 
-  // See startKerijsMailbox for why the advertised location carries "/.".
   const [mailbox, witness] = await Promise.all([
-    Mailbox.create({ storage, privateKey, url: `${url}/.` }),
-    Witness.create({ storage, privateKey, url: `${url}/.` }),
+    Mailbox.create({ storage, privateKey, url }),
+    Witness.create({ storage, privateKey, url }),
   ]);
 
   serve(createPortalRouter(mailbox, witness, storage, { logger: serverLogger }));
@@ -118,12 +117,7 @@ export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSi
 
   const mailbox = await Mailbox.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    // The "/." path is for KERIpy 1.3.3's `kli mailbox add`, which composes its
-    // enrollment path as `{loc path}/mailboxes` while hio defaults an empty loc
-    // path to "/" — a bare origin therefore yields "//mailboxes", which hio
-    // rejects as a hostname change. "/." keeps every composed path valid
-    // ("/./mailboxes", "/./") and servers normalize the dot segment away.
-    url: `${url}/.`,
+    url,
   });
 
   serve(createMailboxRouter(mailbox, { logger: serverLogger }));
@@ -231,7 +225,9 @@ async function waitUntilReachable(
 export async function startKeripyWitness(
   opts: { port?: number; salt?: string; signal?: AbortSignal; logLevel?: string } = {},
 ): Promise<KeripyWitness> {
-  const keripy = new KERIPy({});
+  // keripy 1.3.6 refuses to start a witness non-interactively for a
+  // passcode-less keystore, so witness keystores get one (21 chars).
+  const keripy = new KERIPy({ passcode: "0123456789abcdefghijk" });
   await keripy.init({ salt: opts.salt });
   await keripy.incept({ toad: 0, transferable: false });
   const aid = await keripy.aid();

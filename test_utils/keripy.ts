@@ -29,22 +29,27 @@ function format(args: string[]): string {
 export class KERIPy {
   readonly name: string;
   readonly base: string | undefined;
+  readonly passcode: string | undefined;
   private readonly debug: Debugger;
 
-  constructor(opts: { base?: string } = {}) {
+  constructor(opts: { base?: string; passcode?: string } = {}) {
     if (!existsSync(KLI)) {
       throw new Error(`kli not found at ${KLI}, make sure to set up the .venv and install keripy`);
     }
 
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
+    // keripy 1.3.6's `kli witness start` refuses non-interactive startup for
+    // keystores without a passcode (its aeid guard checks `is None` while
+    // --nopasscode stores ''), so witness keystores get one.
+    this.passcode = opts.passcode;
     this.debug = debug(`keripy:${this.name}`);
 
     ensureConfigDir(this.base);
   }
 
   private get baseArgs(): string[] {
-    return this.base ? ["--base", this.base] : [];
+    return [...(this.base ? ["--base", this.base] : []), ...(this.passcode ? ["--passcode", this.passcode] : [])];
   }
 
   private log(message: string): void {
@@ -97,7 +102,8 @@ export class KERIPy {
   }
 
   async init(opts: { salt?: string } = {}): Promise<void> {
-    const args = ["init", "--name", this.name, ...this.baseArgs, "--nopasscode"];
+    // baseArgs already carries --passcode when one is configured.
+    const args = ["init", "--name", this.name, ...this.baseArgs, ...(this.passcode ? [] : ["--nopasscode"])];
     if (opts.salt) {
       args.push("--salt", opts.salt);
     }

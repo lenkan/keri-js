@@ -4,7 +4,7 @@ import { IdentityCard } from "./IdentityCard.tsx";
 import type { Identity } from "./login/main.ts";
 import { PresentMode } from "./modes/main.ts";
 
-const TRY_IT_INSTALL_COMMANDS = "pip install keri==1.3.3";
+const TRY_IT_INSTALL_COMMANDS = "pip install keri==1.3.6";
 
 const TRY_IT_SETUP_COMMANDS = `kli oobi resolve --name demo --oobi https://weboftrust.github.io/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao
 kli vc registry incept --name demo --alias issuer --registry-name demo-registry`;

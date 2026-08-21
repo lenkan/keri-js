@@ -85,12 +85,11 @@ export class PortalStore extends DurableObject<Env> {
       // Same seed as the worker's Verifier, so both faces ARE the portal
       // identity: the mailbox holds enrolled users' mail, the witness face
       // receipts (KERIpy refuses a KEL with witnesses listed and toad 0, so an
-      // issuer naming the portal as witness needs real receipts). The "/."
-      // suffix matches the location the Verifier advertises.
+      // issuer naming the portal as witness needs real receipts).
       const privateKey = seed ? decodeSeed(seed) : undefined;
       router = Promise.all([
-        Mailbox.create({ storage: this.#storage, privateKey, url: `${url}/.` }),
-        Witness.create({ storage: this.#storage, privateKey, url: `${url}/.` }),
+        Mailbox.create({ storage: this.#storage, privateKey, url }),
+        Witness.create({ storage: this.#storage, privateKey, url }),
       ]).then(([mailbox, witness]) => createPortalRouter(mailbox, witness, this.#storage, { logger: console }));
       this.#routers.set(url, router);
     }

@@ -83,12 +83,12 @@ test("witness-less KERIpy receives and admits a credential through the portal", 
 
   const keripyAid = await keripy.aid();
 
-  // The issuer lists the portal as its witness with toad 1: KERIpy refuses a
-  // KEL with witnesses and toad 0, and `ipex admit` crashes outright on
-  // issuers with no witnesses at all — so the portal receipts.
+  // A witness-less issuer: keripy >= 1.3.4 can admit from one (older versions
+  // crash in witq.telquery — WebOfTrust/keripy#1160). The portal's receipting
+  // witness face still exists for issuers that do list it.
   const controller = createController();
   await controller.introduce(portal.oobi);
-  const issuer = await controller.incept({ wits: [portal.aid], toad: 1 });
+  const issuer = await controller.incept({});
   await enrollController(controller, issuer.id, issuer.event.k);
 
   // Cross-introduction runs entirely through the portal's enrolled OOBIs —
