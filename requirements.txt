@@ -11,7 +11,7 @@ http_sfv==0.9.9
 jsonschema==4.24.0
 jsonschema-specifications==2025.4.1
 keri==1.3.6
-lmdb==1.6.2
+lmdb==1.7.5
 mnemonic==0.21
 msgpack==1.1.1
 multicommand==1.0.0
