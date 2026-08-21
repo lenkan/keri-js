@@ -1,7 +1,7 @@
 import type { Message, TransIdxSigGroup, TransLastIdxSigGroup } from "cesr";
 import { verifyEventSaid } from "./events.ts";
 import type { KeyState } from "./key-event.ts";
-import type { ExchangeEventBody } from "./routed-event.ts";
+import type { ExchangeEventBody, ReplyEventBody } from "./routed-event.ts";
 import { verifyThreshold } from "./verify.ts";
 
 export type ExchangeVerificationFailure =
@@ -13,7 +13,7 @@ export type ExchangeVerificationFailure =
 export type ExchangeVerification = { ok: true } | ({ ok: false } & ExchangeVerificationFailure);
 
 function verifyGroupSignatures(
-  message: Message<ExchangeEventBody>,
+  message: Message,
   state: KeyState,
   group: TransIdxSigGroup | TransLastIdxSigGroup,
 ): ExchangeVerification {
@@ -26,16 +26,8 @@ function verifyGroupSignatures(
   return result.ok ? { ok: true } : { ok: false, kind: "invalid-signature", error: result.error };
 }
 
-/**
- * Verify a signed `exn` against a sender's key state.
- *
- * A `TransIdxSigGroup` seal must name the state's last establishment event —
- * historical key states are rejected rather than resolved, so a signature made
- * before a rotation cannot be replayed after it. The caller decides whether a
- * `stale-establishment` result means "refetch the KEL" or "reject".
- */
-export function verifyExchange(message: Message<ExchangeEventBody>, state: KeyState): ExchangeVerification {
-  const said = verifyEventSaid(message.body, { subject: "exn" });
+function verifyRoutedMessage(message: Message, state: KeyState, subject: string): ExchangeVerification {
+  const said = verifyEventSaid(message.body, { subject });
   if (!said.ok) {
     return { ok: false, kind: "said-mismatch", error: said.error };
   }
@@ -63,4 +55,21 @@ export function verifyExchange(message: Message<ExchangeEventBody>, state: KeySt
   }
 
   return { ok: false, kind: "no-signature", error: `No signature group for ${state.identifier}` };
+}
+
+/**
+ * Verify a signed `exn` against a sender's key state.
+ *
+ * A `TransIdxSigGroup` seal must name the state's last establishment event —
+ * historical key states are rejected rather than resolved, so a signature made
+ * before a rotation cannot be replayed after it. The caller decides whether a
+ * `stale-establishment` result means "refetch the KEL" or "reject".
+ */
+export function verifyExchange(message: Message<ExchangeEventBody>, state: KeyState): ExchangeVerification {
+  return verifyRoutedMessage(message, state, "exn");
+}
+
+/** Same checks for a signed `rpy` — e.g. an `/end/role/add` a controller registers with its mailbox. */
+export function verifyReply(message: Message<ReplyEventBody>, state: KeyState): ExchangeVerification {
+  return verifyRoutedMessage(message, state, "rpy");
 }

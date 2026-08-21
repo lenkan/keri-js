@@ -3,11 +3,16 @@ import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { styleText } from "node:util";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
-import { createListener, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createListener, NodeSqliteDatabase } from "@keri-js/infra/node";
+import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { scrypt } from "@noble/hashes/scrypt.js";
 
-const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+// KERI_DB points at a file for state that survives restarts; the in-memory
+// default keeps dev runs disposable.
+const storage = new SqliteControllerStorage(
+  new NodeSqliteDatabase(new DatabaseSync(process.env.KERI_DB ?? ":memory:")),
+);
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
 const passphrase = process.env.PASSPHRASE ?? "password";

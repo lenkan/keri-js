@@ -22,6 +22,7 @@ export async function submitToWitnesses(
   event: Message<KeyEventBody>,
   endpoints: WitnessEndpoint[],
   fetch?: typeof globalThis.fetch,
+  toad = endpoints.length,
 ): Promise<string[]> {
   // TODO: implement the spec's round-robin approach where receipts collected from
   // earlier witnesses are forwarded to later ones in the same pass, reducing total
@@ -29,10 +30,20 @@ export async function submitToWitnesses(
   const receipts: Record<string, Message> = {};
   const wigs = new Set<string>();
   const wits = endpoints.map((e) => e.aid);
+  const failures: string[] = [];
 
   for (const endpoint of endpoints) {
     const client = new WitnessClient(endpoint.url, fetch);
-    const response = await client.receipt(event);
+
+    // A witness that cannot receipt only matters if the threshold ends up
+    // unmet — with toad 0 a listed backer never has to answer at all.
+    let response: Message;
+    try {
+      response = await client.receipt(event);
+    } catch (cause) {
+      failures.push(`${endpoint.aid}: ${cause instanceof Error ? cause.message : String(cause)}`);
+      continue;
+    }
 
     if (response.attachments.NonTransReceiptCouples.length > 0) {
       const receiptCouple = response.attachments.NonTransReceiptCouples[0];
@@ -45,6 +56,13 @@ export async function submitToWitnesses(
     }
 
     receipts[endpoint.aid] = response;
+  }
+
+  if (wigs.size < toad) {
+    throw new Error(
+      `Collected ${wigs.size} witness receipts but the threshold is ${toad}` +
+        (failures.length > 0 ? ` (failed: ${failures.join("; ")})` : ""),
+    );
   }
 
   for (const endpoint of endpoints) {

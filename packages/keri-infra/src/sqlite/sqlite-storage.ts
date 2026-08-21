@@ -292,28 +292,36 @@ export class SqliteControllerStorage
   }
 
   saveMailboxEntry(pre: string, topic: string, message: Message): void {
-    this.#db.execute(
-      "INSERT INTO mailbox_entry(pre, topic, event_json, attachments) VALUES ($pre, $topic, $event_json, $attachments)",
-      {
-        pre,
-        topic,
-        event_json: JSON.stringify(message.body),
-        attachments: encodeText(message.attachments.frames()),
-      },
-    );
+    // One statement, so the MAX read and the insert cannot interleave with
+    // another writer — the store is single-writer (node:sqlite / a Durable
+    // Object), and a single INSERT…SELECT is atomic regardless.
+    const statement = [
+      "INSERT INTO mailbox_entry(pre, topic, ordinal, event_json, attachments)",
+      "SELECT $pre, $topic, COALESCE(MAX(ordinal) + 1, 0), $event_json, $attachments",
+      "FROM mailbox_entry WHERE pre = $pre AND topic = $topic",
+    ].join("\n");
+
+    this.#db.execute(statement, {
+      pre,
+      topic,
+      event_json: JSON.stringify(message.body),
+      attachments: encodeText(message.attachments.frames()),
+    });
   }
 
+  // `offset` is the inclusive start ordinal — KERIpy's poller sends
+  // lastSeenId + 1 and expects that entry to be the first one back.
   *getMailboxEntries(pre: string, topic: string, offset: number): Generator<MailboxEntry> {
     const statement = [
-      "SELECT id, event_json, attachments FROM mailbox_entry",
-      "WHERE pre = $pre AND topic = $topic AND id > $offset",
-      "ORDER BY id ASC",
+      "SELECT ordinal, event_json, attachments FROM mailbox_entry",
+      "WHERE pre = $pre AND topic = $topic AND ordinal >= $offset",
+      "ORDER BY ordinal ASC",
     ].join("\n");
 
     for (const row of this.#db.iterate(statement, { pre, topic, offset })) {
-      const id = row.id;
+      const id = row.ordinal;
       if (typeof id !== "number") {
-        throw new Error("mailbox_entry.id missing or not a number");
+        throw new Error("mailbox_entry.ordinal missing or not a number");
       }
       yield { id, message: parseRow(row) };
     }

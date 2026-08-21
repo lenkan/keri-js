@@ -122,8 +122,11 @@ describe(basename(import.meta.url), () => {
 
       const messages = await client.sendMessage(makeMessage());
       assert.strictEqual(messages.length, 1);
-      assert.strictEqual(messages[0].body.t, "icp");
-      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(messages[0].message.body.t, "icp");
+      assert.strictEqual(messages[0].message.body.i, reply.body.i);
+      // The id and event fields are the poll cursor's inputs, so they must survive parsing.
+      assert.strictEqual(messages[0].id, 1);
+      assert.strictEqual(messages[0].topic, "/credential");
     });
 
     test("should parse multiple SSE messages in one chunk", async () => {
@@ -138,8 +141,8 @@ describe(basename(import.meta.url), () => {
 
       const messages = await client.sendMessage(makeMessage());
       assert.strictEqual(messages.length, 2);
-      assert.strictEqual(messages[0].body.i, a.body.i);
-      assert.strictEqual(messages[1].body.i, b.body.i);
+      assert.strictEqual(messages[0].message.body.i, a.body.i);
+      assert.strictEqual(messages[1].message.body.i, b.body.i);
     });
 
     test("should reassemble a data line split across chunks", async () => {
@@ -155,7 +158,7 @@ describe(basename(import.meta.url), () => {
 
       const messages = await client.sendMessage(makeMessage());
       assert.strictEqual(messages.length, 1);
-      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(messages[0].message.body.i, reply.body.i);
     });
 
     test("should reassemble a data line split across many small chunks", async () => {
@@ -173,16 +176,21 @@ describe(basename(import.meta.url), () => {
 
       const messages = await client.sendMessage(makeMessage());
       assert.strictEqual(messages.length, 1);
-      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(messages[0].message.body.i, reply.body.i);
     });
 
-    test("should return without waiting for stream to close once a message is parsed", async () => {
-      const reply = makeMessage();
+    test("should drain a held-open stream and return after the idle period", async () => {
+      const a = makeMessage();
+      const b = makeMessage();
       let cancelled = false;
+      const encoder = new TextEncoder();
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(sseFrame(reply, { id: 1 })));
-          // Server keeps the stream open (long-poll); never call controller.close()
+          // Two frames in separate chunks, then the server holds the stream
+          // open (KERIpy's long-poll). The old stop-after-first-chunk behavior
+          // would have dropped the second frame.
+          controller.enqueue(encoder.encode(sseFrame(a, { id: 1 })));
+          controller.enqueue(encoder.encode(sseFrame(b, { id: 2 })));
         },
         cancel() {
           cancelled = true;
@@ -192,12 +200,18 @@ describe(basename(import.meta.url), () => {
       const client = new MailboxClient({
         id: "EAID",
         url: "http://mailbox.example",
+        idleMs: 50,
         fetch: async () => eventStreamResponse(stream),
       });
 
       const messages = await client.sendMessage(makeMessage());
-      assert.strictEqual(messages.length, 1);
-      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(messages.length, 2);
+      assert.strictEqual(messages[0].message.body.i, a.body.i);
+      assert.strictEqual(messages[1].message.body.i, b.body.i);
+      assert.deepStrictEqual(
+        messages.map((entry) => entry.id),
+        [1, 2],
+      );
       assert.strictEqual(cancelled, true);
     });
 
@@ -213,7 +227,7 @@ describe(basename(import.meta.url), () => {
 
       const messages = await client.sendMessage(makeMessage());
       assert.strictEqual(messages.length, 1);
-      assert.strictEqual(messages[0].body.i, reply.body.i);
+      assert.strictEqual(messages[0].message.body.i, reply.body.i);
     });
 
     test("should ignore non-data SSE lines (id, event, retry, comments)", async () => {

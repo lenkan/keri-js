@@ -5,7 +5,8 @@ import { describe, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { Attachments, encodeText, Indexer, Matter, type Message, parse } from "cesr";
 import { generateKeyPair, type InceptEventBody, KeyEvent } from "keri";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
+import { NodeSqliteDatabase } from "../node/main.ts";
+import { SqliteControllerStorage } from "../sqlite/main.ts";
 import { Witness } from "./witness.ts";
 import { createRouter } from "./witness-router.ts";
 

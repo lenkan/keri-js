@@ -116,7 +116,9 @@ test("Create kerijs identifier with single witness", async () => {
     a: {
       eid: mailbox.aid,
       scheme: "http",
-      url: mailbox.url,
+      // The advertised location carries the "/." suffix for kli mailbox add —
+      // see startKerijsMailbox.
+      url: `${mailbox.url}/.`,
     },
   });
   assert.partialDeepStrictEqual(parsed[2].body, {

@@ -53,11 +53,11 @@ export class KERIPy {
     }
   }
 
-  private run(args: string[]): Promise<string> {
+  private run(args: string[], timeout = TIMEOUT): Promise<string> {
     const command = format(args);
     this.log(command);
     return new Promise((resolve, reject) => {
-      const child = spawn(KLI, args, { timeout: TIMEOUT });
+      const child = spawn(KLI, args, { timeout });
       // `output` is what callers parse, so it stays stdout-only; `tail` is both streams, for the
       // error message. `kli` reports a failed resolve on stdout and the traceback on stderr.
       let output = "";
@@ -195,6 +195,23 @@ export class KERIPy {
         opts.role ?? "mailbox",
         "--eid",
         opts.eid,
+      ]);
+    },
+  };
+
+  mailbox = {
+    /** `mailbox` is a contact alias or AID; the mailbox must be resolved as a contact first. */
+    add: async (opts: { alias?: string; mailbox: string }): Promise<void> => {
+      await this.run([
+        "mailbox",
+        "add",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--mailbox",
+        opts.mailbox,
       ]);
     },
   };
@@ -349,7 +366,12 @@ export class KERIPy {
     },
     admit: async (said: string): Promise<void> => {
       try {
-        await this.run(["ipex", "admit", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--said", said]);
+        // Longer than the default: admit polls its mailbox for the TEL replay
+        // before it can verify and respond.
+        await this.run(
+          ["ipex", "admit", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--said", said],
+          60000,
+        );
       } catch {
         // kli ipex admit may exit non-zero but still succeed
       }
@@ -383,7 +405,7 @@ export class KERIPy {
       }
       return this.run(args);
     },
-    /** SAIDs of the issued credentials, newest last. */
+    /** SAIDs of the issued credentials — order is NOT chronological. */
     saids: async (): Promise<string[]> => {
       const output = await this.vc.list({ said: true, issued: true });
       return output.split("\n").filter((line) => line.trim().length > 0);

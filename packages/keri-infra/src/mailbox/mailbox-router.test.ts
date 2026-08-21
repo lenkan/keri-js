@@ -5,7 +5,8 @@ import { describe, test } from "node:test";
 import { Attachments, encodeText, parse } from "cesr";
 import type { Message } from "keri";
 import { generateKeyPair, KeyEvent, RoutedEvent } from "keri";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
+import { NodeSqliteDatabase } from "../node/main.ts";
+import { SqliteControllerStorage } from "../sqlite/main.ts";
 import { Mailbox } from "./mailbox.ts";
 import { createRouter } from "./mailbox-router.ts";
 
@@ -79,7 +80,9 @@ describe(basename(import.meta.url), () => {
   });
 
   describe("POST /", () => {
-    test("should return 400 when CESR-ATTACHMENT header is missing", async () => {
+    test("should accept a body without a CESR-ATTACHMENT header", async () => {
+      // Attachments may arrive inline in the body (forwarded merged streams),
+      // so a missing header is not an error — the message is simply handled.
       const app = await makeApp();
       const { publicKey } = generateKeyPair();
       const icp = KeyEvent.incept({ signingKeys: [publicKey], nextKeyDigests: [] });
@@ -89,7 +92,7 @@ describe(basename(import.meta.url), () => {
           body: new TextDecoder().decode(icp.raw),
         }),
       );
-      assert.strictEqual(response.status, 400);
+      assert.strictEqual(response.status, 204);
     });
 
     test("should return 204 when no reply messages are produced", async () => {

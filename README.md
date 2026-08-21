@@ -47,7 +47,7 @@ pnpm run dev:verifier
 ```
 
 [`apps/witness`](apps/witness) and [`apps/mailbox`](apps/mailbox) are local servers for development
-and manual testing. They store key events in memory, so nothing survives a restart.
+and manual testing. They store key events in memory by default, so nothing survives a restart.
 
 ```sh
 pnpm run dev:witness
@@ -60,3 +60,4 @@ PORT=3001 pnpm run dev:mailbox
 | `PASSPHRASE` | `password` | Passphrase the key is derived from; an unchanged passphrase and salt mean the same AID across restarts |
 | `SALT` | `salt` | Salt for the key derivation |
 | `WITNESS_URL` / `MAILBOX_URL` | `http://localhost:$PORT` | URL the server publishes in its OOBI |
+| `KERI_DB` (mailbox) | `:memory:` | Path to a SQLite file for state that survives restarts |

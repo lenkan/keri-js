@@ -44,6 +44,16 @@
       "deno": "./src/node/main.ts",
       "types": "./dist/node/main.d.ts",
       "default": "./dist/node/main.js"
+    },
+    "./portal": {
+      "deno": "./src/portal/main.ts",
+      "types": "./dist/portal/main.d.ts",
+      "default": "./dist/portal/main.js"
+    },
+    "./sqlite": {
+      "deno": "./src/sqlite/main.ts",
+      "types": "./dist/sqlite/main.d.ts",
+      "default": "./dist/sqlite/main.js"
     }
   },
   "files": [

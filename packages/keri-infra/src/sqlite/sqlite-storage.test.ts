@@ -12,7 +12,10 @@ import {
   RoutedEvent,
   TransactionEvent,
 } from "keri";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "./main.ts";
+// The Node driver from a test file is fine — *.test.ts is exempt from the
+// node-builtin submodule rule, and this exercises the real sqlite engine.
+import { NodeSqliteDatabase } from "../node/main.ts";
+import { SqliteControllerStorage } from "./main.ts";
 
 function incept(): Message<InceptEventBody> {
   const key0 = generateKeyPair();
@@ -356,6 +359,59 @@ describe(basename(import.meta.url), () => {
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED1");
       storage.saveKey("PUBKEY", "DIGEST", "ENCRYPTED2");
       assert.equal(storage.getEncryptedPrivateKey("PUBKEY"), "ENCRYPTED1");
+    });
+  });
+
+  // KERIpy contract: ids are dense per-(pre, topic) ordinals starting at 0,
+  // and poll offsets are inclusive (the poller sends lastSeenId + 1).
+  describe("mailbox entries", () => {
+    function note(text: string): Message {
+      return RoutedEvent.reply({ r: "/test", a: { text } });
+    }
+
+    function ids(storage: SqliteControllerStorage, pre: string, topic: string, offset: number): number[] {
+      return Array.from(storage.getMailboxEntries(pre, topic, offset)).map((entry) => entry.id);
+    }
+
+    test("should assign dense zero-based ordinals per (pre, topic) even when streams interleave", () => {
+      const storage = createStorage();
+
+      storage.saveMailboxEntry("ALICE", "credential", note("a0"));
+      storage.saveMailboxEntry("BOB", "credential", note("b0"));
+      storage.saveMailboxEntry("ALICE", "credential", note("a1"));
+      storage.saveMailboxEntry("ALICE", "receipt", note("r0"));
+
+      assert.deepEqual(ids(storage, "ALICE", "credential", 0), [0, 1]);
+      assert.deepEqual(ids(storage, "BOB", "credential", 0), [0]);
+      assert.deepEqual(ids(storage, "ALICE", "receipt", 0), [0]);
+    });
+
+    test("should treat the offset as an inclusive start", () => {
+      const storage = createStorage();
+
+      storage.saveMailboxEntry("ALICE", "credential", note("a0"));
+      storage.saveMailboxEntry("ALICE", "credential", note("a1"));
+      storage.saveMailboxEntry("ALICE", "credential", note("a2"));
+
+      assert.deepEqual(ids(storage, "ALICE", "credential", 0), [0, 1, 2]);
+      assert.deepEqual(ids(storage, "ALICE", "credential", 1), [1, 2]);
+      // lastSeenId + 1 past the end means caught up, not a skip.
+      assert.deepEqual(ids(storage, "ALICE", "credential", 3), []);
+    });
+
+    test("should resume where a partial poll left off", () => {
+      const storage = createStorage();
+
+      storage.saveMailboxEntry("ALICE", "credential", note("a0"));
+      storage.saveMailboxEntry("ALICE", "credential", note("a1"));
+
+      const first = Array.from(storage.getMailboxEntries("ALICE", "credential", 0));
+      const next = first[first.length - 1].id + 1;
+
+      storage.saveMailboxEntry("ALICE", "credential", note("a2"));
+
+      // No gap, no redelivery — the entry written between polls arrives exactly once.
+      assert.deepEqual(ids(storage, "ALICE", "credential", next), [2]);
     });
   });
 });

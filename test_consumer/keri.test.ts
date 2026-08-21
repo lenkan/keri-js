@@ -91,6 +91,7 @@ describe("keri", () => {
       "query",
       "reply",
       "verifyExchange",
+      "verifyReply",
     ]);
 
     assert.deepEqual(Object.keys(Credential).sort(), ["create", "disclosedAttributes", "isCredential"]);

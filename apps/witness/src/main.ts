@@ -2,7 +2,8 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { styleText } from "node:util";
-import { createListener, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createListener, NodeSqliteDatabase } from "@keri-js/infra/node";
+import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import { createRouter, Witness } from "@keri-js/infra/witness";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { scrypt } from "@noble/hashes/scrypt.js";

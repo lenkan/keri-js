@@ -2,11 +2,17 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "cesr";
-import { verifyExchange } from "./exchange-verification.ts";
+import { verifyExchange, verifyReply } from "./exchange-verification.ts";
 import { incept, type KeyState, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
-import { CHALLENGE_RESPONSE_ROUTE, type ExchangeEventBody, exchange } from "./routed-event.ts";
+import {
+  CHALLENGE_RESPONSE_ROUTE,
+  type ExchangeEventBody,
+  exchange,
+  type ReplyEventBody,
+  reply,
+} from "./routed-event.ts";
 import { signWith as sign, signRaw } from "./signing.test.ts";
 
 const WORDS = ["abandon", "ability", "able", "about", "above", "absent"];
@@ -162,6 +168,37 @@ describe(basename(import.meta.url), () => {
     };
 
     assert.deepEqual(verifyExchange(exn, log.state), { ok: true });
+  });
+
+  test("should verify a signed rpy the same way", () => {
+    const key0 = generateKeyPair();
+    const key1 = generateKeyPair();
+    const log = inceptLog([key0], key1);
+
+    const rpy = reply({
+      r: "/end/role/add",
+      a: { cid: log.state.identifier, role: "mailbox", eid: "EMAILBOX" },
+    });
+    rpy.attachments = {
+      TransIdxSigGroups: [
+        {
+          prefix: log.state.identifier,
+          snu: log.state.lastEstablishment.s,
+          digest: log.state.lastEstablishment.d,
+          ControllerIdxSigs: [signRaw(rpy.raw, key0.privateKey, 0)],
+        },
+      ],
+    };
+
+    assert.deepEqual(verifyReply(rpy, log.state), { ok: true });
+
+    const tampered = new Message<ReplyEventBody>(
+      { ...rpy.body, a: { cid: log.state.identifier, role: "mailbox", eid: "EINTRUDER" } },
+      rpy.attachments,
+    );
+    const result = verifyReply(tampered, log.state);
+    assert.equal(result.ok, false);
+    assert.equal(result.kind, "said-mismatch");
   });
 
   test("should compare seal sequence numbers numerically, not textually", () => {

@@ -2,7 +2,8 @@
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { NodeSqliteDatabase } from "@keri-js/infra/node";
+import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import { execute } from "./cli.ts";
 import { resolveInputStream } from "./input.ts";
 

@@ -6,7 +6,9 @@ import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
-import { createListener, type Logger, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createListener, type Logger, NodeSqliteDatabase } from "@keri-js/infra/node";
+import { createPortalRouter } from "@keri-js/infra/portal";
+import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import {
   createVerifierRouter,
   type KeyEventStore,
@@ -88,12 +90,40 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
 }
 
+/**
+ * The full portal composition — mailbox + receipting witness + intake
+ * dispatch under one identity — as the deployed worker runs it, served from
+ * Node for the interop harness.
+ */
+export async function startKerijsPortal(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
+  const { url, serve } = await listen(opts.signal, opts.port);
+
+  const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+  // One key for both faces, so mailbox and witness ARE the same portal identity.
+  const privateKey = crypto.getRandomValues(new Uint8Array(32));
+
+  // See startKerijsMailbox for why the advertised location carries "/.".
+  const [mailbox, witness] = await Promise.all([
+    Mailbox.create({ storage, privateKey, url: `${url}/.` }),
+    Witness.create({ storage, privateKey, url: `${url}/.` }),
+  ]);
+
+  serve(createPortalRouter(mailbox, witness, storage, { logger: serverLogger }));
+
+  return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
+}
+
 export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
   const { url, serve } = await listen(opts.signal, opts.port);
 
   const mailbox = await Mailbox.create({
     storage: new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:"))),
-    url,
+    // The "/." path is for KERIpy 1.3.3's `kli mailbox add`, which composes its
+    // enrollment path as `{loc path}/mailboxes` while hio defaults an empty loc
+    // path to "/" — a bare origin therefore yields "//mailboxes", which hio
+    // rejects as a hostname change. "/." keeps every composed path valid
+    // ("/./mailboxes", "/./") and servers normalize the dot segment away.
+    url: `${url}/.`,
   });
 
   serve(createMailboxRouter(mailbox, { logger: serverLogger }));

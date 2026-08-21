@@ -1,52 +1,22 @@
-import { Attachments, encodeText, parse } from "cesr";
+import { encodeText, type Message, parse } from "cesr";
 import { KeriLogger, type Logger } from "../logging/main.ts";
-import type { Mailbox, MailboxEvent, MailboxReply } from "./mailbox.ts";
-
-const RETRY_MS = 5000;
+import type { Mailbox, MailboxReply } from "./mailbox.ts";
+import { createMailboxResponse } from "./sse.ts";
 
 export interface RouterOptions {
   logger?: Logger;
 }
 
-function createOobiResponse(events: readonly MailboxEvent[]): Response {
-  const body = events
-    .flatMap(({ message }) => {
-      const atc = new Attachments({
-        ControllerIdxSigs: message.attachments.ControllerIdxSigs,
-        NonTransReceiptCouples: message.attachments.NonTransReceiptCouples,
-      });
-      return [new TextDecoder().decode(message.raw), encodeText(atc.frames())];
-    })
+function encodeMessages(messages: readonly Message[]): string {
+  return messages
+    .flatMap((message) => [new TextDecoder().decode(message.raw), encodeText(message.attachments.frames())])
     .join("");
-
-  return new Response(body, {
-    status: 200,
-    headers: { "Content-Type": "application/json+cesr" },
-  });
 }
 
-function encodeReply(reply: MailboxReply): string {
-  const atc = new Attachments({
-    ControllerIdxSigs: reply.message.attachments.ControllerIdxSigs,
-    WitnessIdxSigs: reply.message.attachments.WitnessIdxSigs,
-    NonTransReceiptCouples: reply.message.attachments.NonTransReceiptCouples,
-    TransIdxSigGroups: reply.message.attachments.TransIdxSigGroups,
-    PathedMaterialCouples: reply.message.attachments.PathedMaterialCouples,
-  });
-  const cesr = new TextDecoder().decode(reply.message.raw) + encodeText(atc.frames());
-  return `id: ${reply.id}\nevent: ${reply.topic}\nretry: ${RETRY_MS}\ndata: ${cesr}\n\n`;
-}
-
-function createResponse(replies: readonly MailboxReply[]): Response {
-  if (replies.length === 0) {
-    return new Response(null, { status: 204 });
-  }
-
-  const body = replies.map(encodeReply).join("");
-
-  return new Response(body, {
+function createOobiResponse(messages: readonly Message[], aid: string): Response {
+  return new Response(encodeMessages(messages), {
     status: 200,
-    headers: { "Content-Type": "text/event-stream" },
+    headers: { "Content-Type": "application/json+cesr", "Keri-Aid": aid },
   });
 }
 
@@ -54,11 +24,9 @@ export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (re
   const log = new KeriLogger(options.logger);
 
   async function handleMessageRequest(request: Request): Promise<Response> {
-    const atc = request.headers.get("CESR-ATTACHMENT");
-    if (!atc) {
-      log.warn("rejecting POST /: missing CESR-ATTACHMENT");
-      return Response.json({ error: "Bad Request" }, { status: 400 });
-    }
+    // Attachments arrive either detached in the header (KERIpy, MailboxClient)
+    // or already inline in the body (the worker forwards merged streams).
+    const atc = request.headers.get("CESR-ATTACHMENT") ?? "";
 
     const bodyText = await request.text();
     const replies: MailboxReply[] = [];
@@ -71,7 +39,38 @@ export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (re
     }
 
     log.debug("POST /: handled messages", { count, replies: replies.length });
-    return createResponse(replies);
+    return createMailboxResponse(replies);
+  }
+
+  // The `kli mailbox add` contract: multipart form with the controller's full
+  // KEL and its signed /end/role/add naming this mailbox; a plain 200 means
+  // enrolled.
+  async function handleEnrollment(request: Request): Promise<Response> {
+    let kel: unknown;
+    let rpy: unknown;
+    try {
+      const form = await request.formData();
+      kel = form.get("kel");
+      rpy = form.get("rpy");
+    } catch (cause) {
+      log.warn("rejecting POST /mailboxes: unreadable form data", {
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
+      return Response.json({ error: "Expected multipart form data with kel and rpy fields" }, { status: 400 });
+    }
+
+    if (typeof kel !== "string" || typeof rpy !== "string") {
+      return Response.json({ error: "Expected multipart form data with kel and rpy fields" }, { status: 400 });
+    }
+
+    const result = await mailbox.enroll(kel, rpy);
+    if (!result.ok) {
+      log.warn("rejecting enrollment", { error: result.error });
+      return Response.json({ error: result.error }, { status: 400 });
+    }
+
+    log.debug("enrolled", { aid: result.aid });
+    return Response.json({ aid: result.aid });
   }
 
   return async function handler(request: Request): Promise<Response> {
@@ -89,17 +88,36 @@ export function createRouter(mailbox: Mailbox, options: RouterOptions = {}): (re
       }
     }
 
-    if (pathname.startsWith("/oobi")) {
-      switch (method) {
-        case "GET": {
-          log.debug("GET /oobi: serving self", { count: mailbox.events.length });
-          const response = createOobiResponse(mailbox.events);
-          response.headers.set("Keri-Aid", mailbox.aid);
-          return response;
-        }
-        default:
-          return new Response("Method Not Allowed", { status: 405 });
+    if (pathname === "/mailboxes") {
+      if (method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
       }
+      return handleEnrollment(request);
+    }
+
+    if (pathname.startsWith("/oobi")) {
+      if (method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      const aid = pathname.split("/")[2];
+
+      if (!aid || aid === mailbox.aid) {
+        log.debug("GET /oobi: serving self", { count: mailbox.events.length });
+        return createOobiResponse(
+          mailbox.events.map((event) => event.message),
+          mailbox.aid,
+        );
+      }
+
+      const messages = mailbox.serveOobi(aid);
+      if (!messages) {
+        log.debug("GET /oobi: unknown aid", { aid });
+        return new Response("Not Found", { status: 404 });
+      }
+
+      log.debug("GET /oobi: serving enrolled aid", { aid, count: messages.length });
+      return createOobiResponse(messages, aid);
     }
 
     return new Response("Not Found", { status: 404 });

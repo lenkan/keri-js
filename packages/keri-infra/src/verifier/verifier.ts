@@ -48,20 +48,26 @@ export class Verifier {
 
     const url = new URL(options.url);
 
-    // Stripped once, and advertised in the same form: KERIpy appends a hardcoded
-    // `/`, so a trailing slash here would have it post to `//`, which routes
-    // nowhere.
+    // Stripped once: KERIpy composes request paths onto whatever the location
+    // advertises, so the base must be a bare origin.
     const base = options.url.replace(/\/+$/, "");
 
+    // The "/." path suffix keeps every path KERIpy composes valid: hio defaults
+    // an empty location path to "/", so `kli mailbox add`'s `{path}/mailboxes`
+    // would become the scheme-relative "//mailboxes" and be refused, while
+    // sendDirect's hardcoded "/" becomes "/./" — servers normalize the dot
+    // segment away either way.
     const location = RoutedEvent.reply({
       r: "/loc/scheme",
-      a: { eid: aid, scheme: url.protocol.replace(":", ""), url: base },
+      a: { eid: aid, scheme: url.protocol.replace(":", ""), url: `${base}/.` },
     });
 
-    // `controller`, not `mailbox`: KERIpy's StreamPoster tries controller,
-    // agent, then mailbox, and only the last one is store-and-forward. Claiming
-    // the controller role is what makes `kli ipex grant` deliver straight here,
-    // so the verifier needs no witness and no mailbox behind it.
+    // `controller`, and deliberately NOT `mailbox`: controller is what makes
+    // KERIpy's Poster deliver grants and challenge responses straight here —
+    // and advertising a mailbox role for the portal itself would make KERIpy
+    // send every message twice (Poster sends to ALL advertised roles). The
+    // portal still acts as a mailbox for enrolled users: `kli mailbox add`
+    // needs only the location, and each user's own end-role names this AID.
     const endrole = RoutedEvent.reply({
       r: "/end/role/add",
       a: { cid: aid, role: "controller", eid: aid },

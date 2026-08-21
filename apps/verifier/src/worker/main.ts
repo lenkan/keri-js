@@ -1,6 +1,8 @@
 /** biome-ignore-all lint/suspicious/noConsole: worker entrypoint */
 import { createVerifierRouter, type KeyEventStore, type SessionStore, Verifier } from "@keri-js/infra/verifier";
-import { decodeBase64Url } from "cesr/encoding";
+import { decodeSeed } from "./seed.ts";
+
+export { PortalStore } from "./portal-store.ts";
 
 // ASSETS and SESSIONS come from worker-configuration.d.ts, which `wrangler types`
 // generates from the bindings — and since `.dev.vars` names VERIFIER_SEED, that
@@ -42,20 +44,6 @@ function keyEvents(kv: KVNamespace): KeyEventStore {
   };
 }
 
-function decodeSeed(value: string): Uint8Array {
-  // `openssl rand -base64 32` is the obvious way to mint this, and it emits
-  // padded standard base64. decodeBase64Url consumes the padding as data rather
-  // than rejecting it, so the seed silently arrives 33 bytes long.
-  const normalized = value.trim().replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-  const bytes = decodeBase64Url(normalized);
-
-  if (bytes.length !== 32) {
-    throw new Error(`VERIFIER_SEED must decode to 32 bytes, got ${bytes.length}`);
-  }
-
-  return bytes;
-}
-
 function route(env: Env, request: Request): Promise<(request: Request) => Promise<Response>> {
   const url = env.VERIFIER_URL ?? new URL(request.url).origin;
 
@@ -70,10 +58,14 @@ function route(env: Env, request: Request): Promise<(request: Request) => Promis
     console.warn("VERIFIER_SEED is not set, using an ephemeral identity for this isolate only");
   }
 
+  // The mailbox lives in a single named Durable Object, so every append to its
+  // storage is serialized by the runtime.
+  const mailbox = (request: Request) => env.PORTAL.get(env.PORTAL.idFromName("portal")).fetch(request);
+
   // The promise is what gets cached, so requests arriving during a cold start
   // share one key derivation instead of each racing to build their own.
   const router = Verifier.create({ privateKey: seed ? decodeSeed(seed) : undefined, url }).then((verifier) =>
-    createVerifierRouter(verifier, sessions(env.SESSIONS), keyEvents(env.SESSIONS), { logger: console }),
+    createVerifierRouter(verifier, sessions(env.SESSIONS), keyEvents(env.SESSIONS), { logger: console, mailbox }),
   );
 
   cached = { url, router };
