@@ -6,7 +6,9 @@ import type { AddressInfo } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { Controller } from "@keri-js/infra/controller";
 import { createMailboxRouter, Mailbox } from "@keri-js/infra/mailbox";
-import { createListener, type Logger, NodeSqliteDatabase, SqliteControllerStorage } from "@keri-js/infra/node";
+import { createListener, type Logger, NodeSqliteDatabase } from "@keri-js/infra/node";
+import { createPortalRouter } from "@keri-js/infra/portal";
+import { SqliteControllerStorage } from "@keri-js/infra/sqlite";
 import {
   createVerifierRouter,
   type KeyEventStore,
@@ -86,6 +88,28 @@ export async function startKerijsWitness(opts: { port?: number; signal?: AbortSi
   serve(createRouter(witness, { logger: serverLogger }));
 
   return { aid: witness.aid, url, oobi: `${url}/oobi` };
+}
+
+/**
+ * The full portal composition — mailbox + receipting witness + intake
+ * dispatch under one identity — as the deployed worker runs it, served from
+ * Node for the interop harness.
+ */
+export async function startKerijsPortal(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
+  const { url, serve } = await listen(opts.signal, opts.port);
+
+  const storage = new SqliteControllerStorage(new NodeSqliteDatabase(new DatabaseSync(":memory:")));
+  // One key for both faces, so mailbox and witness ARE the same portal identity.
+  const privateKey = crypto.getRandomValues(new Uint8Array(32));
+
+  const [mailbox, witness] = await Promise.all([
+    Mailbox.create({ storage, privateKey, url }),
+    Witness.create({ storage, privateKey, url }),
+  ]);
+
+  serve(createPortalRouter(mailbox, witness, storage, { logger: serverLogger }));
+
+  return { aid: mailbox.aid, url, oobi: `${url}/oobi` };
 }
 
 export async function startKerijsMailbox(opts: { port?: number; signal?: AbortSignal } = {}): Promise<Endpoint> {
@@ -201,7 +225,9 @@ async function waitUntilReachable(
 export async function startKeripyWitness(
   opts: { port?: number; salt?: string; signal?: AbortSignal; logLevel?: string } = {},
 ): Promise<KeripyWitness> {
-  const keripy = new KERIPy({});
+  // keripy 1.3.6 refuses to start a witness non-interactively for a
+  // passcode-less keystore, so witness keystores get one (21 chars).
+  const keripy = new KERIPy({ passcode: "0123456789abcdefghijk" });
   await keripy.init({ salt: opts.salt });
   await keripy.incept({ toad: 0, transferable: false });
   const aid = await keripy.aid();

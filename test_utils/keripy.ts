@@ -29,22 +29,27 @@ function format(args: string[]): string {
 export class KERIPy {
   readonly name: string;
   readonly base: string | undefined;
+  readonly passcode: string | undefined;
   private readonly debug: Debugger;
 
-  constructor(opts: { base?: string } = {}) {
+  constructor(opts: { base?: string; passcode?: string } = {}) {
     if (!existsSync(KLI)) {
       throw new Error(`kli not found at ${KLI}, make sure to set up the .venv and install keripy`);
     }
 
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
+    // keripy 1.3.6's `kli witness start` refuses non-interactive startup for
+    // keystores without a passcode (its aeid guard checks `is None` while
+    // --nopasscode stores ''), so witness keystores get one.
+    this.passcode = opts.passcode;
     this.debug = debug(`keripy:${this.name}`);
 
     ensureConfigDir(this.base);
   }
 
   private get baseArgs(): string[] {
-    return this.base ? ["--base", this.base] : [];
+    return [...(this.base ? ["--base", this.base] : []), ...(this.passcode ? ["--passcode", this.passcode] : [])];
   }
 
   private log(message: string): void {
@@ -53,11 +58,11 @@ export class KERIPy {
     }
   }
 
-  private run(args: string[]): Promise<string> {
+  private run(args: string[], timeout = TIMEOUT): Promise<string> {
     const command = format(args);
     this.log(command);
     return new Promise((resolve, reject) => {
-      const child = spawn(KLI, args, { timeout: TIMEOUT });
+      const child = spawn(KLI, args, { timeout });
       // `output` is what callers parse, so it stays stdout-only; `tail` is both streams, for the
       // error message. `kli` reports a failed resolve on stdout and the traceback on stderr.
       let output = "";
@@ -97,7 +102,8 @@ export class KERIPy {
   }
 
   async init(opts: { salt?: string } = {}): Promise<void> {
-    const args = ["init", "--name", this.name, ...this.baseArgs, "--nopasscode"];
+    // baseArgs already carries --passcode when one is configured.
+    const args = ["init", "--name", this.name, ...this.baseArgs, ...(this.passcode ? [] : ["--nopasscode"])];
     if (opts.salt) {
       args.push("--salt", opts.salt);
     }
@@ -195,6 +201,23 @@ export class KERIPy {
         opts.role ?? "mailbox",
         "--eid",
         opts.eid,
+      ]);
+    },
+  };
+
+  mailbox = {
+    /** `mailbox` is a contact alias or AID; the mailbox must be resolved as a contact first. */
+    add: async (opts: { alias?: string; mailbox: string }): Promise<void> => {
+      await this.run([
+        "mailbox",
+        "add",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--mailbox",
+        opts.mailbox,
       ]);
     },
   };
@@ -349,7 +372,12 @@ export class KERIPy {
     },
     admit: async (said: string): Promise<void> => {
       try {
-        await this.run(["ipex", "admit", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--said", said]);
+        // Longer than the default: admit polls its mailbox for the TEL replay
+        // before it can verify and respond.
+        await this.run(
+          ["ipex", "admit", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--said", said],
+          60000,
+        );
       } catch {
         // kli ipex admit may exit non-zero but still succeed
       }
@@ -383,7 +411,7 @@ export class KERIPy {
       }
       return this.run(args);
     },
-    /** SAIDs of the issued credentials, newest last. */
+    /** SAIDs of the issued credentials — order is NOT chronological. */
     saids: async (): Promise<string[]> => {
       const output = await this.vc.list({ said: true, issued: true });
       return output.split("\n").filter((line) => line.trim().length > 0);

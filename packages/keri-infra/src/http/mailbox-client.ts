@@ -1,38 +1,98 @@
 import { encodeText, type Message, parse } from "cesr";
 
-async function parseEventStream(body: ReadableStream<Uint8Array>): Promise<Message[]> {
+export interface MailboxMessage {
+  /** The SSE `id:` field — the mailbox's per-(pre, topic) ordinal — when the response was an event stream. */
+  id?: number;
+  /** The SSE `event:` field — the topic path as queried (leading slash included). */
+  topic?: string;
+  message: Message;
+}
+
+const DEFAULT_IDLE_MS = 1000;
+
+function readWithIdle(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleMs: number,
+): Promise<ReadableStreamReadResult<Uint8Array> | "idle"> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve("idle"), idleMs);
+    reader.read().then(
+      (result) => {
+        clearTimeout(timer);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * Parses SSE frames (`id:`/`event:`/`data:`, blank-line terminated) into
+ * mailbox messages. The stream is read to the end; KERIpy holds the connection
+ * open after its snapshot, so a quiet period of `idleMs` also ends the read —
+ * cancelling mid-frame never drops a delivered message the way the previous
+ * stop-after-first-chunk behavior did.
+ */
+async function parseEventStream(body: ReadableStream<Uint8Array>, idleMs: number): Promise<MailboxMessage[]> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  const messages: Message[] = [];
-  let buffer = "";
+  const entries: MailboxMessage[] = [];
 
-  async function flushLine(line: string): Promise<void> {
-    if (line.startsWith("data: ")) {
-      messages.push(...(await Array.fromAsync(parse(line.slice(6)))));
+  let buffer = "";
+  let id: number | undefined;
+  let topic: string | undefined;
+  let data = "";
+
+  async function endFrame(): Promise<void> {
+    if (data) {
+      for await (const message of parse(data)) {
+        entries.push({ id, topic, message });
+      }
     }
+    id = undefined;
+    topic = undefined;
+    data = "";
+  }
+
+  async function handleLine(line: string): Promise<void> {
+    if (line === "") {
+      await endFrame();
+    } else if (line.startsWith("id:")) {
+      const value = Number(line.slice(3).trim());
+      id = Number.isFinite(value) ? value : undefined;
+    } else if (line.startsWith("event:")) {
+      topic = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      data += line.slice(5).trimStart();
+    }
+    // `retry:` and comment lines are ignored.
   }
 
   while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
+    const result = await readWithIdle(reader, idleMs);
+
+    if (result === "idle") {
+      await reader.cancel();
       break;
     }
-    buffer += decoder.decode(value, { stream: true });
+    if (result.done) {
+      break;
+    }
+
+    buffer += decoder.decode(result.value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      await flushLine(line);
-    }
-
-    // Long-poll SSE servers (e.g. KERIpy) keep the stream open after sending
-    // a snapshot. Once we have at least one message, stop reading and return.
-    if (messages.length > 0) {
-      await reader.cancel();
-      return messages;
+      await handleLine(line.replace(/\r$/, ""));
     }
   }
-  await flushLine(buffer);
-  return messages;
+
+  await handleLine(buffer.replace(/\r$/, ""));
+  await endFrame();
+  return entries;
 }
 
 export interface MailboxClientOptions {
@@ -51,20 +111,25 @@ export interface MailboxClientOptions {
    * Defaults to the global `fetch` function.
    */
   fetch?: typeof globalThis.fetch;
+
+  /** Quiet time after which a held-open SSE stream is considered drained. */
+  idleMs?: number;
 }
 
 export class MailboxClient {
   readonly url: string;
   readonly id: string;
   readonly #fetch: typeof globalThis.fetch;
+  readonly #idleMs: number;
 
   constructor(options: MailboxClientOptions) {
     this.url = options.url;
     this.id = options.id;
     this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#idleMs = options.idleMs ?? DEFAULT_IDLE_MS;
   }
 
-  async sendMessage(message: Message, signal?: AbortSignal): Promise<Message[]> {
+  async sendMessage(message: Message, signal?: AbortSignal): Promise<MailboxMessage[]> {
     const url = new URL("/", this.url);
 
     const body = JSON.stringify(message.body);
@@ -95,13 +160,13 @@ export class MailboxClient {
     }
 
     if (contentType === "text/event-stream") {
-      return await parseEventStream(response.body);
+      return await parseEventStream(response.body, this.#idleMs);
     }
 
     if (contentType?.startsWith("application/json")) {
       return [];
     }
 
-    return await Array.fromAsync(parse(response.body));
+    return (await Array.fromAsync(parse(response.body))).map((incoming) => ({ message: incoming }));
   }
 }

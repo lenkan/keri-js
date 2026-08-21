@@ -44,6 +44,24 @@ const migrations: string[][] = [
       ")",
     ].join("\n"),
   ],
+  // Migration 4: KERIpy-compatible mailbox ids — a dense per-(pre, topic)
+  // ordinal starting at 0, replacing the global autoincrement. Destructive on
+  // purpose: old rowid-based entries and cursors are meaningless against
+  // ordinals, and every known database is in-memory or test-scoped.
+  [
+    "DROP TABLE IF EXISTS mailbox_entry",
+    [
+      "CREATE TABLE mailbox_entry (",
+      "  pre         TEXT NOT NULL,",
+      "  topic       TEXT NOT NULL,",
+      "  ordinal     INTEGER NOT NULL,",
+      "  event_json  JSON NOT NULL,",
+      "  attachments TEXT,",
+      "  PRIMARY KEY (pre, topic, ordinal)",
+      ")",
+    ].join("\n"),
+    "DELETE FROM mailbox_cursor",
+  ],
 ];
 
 export function migrate(db: Database): void {
@@ -54,17 +72,12 @@ export function migrate(db: Database): void {
   let current = typeof row?.version === "number" ? row.version : 0;
 
   for (let i = current; i < migrations.length; i++) {
-    db.execute("BEGIN");
-    try {
+    db.transaction(() => {
       for (const statement of migrations[i]) {
         db.execute(statement);
       }
       db.execute(`UPDATE schema_version SET version = ${i + 1}`);
-      db.execute("COMMIT");
-    } catch (err) {
-      db.execute("ROLLBACK");
-      throw err;
-    }
+    });
     current = i + 1;
   }
 }

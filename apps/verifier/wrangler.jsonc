@@ -29,6 +29,22 @@
       "id": "2be39371eb904495803b562216244296"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        // The portal's mailbox: one named instance owns the SQLite storage, so
+        // appends are serialized by the runtime.
+        "name": "PORTAL",
+        "class_name": "PortalStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PortalStore"]
+    }
+  ],
   "observability": {
     "enabled": true,
     // A verifier this size will not generate enough traffic for sampling to

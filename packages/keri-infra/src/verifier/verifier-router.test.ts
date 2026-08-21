@@ -171,7 +171,8 @@ describe(basename(import.meta.url), () => {
     const response = await createRouter(verifier, makeSessions(), makeKeyEvents())(request("/oobi"));
     const body = await response.text();
 
-    // KERIpy appends its own `/` to whatever this advertises, and `//` routes nowhere.
+    // KERIpy composes request paths onto whatever this advertises, so it must
+    // be a bare origin (see Verifier.create).
     assert.ok(body.includes(`"url":"${URL_BASE}"`), `expected the location scheme to carry ${URL_BASE}`);
   });
 

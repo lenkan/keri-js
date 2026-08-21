@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { Database, Params, Row } from "./sqlite-database.ts";
+import type { Database, Params, Row } from "../sqlite/main.ts";
 
 /**
  * Adapter that wraps the built-in `node:sqlite` `DatabaseSync` class so it satisfies the `Database` interface.
@@ -26,5 +26,17 @@ export class NodeSqliteDatabase implements Database {
 
   iterate(sql: string, params?: Params): Iterable<Row> {
     return this.#db.prepare(sql).iterate(params ?? {}) as Iterable<Row>;
+  }
+
+  transaction<T>(fn: () => T): T {
+    this.#db.exec("BEGIN");
+    try {
+      const result = fn();
+      this.#db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.#db.exec("ROLLBACK");
+      throw error;
+    }
   }
 }

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CommandBlock, Disclosure } from "../components/main.ts";
 import type { Login } from "./useLogin.ts";
 
-const SETUP_COMMANDS = `pip install keri==1.3.3
+const SETUP_COMMANDS = `pip install keri==1.3.6
 kli init --name demo --nopasscode
 kli incept --name demo --alias issuer --icount 1 --isith 1 --ncount 1 --nsith 1 --toad 0 --transferable`;
 

@@ -5,7 +5,8 @@ import test, { describe, mock } from "node:test";
 import { blake3 } from "@noble/hashes/blake3.js";
 import { Attachments, encodeText, Matter } from "cesr";
 import { RoutedEvent } from "keri";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
+import { NodeSqliteDatabase } from "../node/main.ts";
+import { SqliteControllerStorage } from "../sqlite/main.ts";
 import { Controller } from "./controller.ts";
 import type { EndRoleRecord, LocationRecord } from "./endpoint-discovery.ts";
 

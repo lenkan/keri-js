@@ -188,7 +188,10 @@ export class KeyEventLog {
           sigs,
         });
 
-        if (icp.b && Array.isArray(icp.b) && icp.b.length > 0) {
+        // A zero backer threshold is valid KERI — witnesses listed, no
+        // receipts required — and must not reach the threshold parser, which
+        // (correctly) rejects 0 for signing thresholds.
+        if (icp.b && Array.isArray(icp.b) && icp.b.length > 0 && !isZeroThreshold(icp.bt)) {
           verifyWitness(bodyRaw, {
             keys: icp.b,
             threshold: icp.bt,
@@ -230,7 +233,7 @@ export class KeyEventLog {
           });
         }
 
-        if (state.backers && state.backers.length > 0) {
+        if (state.backers && state.backers.length > 0 && !isZeroThreshold(state.backerThreshold as string)) {
           verifyWitness(bodyRaw, {
             keys: state.backers,
             threshold: state.backerThreshold as string[] | string,
@@ -365,6 +368,10 @@ function merge(a: KeyState, b: Partial<KeyState>): KeyState {
     lastEvent: b.lastEvent ?? a.lastEvent,
     lastEstablishment: b.lastEstablishment ?? a.lastEstablishment,
   };
+}
+
+function isZeroThreshold(threshold: string | string[] | undefined): boolean {
+  return typeof threshold === "string" && Number.parseInt(threshold || "0", 16) === 0;
 }
 
 function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {

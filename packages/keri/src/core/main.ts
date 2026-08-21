@@ -41,7 +41,7 @@ export { nextKeyDigest } from "./digest.ts";
 export { EventIndex } from "./event-index.ts";
 export { formatDate } from "./events.ts";
 export type { ExchangeVerification, ExchangeVerificationFailure } from "./exchange-verification.ts";
-export { verifyExchange } from "./exchange-verification.ts";
+export { verifyExchange, verifyReply } from "./exchange-verification.ts";
 export type {
   DelegatedInceptArgs,
   DelegatedRotateArgs,

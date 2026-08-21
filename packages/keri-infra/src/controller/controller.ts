@@ -361,7 +361,8 @@ export class Controller {
       backers: backers.length,
     });
     const endpoints = await Promise.all(backers.map((wit) => this.resolveEndpoint(wit)));
-    const wigs = await submitToWitnesses(event, endpoints, this.#fetch);
+    const toad = Number.parseInt(((body as { bt?: string }).bt ?? log.state.backerThreshold) || "0", 16);
+    const wigs = await submitToWitnesses(event, endpoints, this.#fetch, toad);
     event.attachments.WitnessIdxSigs.push(...wigs);
     this.#log.debug("commit: received witness signatures", { aid: body.i, s: body.s, wigs: wigs.length });
     await this.processMessage(event);
@@ -842,13 +843,21 @@ export class Controller {
     const result = await client.sendMessage(queryMessage, AbortSignal.timeout(10000));
 
     for (const incoming of result) {
-      this.#storage.saveMessage(incoming);
+      this.#storage.saveMessage(incoming.message);
     }
 
-    this.#storage.saveMailboxOffset(id, topic, offset + result.length);
+    // KERIpy poller parity: the next inclusive offset is the last seen ordinal
+    // plus one. The count fallback only covers non-SSE servers, which carry no
+    // ids at all.
+    const ids = result.map((entry) => entry.id).filter((entryId): entryId is number => typeof entryId === "number");
+    if (ids.length > 0) {
+      this.#storage.saveMailboxOffset(id, topic, Math.max(...ids) + 1);
+    } else if (result.length > 0) {
+      this.#storage.saveMailboxOffset(id, topic, offset + result.length);
+    }
     this.#log.debug("query: received", { aid: id, topic, count: result.length });
 
-    return result;
+    return result.map((entry) => entry.message);
   }
 
   async receiveGrants(holderId: string): Promise<CredentialBody[]> {

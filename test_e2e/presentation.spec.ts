@@ -77,9 +77,10 @@ test("rejects a credential issued to someone else", async ({ page }) => {
     recipient: await kli.aid({ alias: "other" }),
     data: { LEI: "9876543210987654321" },
   });
-  const otherSaid = (await kli.vc.saids()).at(-1);
+  // `kli vc list --said` order is not chronological, so select by exclusion.
+  const otherSaid = (await kli.vc.saids()).find((s) => s.trim() !== said);
   if (!otherSaid) {
-    throw new Error("kli vc list reported no issued credential");
+    throw new Error("kli vc list reported no second credential");
   }
 
   await present(page, otherSaid.trim());

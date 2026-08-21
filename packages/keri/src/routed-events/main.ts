@@ -23,4 +23,5 @@ export {
   query,
   reply,
   verifyExchange,
+  verifyReply,
 } from "../core/main.ts";

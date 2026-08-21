@@ -26,6 +26,13 @@ const CORS_HEADERS = {
 export interface RouterOptions {
   logger?: Logger;
   fetch?: typeof globalThis.fetch;
+  /**
+   * The mailbox behind this portal: receives enrollment (`POST /mailboxes`),
+   * forwarded `exn /fwd` and `qry mbx` batches, and OOBI lookups for enrolled
+   * AIDs. In the worker this forwards to the Durable Object; without it the
+   * mailbox surface answers 404 / falls through.
+   */
+  mailbox?: (request: Request) => Promise<Response>;
 }
 
 function encodeOobi(events: readonly Message[]): string {
@@ -123,6 +130,29 @@ export function createRouter(
     const lookup = sessionToken(messages);
 
     if (!lookup.ok) {
+      // Mailbox traffic lands on the same `/` because KERIpy discards URL
+      // paths: forwarded exns and polls, but also the bare KEL/TEL events
+      // senders spray at a mailbox endpoint (the mailbox ignores those with a
+      // 2xx, and a 400 here would abort the sender mid-delivery). The merged
+      // stream goes onward as the body — attachments already inline.
+      const mailboxBound = messages.some((message) => {
+        const body = message.body as { t?: string; r?: string };
+        return (
+          body.t === "qry" ||
+          (body.t === "exn" && body.r === "/fwd") ||
+          (typeof body.t === "string" && body.t !== "exn" && body.t !== "rpy")
+        );
+      });
+      if (mailboxBound && options.mailbox) {
+        return options.mailbox(
+          new Request(new URL("/", request.url), {
+            method: "POST",
+            body: stream,
+            headers: { "Content-Type": "application/cesr+json" },
+          }),
+        );
+      }
+
       log.warn(`rejecting presentation: ${lookup.reason}`, { messages: messages.length });
       const error =
         lookup.reason === "no-grant"
@@ -153,9 +183,12 @@ export function createRouter(
   }
 
   // The whole surface is public and unauthenticated, so every response carries
-  // the same headers rather than each branch remembering them.
+  // the same headers rather than each branch remembering them. Responses that
+  // crossed a fetch boundary (the Durable Object) have immutable headers, so
+  // every response is recreated rather than mutated.
   return async function handler(request: Request): Promise<Response> {
-    const response = await route(request);
+    const routed = await route(request);
+    const response = new Response(routed.body, routed);
 
     for (const [header, value] of Object.entries(CORS_HEADERS)) {
       response.headers.set(header, value);
@@ -189,11 +222,24 @@ export function createRouter(
         return new Response("Method Not Allowed", { status: 405 });
       }
 
+      const aid = pathname.split("/")[2];
+      if (aid && aid !== verifier.aid && options.mailbox) {
+        log.debug("forwarding oobi lookup to the mailbox", { aid });
+        return options.mailbox(request);
+      }
+
       log.debug("serving oobi");
       return new Response(oobi, {
         status: 200,
         headers: { "Content-Type": "application/json+cesr", "Keri-Aid": verifier.aid },
       });
+    }
+
+    if ((pathname === "/mailboxes" || pathname === "/receipts") && method === "POST") {
+      if (!options.mailbox) {
+        return new Response("Not Found", { status: 404 });
+      }
+      return options.mailbox(request);
     }
 
     // Deliberately writes nothing: a token only has to exist by the time a grant

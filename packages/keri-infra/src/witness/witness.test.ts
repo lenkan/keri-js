@@ -5,7 +5,8 @@ import { describe, mock, test } from "node:test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { encodeText, Indexer, Matter, Message } from "cesr";
 import { generateKeyPair, KeyEvent, KeyEventLog, verifySignature } from "keri";
-import { NodeSqliteDatabase, SqliteControllerStorage } from "../node/main.ts";
+import { NodeSqliteDatabase } from "../node/main.ts";
+import { SqliteControllerStorage } from "../sqlite/main.ts";
 import { Witness, WitnessError } from "./witness.ts";
 
 function makeWitness(insecureSeed = "test-witness") {
