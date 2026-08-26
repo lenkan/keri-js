@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!.claude", "!**/dist", "!**/api-docs", "!**/.venv", "!**/docs"]
+    "includes": ["**", "!.claude", "!**/dist", "!**/api-docs", "!**/.venv", "!**/docs", "!**/fixtures"]
   },
   "formatter": {
     "lineWidth": 120,

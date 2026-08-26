@@ -165,11 +165,19 @@ npm run test:deno       # The same suite on Deno, straight off src
 `test:deno` runs with `--allow-read` and nothing else. The only reads are fixture files; if a
 change makes the library touch the network, the environment or the filesystem, that job fails.
 
-`src/cesr/codes.ts` is generated from KERIpy's code tables, and `fixtures/cesr_test_vectors.json`
-from its primitives. Both need a `.venv` with KERIpy from `requirements.txt`:
+`src/cesr/codes.ts` is generated from KERIpy's code tables, `fixtures/cesr_test_vectors.json` from
+its primitives, and `fixtures/events/` from its event constructors. All need a `.venv` with KERIpy
+from `requirements.txt`:
 
 ```sh
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/generate-codec.py > src/cesr/codes.ts
 .venv/bin/python scripts/generate-test-vector.py > fixtures/cesr_test_vectors.json
+.venv/bin/python scripts/generate-event-vectors.py > fixtures/events/keri-1.3.6.json
 ```
+
+The event vectors have two levels. `events` records each message KERIpy built from a fixed seed and
+the CESR stream it serialized, so keri-js is held to the same bytes one message at a time. `kel`
+records the whole log those messages form and the key state KERIpy settles on after reading it —
+the assertion that the same seeds driven through the same sequence of operations produce the same
+log and the same state in both implementations.
