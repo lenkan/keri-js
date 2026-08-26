@@ -21,8 +21,15 @@ function submodule(path: string): string {
   return path.split("/")[0];
 }
 
-// Everything outside `src` — scripts, consumer tests, vector tests — consumes the library the way a
-// dependent would, so it must enter through the package name.
+function isEntryPoint(path: string): boolean {
+  return path === "main.ts" || path === `${submodule(path)}/main.ts`;
+}
+
+// `test_consumer` is the one place that must reach the library the way a dependent does, through the
+// package name, so it resolves the `exports` map and `dist`. Everything else outside `src` may
+// import the source directly — but still only through a `main.ts`, never a submodule's internals.
+const PACKAGE_NAME_REQUIRED = "test_consumer/";
+
 const files = glob(
   ["src/**/*.ts", "test_vectors/**/*.ts", "scripts/**/*.ts", "test_consumer/**/*.ts", "test_utils/**/*.ts"],
   { cwd: ROOT },
@@ -61,8 +68,14 @@ for await (const file of files) {
     const to = locate(resolve(dirname(absFile), spec));
 
     if (from === null) {
-      if (to !== null) {
+      if (to === null) {
+        continue;
+      }
+
+      if (file.startsWith(PACKAGE_NAME_REQUIRED)) {
         violations.push(`${file}: imports "${spec}" — reach the library through "${NAME}"`);
+      } else if (!isEntryPoint(to)) {
+        violations.push(`${file}: imports "${spec}" — must target src/main.ts or src/${submodule(to)}/main.ts`);
       }
       continue;
     }
@@ -76,8 +89,7 @@ for await (const file of files) {
       continue;
     }
 
-    // Either the package entry (`src/main.ts`) or a submodule's (`src/<mod>/main.ts`).
-    if (to !== "main.ts" && to !== `${submodule(to)}/main.ts`) {
+    if (!isEntryPoint(to)) {
       violations.push(`${file}: imports "${spec}" — must target src/main.ts or ../${submodule(to)}/main.ts`);
     }
   }

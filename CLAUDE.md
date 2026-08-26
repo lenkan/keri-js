@@ -10,11 +10,12 @@ Witness, mailbox, controller and verifier implementations, the HTTP layer and th
 composed them are **not** in this repository. They live on the `legacy` branch and are being moved
 to a separate closed-source service.
 
-Each submodule has a `main.ts` that defines its public surface. Cross-submodule imports must target
-`../<submodule>/main.ts` or `../main.ts` — never reach into another submodule's internal files.
-Anything outside `src/` (scripts, `test_consumer/`, `test_vectors/`, `test_utils/`) consumes the
-library through the package name (`keri`, `keri/cesr`, `keri/encoding`, …), the way a dependent
-would. Both rules are enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
+Each submodule has a `main.ts` that defines its public surface. Every import that crosses into or
+between submodules must target `../<submodule>/main.ts` or `../main.ts` — never another submodule's
+internal files. `test_consumer/` is the exception in the other direction: it consumes the library
+through the package name (`keri`, `keri/cesr`, `keri/encoding`, …) the way a dependent would, which
+is what makes it a test of the published surface. Both rules are enforced by
+`scripts/check-imports.ts`, run as part of `npm run lint`.
 
 `node:` builtins may not be imported from `src/` at all; `*.test.ts` files are exempt. This keeps
 the package runnable on Deno and in the browser, and is enforced by the same script.
@@ -23,9 +24,9 @@ That script also rejects any bare import that is not a declared dependency. npm 
 undeclared dependency would resolve locally and break for everyone installing the published
 package — this check is the only thing that catches it.
 
-Unit tests run directly off `src/` with no build step, since Node strips types natively.
-`test:consumer` is the exception: it imports the package by name, so it resolves through `dist` and
-its `pretest:consumer` hook builds first.
+Unit tests and vector tests run directly off `src/` with no build step, since Node strips types
+natively. `test:consumer` is the exception: it imports the package by name, so it resolves through
+`dist` and its `pretest:consumer` hook builds first.
 
 ## Commands
 
