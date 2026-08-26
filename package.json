@@ -67,6 +67,7 @@
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "test": "node --test --no-warnings 'src/**/*.test.ts'",
     "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
+    "test:deno": "deno test --allow-read src/ test_vectors/",
     "pretest:consumer": "npm run build",
     "test:consumer": "node --test --no-warnings 'test_consumer/**/*.test.ts'",
     "lint": "biome check . && node --no-warnings scripts/check-imports.ts",

@@ -159,7 +159,11 @@ npm run build           # Emit dist
 
 npm run test:vector     # Cross-impl CESR test vectors
 npm run test:consumer   # Public surface, through the package name
+npm run test:deno       # The same suite on Deno, straight off src
 ```
+
+`test:deno` runs with `--allow-read` and nothing else. The only reads are fixture files; if a
+change makes the library touch the network, the environment or the filesystem, that job fails.
 
 `src/cesr/codes.ts` is generated from KERIpy's code tables, and `fixtures/cesr_test_vectors.json`
 from its primitives. Both need a `.venv` with KERIpy from `requirements.txt`:
