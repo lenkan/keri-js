@@ -278,7 +278,6 @@ describe(basename(import.meta.url), () => {
         "bt",
         "br",
         "ba",
-        "c",
         "a",
       ]);
       assert.deepStrictEqual(event.body, {
@@ -295,7 +294,6 @@ describe(basename(import.meta.url), () => {
         bt: "0",
         br: ["BA4PSatfQMw1lYhQoZkSSvOCrE0Sdw1hmmniDL-yDtrB"],
         ba: ["BO3cCAfQiqndZBBxwNk6RGkyA-OA1XbZhBj3s4-VIsCo", "BPowpltoeF14nMbU1ng89JSoYf3AmWhZ50KaCaVO6SIW"],
-        c: [],
         a: [
           {
             i: "EHqSsH1Imc2MEcgzEordBUFqJKWTcRyTz2GRc2SG3aur",
@@ -455,7 +453,6 @@ describe(basename(import.meta.url), () => {
         "bt",
         "br",
         "ba",
-        "c",
         "a",
         "di",
       ]);

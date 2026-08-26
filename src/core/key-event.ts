@@ -94,7 +94,6 @@ export type RotateEventBody = {
   bt: string;
   br: string[];
   ba: string[];
-  c: string[];
   a: Record<string, unknown>[];
 };
 
@@ -202,7 +201,6 @@ export function rotate(state: KeyState, args: RotateArgs): Message<RotateEventBo
       bt: args.backerThreshold?.toString() ?? "0",
       br: args.removeBackers ?? ([] as string[]),
       ba: args.addBackers ?? ([] as string[]),
-      c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
     },
     { labels: ["d"] },
@@ -267,7 +265,6 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Mes
       bt: args.backerThreshold?.toString() ?? "0",
       br: args.removeBackers ?? ([] as string[]),
       ba: args.addBackers ?? ([] as string[]),
-      c: [] as string[],
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
       di: state.delegator,
     },
