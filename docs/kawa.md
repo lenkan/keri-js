@@ -65,38 +65,10 @@ witness's receipt, forming a complete KERL entry.
 - **Portability**: The witness set and threshold can be changed at rotation
   time, so trust is not locked to any particular witness infrastructure.
 
-## Implementation in this Library
+## Implementation
 
-`packages/keri/src/core/kawa.ts` — `submitToWitnesses(event, endpoints)`
-
-The event must already carry the controller's `ControllerIdxSigs` on its
-attachments before being passed to this function.
-
-```
-Pass 1  for each endpoint:
-          POST event → /receipts
-          extract NonTransReceiptCouples → re-encode as indexed wig
-
-Pass 2  for each endpoint:
-          POST each other witness's rct message → mailbox
-```
-
-### Differences from the spec's round-robin
-
-The implementation uses **two strict passes** rather than an interleaved
-round-robin:
-
-- Pass 1 only collects receipts (does not forward any during collection).
-- Pass 2 sends all N−1 receipts individually to each witness, resulting in
-  N×(N−1) mailbox messages instead of the spec's N additional exchanges.
-
-For small witness sets (N = 2–5, typical in practice) the extra messages are
-negligible. The end state is identical: every witness holds every other
-witness's receipt.
-
-### Toad (threshold M) not enforced
-
-The current implementation requires **all N witnesses** to respond
-successfully. If any witness is unreachable, `submitToWitnesses` throws.
-The spec allows proceeding once M < N witnesses confirm; partial-fault
-handling is not yet implemented.
+This package implements the primitives KAWA is built from — receipt messages
+(`KeyEvent.receipt`), witness-indexed signatures on attachments, and the
+first-seen policy in `src/core/key-event-log.ts`. Witness coordination itself
+(collecting and forwarding receipts over HTTP) is not part of this package; it
+lives on the `legacy` branch.

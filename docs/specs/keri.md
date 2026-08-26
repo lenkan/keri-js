@@ -10,19 +10,17 @@ This codebase implements **KERI v1** (legacy version strings). Witness-agreement
 
 | Concern | File(s) |
 | --- | --- |
-| Event construction (`icp`/`rot`/`ixn`/`dip`/`drt`) | `packages/keri/src/core/key-event.ts` |
-| Event encoding / SAID prep | `packages/keri/src/core/events.ts` |
-| KEL replay, sequence/prior-digest validation, state transitions, delegator-anchor verification | `packages/keri/src/core/key-event-log.ts` |
-| Signature & threshold verification | `packages/keri/src/core/verify.ts` |
-| Signing | `packages/keri/src/core/sign.ts`, `packages/keri/src/core/keys.ts` |
-| SAID computation | `packages/keri/src/core/said.ts` |
-| Threshold logic | `packages/keri/src/core/threshold.ts` |
-| Receipts (`rct`) | `packages/keri/src/core/receipt-event.ts` |
-| Routed envelopes (`qry`/`rpy`/`exn`) | `packages/keri/src/core/routed-event.ts` |
-| Witness coordination (KAWA) | `packages/keri/src/core/kawa.ts`, `packages/keri/src/core/witness-client.ts`, `packages/keri/src/witness/` |
-| Mailbox / endpoints | `packages/keri/src/core/mailbox-client.ts`, `packages/keri/src/core/endpoint-discovery.ts` |
-| Identifier controller | `packages/keri/src/controller/` |
-| Credentials (ACDC-adjacent) | `packages/keri/src/core/credential.ts`, `packages/keri/src/core/credential-event.ts`, `packages/keri/src/core/registry-event.ts` |
+| Event construction (`icp`/`rot`/`ixn`/`dip`/`drt`) | `src/core/key-event.ts` |
+| Event encoding / SAID prep | `src/core/events.ts` |
+| KEL replay, sequence/prior-digest validation, state transitions, delegator-anchor verification | `src/core/key-event-log.ts` |
+| Signature & threshold verification | `src/core/verify.ts` |
+| Signing | `src/core/sign.ts`, `src/core/keys.ts` |
+| SAID computation | `src/core/said.ts` |
+| Threshold logic | `src/core/threshold.ts` |
+| Receipts (`rct`) | `src/core/receipt-event.ts` |
+| Routed envelopes (`qry`/`rpy`/`exn`) | `src/core/routed-event.ts` |
+| Identifier controller | `src/controller/` |
+| Credentials (ACDC-adjacent) | `src/core/credential.ts`, `src/core/credential-event.ts`, `src/core/registry-event.ts` |
 
 **Implementation status:** establishment events implemented are `icp`, `rot`, `ixn`, `rct`, `dip`, and `drt`. Delegated events are parsed by `KeyEventLog`, builders (`delegatedIncept` / `delegatedRotate`) live in `key-event.ts`, and the controller exposes `Controller.delegatedIncept`. When the delegator's KEL is supplied via `AppendOptions.delegator`, dip/drt anchor seals are verified against it; `KeyEventLog.parse` (and `fromMessages`) does this automatically for multi-AID streams by selecting the leaf AID and chaining the delegator log bottom-up.
 
@@ -134,7 +132,7 @@ Seals appear in the `a` field of events and bind external data into the KEL.
 
 ## 6. Per-event processing
 
-Replaying a KEL from `icp` forward yields deterministic state. Per-event flow lives in `KeyEventLog.append` (`packages/keri/src/core/key-event-log.ts`):
+Replaying a KEL from `icp` forward yields deterministic state. Per-event flow lives in `KeyEventLog.append` (`src/core/key-event-log.ts`):
 
 1. Validate structure and event type (`icp`/`ixn`/`rot`/`dip`/`drt`).
 2. Verify SAID — recompute and compare `d`.

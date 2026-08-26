@@ -12,6 +12,6 @@ These are the canonical in-repo references for protocol-level questions. They co
 
 - Field labels, event types, and message structure
 - Encoding rules, code tables, and parsing logic
-- Cross-references to where each concept is implemented in `packages/*/src`
+- Cross-references to where each concept is implemented in `src`
 
 For witness-agreement specifics, see [`../kawa.md`](../kawa.md).

@@ -1,48 +1,17 @@
 {
-  "name": "keri-js",
+  "name": "keri",
   "version": "0.0.0",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lenkan/keri-js.git"
-  },
-  "packageManager": "pnpm@11.21.0",
-  "scripts": {
-    "build": "pnpm --filter \"./packages/*\" run build",
-    "prebuild:apps": "pnpm run build",
-    "build:apps": "pnpm --filter \"./apps/*\" run build",
-    "dev": "pnpm --filter \"./packages/*\" --parallel run dev",
-    "pretest": "pnpm run build",
-    "test": "node --test --no-warnings 'packages/*/src/**/*.test.ts'",
-    "pretest:consumer": "pnpm run build",
-    "test:consumer": "node --test --no-warnings 'test_consumer/**/*.test.ts'",
-    "pretest:interop": "pnpm run build",
-    "test:interop": "node --test --test-force-exit --test-concurrency=1 --no-warnings 'test_interop/test_*.ts'",
-    "pretest:vector": "pnpm run build",
-    "test:vector": "node --test --no-warnings 'packages/cesr/test_vectors/**/*.test.ts'",
-    "test:e2e": "playwright test",
-    "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
-    "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
-    "precheck": "pnpm run build",
-    "check": "tsc --noEmit && pnpm --filter \"./packages/*\" --parallel run check",
-    "precheck:apps": "pnpm run build",
-    "check:apps": "pnpm --filter \"./apps/*\" --parallel run check",
-    "clean": "node scripts/clean.ts",
-    "format": "biome format --write .",
-    "dev:verifier": "concurrently \"pnpm run dev\" \"pnpm --filter @keri-js/verifier run dev\"",
-    "predev:witness": "pnpm run build",
-    "dev:witness": "pnpm --filter @keri-js/witness run dev",
-    "predev:mailbox": "pnpm run build",
-    "dev:mailbox": "pnpm --filter @keri-js/mailbox run dev",
-    "predev:controller": "pnpm run build",
-    "dev:controller": "pnpm --filter @keri-js/controller run dev",
-    "predeploy:verifier": "pnpm run build",
-    "deploy:verifier": "pnpm --filter @keri-js/verifier run deploy"
   },
   "type": "module",
   "author": "Daniel Lenksjö",
   "license": "Apache-2.0",
   "description": "KERI for JavaScript",
+  "engines": {
+    "node": ">=22"
+  },
   "devEngines": {
     "runtime": {
       "name": "node",
@@ -50,19 +19,72 @@
       "onFail": "warn"
     }
   },
-  "engines": {
-    "node": ">=22"
+  "exports": {
+    ".": {
+      "deno": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./cesr": {
+      "deno": "./src/cesr/main.ts",
+      "types": "./dist/cesr/main.d.ts",
+      "default": "./dist/cesr/main.js"
+    },
+    "./encoding": {
+      "deno": "./src/encoding/main.ts",
+      "types": "./dist/encoding/main.d.ts",
+      "default": "./dist/encoding/main.js"
+    },
+    "./key-events": {
+      "deno": "./src/key-events/main.ts",
+      "types": "./dist/key-events/main.d.ts",
+      "default": "./dist/key-events/main.js"
+    },
+    "./transaction-events": {
+      "deno": "./src/transaction-events/main.ts",
+      "types": "./dist/transaction-events/main.d.ts",
+      "default": "./dist/transaction-events/main.js"
+    },
+    "./routed-events": {
+      "deno": "./src/routed-events/main.ts",
+      "types": "./dist/routed-events/main.d.ts",
+      "default": "./dist/routed-events/main.js"
+    },
+    "./credentials": {
+      "deno": "./src/credentials/main.ts",
+      "types": "./dist/credentials/main.d.ts",
+      "default": "./dist/credentials/main.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "test": "node --test --no-warnings 'src/**/*.test.ts'",
+    "test:vector": "node --test --no-warnings 'test_vectors/**/*.test.ts'",
+    "pretest:consumer": "npm run build",
+    "test:consumer": "node --test --no-warnings 'test_consumer/**/*.test.ts'",
+    "lint": "biome check . && node --no-warnings scripts/check-imports.ts",
+    "lint:fix": "biome check --write . && node --no-warnings scripts/check-imports.ts",
+    "precheck": "npm run build",
+    "check": "tsc --noEmit",
+    "clean": "node scripts/clean.ts",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.0",
+    "@noble/hashes": "^2.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@keri-js/infra": "workspace:*",
-    "@playwright/test": "^1.62.1",
     "@types/debug": "^4.1.13",
     "@types/node": "^22.15.30",
-    "cesr": "workspace:*",
-    "concurrently": "^9.2.1",
     "debug": "^4.4.3",
-    "keri": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

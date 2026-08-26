@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { createReadStream } from "node:fs";
 import { describe, test } from "node:test";
-import { encodeText, Matter, parse } from "cesr";
-import { decodeBase64Url, encodeBase64Url } from "cesr/encoding";
+import { encodeText, Matter, parse } from "keri/cesr";
+import { decodeBase64Url, encodeBase64Url } from "keri/encoding";
 
 const fixture = (name: string) => new URL(`../fixtures/${name}`, import.meta.url);
 

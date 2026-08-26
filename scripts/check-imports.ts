@@ -2,64 +2,29 @@ import { glob, readFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
+const SRC = resolve(ROOT, "src");
 
-interface Package {
-  name: string;
-  src: string;
-  private: boolean;
-  dependencies: Set<string>;
-}
-
-const packages: Package[] = [];
-
-for await (const file of glob("packages/*/package.json", { cwd: ROOT })) {
-  const dir = resolve(ROOT, dirname(file));
-  const manifest = JSON.parse(await readFile(resolve(ROOT, file), "utf8"));
-
-  packages.push({
-    name: manifest.name,
-    src: resolve(dir, "src"),
-    private: manifest.private === true,
-    dependencies: new Set(Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies })),
-  });
-}
+const manifest = JSON.parse(await readFile(resolve(ROOT, "package.json"), "utf8"));
+const NAME: string = manifest.name;
+const dependencies = new Set(Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies }));
 
 const importRegex = /(?:from|import)\s+["']([^"']+)["']/g;
 const violations: string[] = [];
 
-interface Location {
-  pkg: Package;
-  path: string;
+/** Path relative to `src`, or null when the file lives outside the published source. */
+function locate(absFile: string): string | null {
+  const path = relative(SRC, absFile);
+  return path.startsWith("..") ? null : path;
 }
 
-function locate(absFile: string): Location | null {
-  for (const pkg of packages) {
-    const path = relative(pkg.src, absFile);
-    if (!path.startsWith("..")) {
-      return { pkg, path };
-    }
-  }
-
-  return null;
+function submodule(path: string): string {
+  return path.split("/")[0];
 }
 
-function submodule(location: Location): string {
-  return location.path.split("/")[0];
-}
-
-// Everything outside a package's `src` — apps, scripts, interop and consumer tests — consumes the
-// libraries as a published package would, so it must enter through a bare specifier.
+// Everything outside `src` — scripts, consumer tests, vector tests — consumes the library the way a
+// dependent would, so it must enter through the package name.
 const files = glob(
-  [
-    "packages/*/src/**/*.ts",
-    "packages/*/test_vectors/**/*.ts",
-    "apps/**/*.{ts,tsx}",
-    "scripts/**/*.ts",
-    "test_interop/**/*.ts",
-    "test_consumer/**/*.ts",
-    "test_utils/**/*.ts",
-    "test_e2e/**/*.ts",
-  ],
+  ["src/**/*.ts", "test_vectors/**/*.ts", "scripts/**/*.ts", "test_consumer/**/*.ts", "test_utils/**/*.ts"],
   { cwd: ROOT },
 );
 
@@ -77,37 +42,33 @@ for await (const file of files) {
       }
 
       if (spec.startsWith("node:")) {
-        // Platform-specific bindings are confined to a `node` submodule of an unpublished package,
-        // so everything we publish stays runnable in the browser. Tests are exempt — they run on Node.
-        if (!(from.pkg.private && submodule(from) === "node") && !file.endsWith(".test.ts")) {
-          violations.push(
-            `${file}: imports "${spec}" — node: builtins belong in the "node" submodule of a private package`,
-          );
+        // Keeps src runnable on Deno and in the browser. Tests are exempt — they run on Node.
+        if (!file.endsWith(".test.ts")) {
+          violations.push(`${file}: imports "${spec}" — node: builtins do not belong in src`);
         }
         continue;
       }
 
-      // A package may only import what it declares, or pnpm's isolated node_modules resolves it
-      // through the workspace root and the published package breaks for everyone else.
+      // npm hoists, so an undeclared dependency would resolve here and break for everyone who
+      // installs the published package. This check is what catches it.
       const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
-      if (name !== from.pkg.name && !from.pkg.dependencies.has(name)) {
-        violations.push(`${file}: imports "${spec}" — not a dependency of ${from.pkg.name}`);
+      if (name !== NAME && !dependencies.has(name)) {
+        violations.push(`${file}: imports "${spec}" — not a dependency of ${NAME}`);
       }
       continue;
     }
 
-    const absTarget = resolve(dirname(absFile), spec);
-    const to = locate(absTarget);
+    const to = locate(resolve(dirname(absFile), spec));
 
     if (from === null) {
       if (to !== null) {
-        violations.push(`${file}: imports "${spec}" — reach ${to.pkg.name} through its package name`);
+        violations.push(`${file}: imports "${spec}" — reach the library through "${NAME}"`);
       }
       continue;
     }
 
-    if (to === null || to.pkg !== from.pkg) {
-      violations.push(`${file}: imports "${spec}" — leaves package ${from.pkg.name}, use a package name`);
+    if (to === null) {
+      violations.push(`${file}: imports "${spec}" — leaves src`);
       continue;
     }
 
@@ -116,7 +77,7 @@ for await (const file of files) {
     }
 
     // Either the package entry (`src/main.ts`) or a submodule's (`src/<mod>/main.ts`).
-    if (to.path !== "main.ts" && to.path !== `${submodule(to)}/main.ts`) {
+    if (to !== "main.ts" && to !== `${submodule(to)}/main.ts`) {
       violations.push(`${file}: imports "${spec}" — must target src/main.ts or ../${submodule(to)}/main.ts`);
     }
   }

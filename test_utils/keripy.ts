@@ -1,5 +1,5 @@
 import type { Buffer } from "node:buffer";
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -39,9 +39,6 @@ export class KERIPy {
 
     this.name = `test_${randomBytes(4).toString("hex")}`;
     this.base = opts.base;
-    // keripy 1.3.6's `kli witness start` refuses non-interactive startup for
-    // keystores without a passcode (its aeid guard checks `is None` while
-    // --nopasscode stores ''), so witness keystores get one.
     this.passcode = opts.passcode;
     this.debug = debug(`keripy:${this.name}`);
 
@@ -97,10 +94,6 @@ export class KERIPy {
     });
   }
 
-  cleanup(): void {
-    // Not implemented
-  }
-
   async init(opts: { salt?: string } = {}): Promise<void> {
     // baseArgs already carries --passcode when one is configured.
     const args = ["init", "--name", this.name, ...this.baseArgs, ...(this.passcode ? [] : ["--nopasscode"])];
@@ -110,32 +103,11 @@ export class KERIPy {
     await this.run(args);
   }
 
-  oobi = {
-    resolve: async (oobi: string, alias?: string): Promise<void> => {
-      const args = ["oobi", "resolve", "--name", this.name, ...this.baseArgs];
-      if (alias) {
-        args.push("--oobi-alias", alias);
-      }
-      args.push("--oobi", oobi);
-      await this.run(args);
-    },
-  };
-
   async status(): Promise<void> {
     await this.run(["status", "--name", this.name, ...this.baseArgs]);
   }
 
-  async incept(
-    opts: {
-      alias?: string;
-      wits?: string[];
-      toad?: number;
-      receiptEndpoint?: boolean;
-      transferable?: boolean;
-      delpre?: string;
-      proxy?: string;
-    } = {},
-  ): Promise<void> {
+  async incept(opts: { alias?: string; transferable?: boolean } = {}): Promise<void> {
     const args: string[] = [
       "incept",
       "--name",
@@ -151,26 +123,25 @@ export class KERIPy {
       "1",
       "--nsith",
       "1",
+      "--toad",
+      "0",
     ];
 
     if (opts.transferable !== false) {
       args.push("--transferable");
     }
 
-    if (opts.toad !== undefined) {
-      args.push("--toad", String(opts.toad));
-    }
-    for (const wit of opts.wits ?? []) {
-      args.push("--wits", wit);
-    }
-    if (opts.receiptEndpoint) {
-      args.push("--receipt-endpoint");
-    }
-    if (opts.delpre) {
-      args.push("--delpre", opts.delpre);
-    }
-    if (opts.proxy) {
-      args.push("--proxy", opts.proxy);
+    await this.run(args);
+  }
+
+  async rotate(opts: { alias?: string } = {}): Promise<void> {
+    await this.run(["rotate", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
+  }
+
+  async interact(opts: { alias?: string; data?: unknown } = {}): Promise<void> {
+    const args = ["interact", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs];
+    if (opts.data !== undefined) {
+      args.push("--data", JSON.stringify(opts.data));
     }
     await this.run(args);
   }
@@ -179,109 +150,10 @@ export class KERIPy {
     return this.run(["aid", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }
 
+  /** The alias' KEL as a CESR stream. */
   async export(opts: { alias?: string } = {}): Promise<string> {
     return this.run(["export", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
   }
-
-  async rotate(opts: { alias?: string } = {}): Promise<void> {
-    await this.run(["rotate", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);
-  }
-
-  ends = {
-    add: async (opts: { alias?: string; eid: string; role?: string }): Promise<void> => {
-      await this.run([
-        "ends",
-        "add",
-        "--name",
-        this.name,
-        "--alias",
-        opts.alias ?? this.name,
-        ...this.baseArgs,
-        "--role",
-        opts.role ?? "mailbox",
-        "--eid",
-        opts.eid,
-      ]);
-    },
-  };
-
-  mailbox = {
-    /** `mailbox` is a contact alias or AID; the mailbox must be resolved as a contact first. */
-    add: async (opts: { alias?: string; mailbox: string }): Promise<void> => {
-      await this.run([
-        "mailbox",
-        "add",
-        "--name",
-        this.name,
-        "--alias",
-        opts.alias ?? this.name,
-        ...this.baseArgs,
-        "--mailbox",
-        opts.mailbox,
-      ]);
-    },
-  };
-
-  location = {
-    add: async (opts: { url: string }): Promise<void> => {
-      await this.run([
-        "location",
-        "add",
-        "--name",
-        this.name,
-        "--alias",
-        this.name,
-        ...this.baseArgs,
-        "--url",
-        opts.url,
-      ]);
-    },
-  };
-
-  witness = {
-    start: (opts: {
-      http: number;
-      tcp: number;
-      logLevel?: string;
-      signal?: AbortSignal;
-    }): ChildProcessWithoutNullStreams => {
-      const args = [
-        "witness",
-        "start",
-        "--name",
-        this.name,
-        "--alias",
-        this.name,
-        ...this.baseArgs,
-        "--loglevel",
-        opts.logLevel ?? "CRITICAL",
-        "-H",
-        String(opts.http),
-        "-T",
-        String(opts.tcp),
-      ];
-      const command = `kli ${args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg)).join(" ")}`;
-      this.log(command);
-      const child = spawn(KLI, args, { signal: opts.signal });
-      child.on("error", (error: Error) => {
-        this.log(`failed to start ${command}: ${error.message}`);
-      });
-      child.on("exit", (code, signal) => {
-        this.log(`witness process exited with code=${code ?? "null"} signal=${signal ?? "null"}`);
-      });
-      child.stdout.on("data", (d: Buffer) => {
-        for (const line of d.toString().split("\n").filter(Boolean)) {
-          this.log(line);
-        }
-      });
-      child.stderr.on("data", (d: Buffer) => {
-        for (const line of d.toString().split("\n").filter(Boolean)) {
-          this.log(line);
-        }
-      });
-      return child;
-    },
-  };
 
   registry = {
     incept: async (opts: { registryName: string }): Promise<void> => {
@@ -296,106 +168,6 @@ export class KERIPy {
         ...this.baseArgs,
         "--registry-name",
         opts.registryName,
-      ]);
-    },
-  };
-
-  async query(opts: { prefix: string }): Promise<void> {
-    await this.run(["query", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--prefix", opts.prefix]);
-  }
-
-  delegate = {
-    confirm: async (opts: { alias?: string; interact?: boolean; auto?: boolean } = {}): Promise<void> => {
-      const args = ["delegate", "confirm", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs];
-      if (opts.interact !== false) {
-        args.push("--interact");
-      }
-      if (opts.auto !== false) {
-        args.push("--auto");
-      }
-      await this.run(args);
-    },
-  };
-
-  challenge = {
-    generate: async (): Promise<string[]> => {
-      const output = await this.run(["challenge", "generate", "--out", "json"]);
-      return JSON.parse(output) as string[];
-    },
-    verify: async (opts: { words: string[]; signer: string }): Promise<void> => {
-      await this.run([
-        "challenge",
-        "verify",
-        "--name",
-        this.name,
-        "--alias",
-        this.name,
-        ...this.baseArgs,
-        "--words",
-        opts.words.join(" "),
-        "--signer",
-        opts.signer,
-      ]);
-    },
-    /** `recipient` is a contact alias, so resolve the recipient's OOBI with that alias first. */
-    respond: async (opts: { alias?: string; words: string[]; recipient: string }): Promise<void> => {
-      await this.run([
-        "challenge",
-        "respond",
-        "--name",
-        this.name,
-        "--alias",
-        opts.alias ?? this.name,
-        ...this.baseArgs,
-        "--words",
-        opts.words.join(" "),
-        "--recipient",
-        opts.recipient,
-      ]);
-    },
-  };
-
-  ipex = {
-    list: async (opts: { type?: string; poll?: boolean; said?: boolean } = {}): Promise<string[]> => {
-      const args = ["ipex", "list", "--name", this.name, ...this.baseArgs];
-      if (opts.type) {
-        args.push("--type", opts.type);
-      }
-      if (opts.poll) {
-        args.push("--poll");
-      }
-      if (opts.said) {
-        args.push("--said");
-      }
-      const output = await this.run(args);
-      return output.split("\n").filter((line) => line.trim().length > 0);
-    },
-    admit: async (said: string): Promise<void> => {
-      try {
-        // Longer than the default: admit polls its mailbox for the TEL replay
-        // before it can verify and respond.
-        await this.run(
-          ["ipex", "admit", "--name", this.name, "--alias", this.name, ...this.baseArgs, "--said", said],
-          60000,
-        );
-      } catch {
-        // kli ipex admit may exit non-zero but still succeed
-      }
-    },
-    grant: async (opts: { said: string; recipient: string; message?: string }): Promise<void> => {
-      await this.run([
-        "ipex",
-        "grant",
-        "--name",
-        this.name,
-        "--alias",
-        this.name,
-        ...this.baseArgs,
-        "--said",
-        opts.said,
-        "--recipient",
-        opts.recipient,
-        ...(opts.message ? ["--message", opts.message] : []),
       ]);
     },
   };

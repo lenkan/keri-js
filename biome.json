@@ -1,18 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": [
-      "**",
-      "!.claude",
-      "!**/dist",
-      "!**/.wrangler",
-      "!**/worker-configuration.d.ts",
-      "!**/api-docs",
-      "!**/.venv",
-      "!**/docs",
-      "!**/test-results",
-      "!**/playwright-report"
-    ]
+    "includes": ["**", "!.claude", "!**/dist", "!**/api-docs", "!**/.venv", "!**/docs"]
   },
   "formatter": {
     "lineWidth": 120,
@@ -44,7 +33,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/scripts/**/*.ts", "**/test_interop/**/*.ts", "**/test_utils/**/*.ts", "**/test_e2e/**/*.ts"],
+      "includes": ["**/scripts/**/*.ts", "**/test_utils/**/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

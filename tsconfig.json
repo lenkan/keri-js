@@ -1,11 +1,14 @@
 {
-  "extends": "./tsconfig.base.json",
-  "include": [
-    "playwright.config.ts",
-    "scripts/**/*.ts",
-    "test_e2e/**/*.ts",
-    "test_interop/**/*.ts",
-    "test_consumer/**/*.ts",
-    "test_utils/**/*.ts"
-  ]
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "test_vectors/**/*.ts", "test_consumer/**/*.ts", "test_utils/**/*.ts"]
 }

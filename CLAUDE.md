@@ -2,36 +2,46 @@
 
 ## Project Overview
 
-KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic key management and identity framework. It is a pnpm workspace of three packages, two of them published:
+KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic
+key management and identity framework. It is a single published package, `keri`, containing only
+primitives: pure over bytes, no transport, no storage, no platform.
 
-| Package | Published | Contents |
-| --- | --- | --- |
-| `cesr` | yes | CESR encoding and stream parsing |
-| `keri` | yes | key events, key event logs, credentials, verification — no I/O |
-| `@keri-js/infra` | no | witness, mailbox, controller, HTTP clients, storage, Node bindings |
+Witness, mailbox, controller and verifier implementations, the HTTP layer and the apps that
+composed them are **not** in this repository. They live on the `legacy` branch and are being moved
+to a separate closed-source service.
 
-`cesr` and `keri` are the toolbox: pure over bytes, no transport, no storage, no platform. `@keri-js/infra` holds the reference implementations that need I/O, and `apps/` composes them into runnable demos (`witness`, `mailbox`, `controller` CLI, `verifier`). Infra is where designs churn; things graduate into `keri` only once they have proven themselves there.
+Each submodule has a `main.ts` that defines its public surface. Cross-submodule imports must target
+`../<submodule>/main.ts` or `../main.ts` — never reach into another submodule's internal files.
+Anything outside `src/` (scripts, `test_consumer/`, `test_vectors/`, `test_utils/`) consumes the
+library through the package name (`keri`, `keri/cesr`, `keri/encoding`, …), the way a dependent
+would. Both rules are enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
 
-Each submodule has a `main.ts` that defines its public surface. Within a package, cross-submodule imports must target `../<submodule>/main.ts` — never reach into another submodule's internal files. Across packages, and from anything outside `packages/*/src`, use the package name (`cesr`, `cesr/encoding`, `keri`, `@keri-js/infra/witness`, …). Both rules are enforced by `scripts/check-imports.ts`, run as part of `pnpm run lint`.
+`node:` builtins may not be imported from `src/` at all; `*.test.ts` files are exempt. This keeps
+the package runnable on Deno and in the browser, and is enforced by the same script.
 
-`node:` builtins may only be imported from a submodule named `node` (`@keri-js/infra/node`); `*.test.ts` files are exempt. This keeps every other submodule runnable on Deno and in the browser, and is enforced by the same script.
+That script also rejects any bare import that is not a declared dependency. npm hoists, so an
+undeclared dependency would resolve locally and break for everyone installing the published
+package — this check is the only thing that catches it.
 
-Workspace members are declared in `pnpm-workspace.yaml`, and sibling dependencies use the `workspace:*` protocol so they can never resolve from the registry. `pnpm pack` rewrites `workspace:*` to the exact version being packed.
-
-Packages resolve each other through built `dist/` (`keri` → `cesr`, `@keri-js/infra` → `keri`), so **the build must run before check, test or the apps**. The `pretest`/`precheck` hooks do this automatically; `tsc -b` keeps it incremental.
+Unit tests run directly off `src/` with no build step, since Node strips types natively.
+`test:consumer` is the exception: it imports the package by name, so it resolves through `dist` and
+its `pretest:consumer` hook builds first.
 
 ## Commands
 
 ```sh
-pnpm --filter @keri-js/verifier run check   # Type-check the app (needs a full `pnpm install`)
+npm run test            # Unit tests, no build needed
+npm run test:vector     # CESR test vectors
+npm run test:consumer   # Public surface through the package name
+npm run lint            # Biome + import boundary check
+npm run check           # tsc --noEmit
 ```
-
-pnpm's isolated `node_modules` means an undeclared dependency fails rather than resolving through hoisting. Anything imported from `scripts/`, `test_interop/` or `test_consumer/` must be declared in the root `package.json`.
 
 ## TypeScript & Code Style
 
 - Cryptography uses `@noble/*` libraries exclusively
-- The published packages ship `dist` **and** `src`, and their `exports` carry a `deno` condition pointing at the TypeScript source:
+- The package ships `dist` **and** `src`, and its `exports` carry a `deno` condition pointing at the
+  TypeScript source:
 
   ```json
   ".": {
@@ -41,15 +51,24 @@ pnpm's isolated `node_modules` means an undeclared dependency fails rather than 
   }
   ```
 
-  Deno therefore reads the source and never touches the emitted output, which sidesteps the fact that `rewriteRelativeImportExtensions` leaves declarations pointing at `.ts` ([microsoft/TypeScript#61037](https://github.com/microsoft/TypeScript/issues/61037), open) and that Deno does not pick up a sibling `.d.ts` on its own. Node and bundlers fall through to `default` and get `dist`. Condition order matters: `deno` must come first.
+  Deno therefore reads the source and never touches the emitted output, which sidesteps the fact
+  that `rewriteRelativeImportExtensions` leaves declarations pointing at `.ts`
+  ([microsoft/TypeScript#61037](https://github.com/microsoft/TypeScript/issues/61037), open) and
+  that Deno does not pick up a sibling `.d.ts` on its own. Node and bundlers fall through to
+  `default` and get `dist`. Condition order matters: `deno` must come first.
+- `src/cesr/codes.ts` is generated by `scripts/generate-codec.py` from KERIpy's code tables. Do not
+  edit it by hand.
 
 ## Spec references
 
-Curated, implementation-focused summaries of the protocols this codebase implements live under `docs/specs/`. Consult them before diving into upstream specs — they cover field labels, code tables, parsing logic, and cross-references to the source:
+Curated, implementation-focused summaries of the protocols this codebase implements live under
+`docs/specs/`. Consult them before diving into upstream specs — they cover field labels, code
+tables, parsing logic, and cross-references to the source:
 
 - [`docs/specs/cesr.md`](docs/specs/cesr.md) — CESR encoding, code tables, stream parsing (v1 + v2)
 - [`docs/specs/keri.md`](docs/specs/keri.md) — KERI events, SAIDs, seals, witnesses (v1)
 - [`docs/specs/acdc.md`](docs/specs/acdc.md) — ACDC body, schema/attribute/edge/rule sections, IPEX, TEL registries (v1)
 - [`docs/kawa.md`](docs/kawa.md) — KAWA witness-agreement protocol detail
 
-For anything not covered in the curated docs, fall back to the upstream specs linked at the top of each file.
+For anything not covered in the curated docs, fall back to the upstream specs linked at the top of
+each file.
