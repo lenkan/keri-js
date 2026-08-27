@@ -1,4 +1,4 @@
-import { Matter, Message } from "../cesr/main.ts";
+import { Matter, Message, type SealSourceCouple } from "../cesr/main.ts";
 import { DUMMY_VERSION, encodeEvent } from "./events.ts";
 import type { Threshold } from "./threshold.ts";
 
@@ -32,6 +32,8 @@ export interface InceptArgs {
   nextThreshold?: Threshold;
   backers?: string[];
   backerThreshold?: number;
+  /** Configuration traits, from KERI's `TraitDex`: `EO` (establishment only), `DND` (do not delegate). */
+  configTraits?: string[];
 }
 
 export interface InteractArgs {
@@ -101,7 +103,8 @@ export type RotateEventBody = {
 
 export type DipEventBody = Omit<InceptEventBody, "t"> & { t: "dip"; di: string };
 
-export type DrtEventBody = Omit<RotateEventBody, "t"> & { t: "drt"; di: string };
+/** No `di`: v1 gives `drt` the same fields as `rot`. The delegator is established by the `dip`. */
+export type DrtEventBody = Omit<RotateEventBody, "t"> & { t: "drt" };
 
 export function isTransferable(key: string) {
   const raw = Matter.parse(key);
@@ -149,6 +152,23 @@ function backerThreshold(explicit: number | undefined, backers: string[]): strin
   return toThreshold(Math.min(n, Math.ceil((n + least + 1) / 2), Math.ceil((n + most + 1) / 2)));
 }
 
+/** A key event seal: what an anchoring event puts in its `a` to commit to `event`. */
+export function keyEventSeal(event: Message<KeyEventBody>): { i: string; s: string; d: string } {
+  return { i: event.body.i, s: event.body.s, d: event.body.d };
+}
+
+/**
+ * Point `event` at the event that anchors it, as a `SealSourceCouple`.
+ *
+ * The couple names `anchoring` — the delegator's `ixn`, or the issuer's — not the event being
+ * anchored, and renames its `s`/`d` to `snu`/`digest` on the way.
+ */
+export function attachSourceSeal(event: Message, anchoring: Message<KeyEventBody>): SealSourceCouple {
+  const couple = { snu: anchoring.body.s, digest: anchoring.body.d };
+  event.attachments.SealSourceCouples.push(couple);
+  return couple;
+}
+
 /** The backer set a rotation establishes, which is the one that has to receipt it. */
 export function applyBackerChanges(backers: string[], removed: string[], added: string[]): string[] {
   return backers.filter((backer) => !removed.includes(backer)).concat(added);
@@ -177,7 +197,7 @@ export function incept(args: InceptArgs): Message<InceptEventBody> {
       n: args.nextKeyDigests,
       bt: backerThreshold(args.backerThreshold, backers),
       b: backers,
-      c: [] as string[],
+      c: args.configTraits ?? ([] as string[]),
       a: [] as Record<string, unknown>[],
     },
     { labels },
@@ -256,7 +276,7 @@ export function delegatedIncept(args: DelegatedInceptArgs): Message<DipEventBody
       n: args.nextKeyDigests,
       bt: backerThreshold(args.backerThreshold, backers),
       b: backers,
-      c: [] as string[],
+      c: args.configTraits ?? ([] as string[]),
       a: [] as Record<string, unknown>[],
       di: args.delegator,
     },
@@ -295,7 +315,6 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Mes
       br: args.removeBackers ?? ([] as string[]),
       ba: args.addBackers ?? ([] as string[]),
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
-      di: state.delegator,
     },
     { labels: ["d"] },
   );

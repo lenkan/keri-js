@@ -57,12 +57,14 @@ export type {
   RotateEventBody,
 } from "./key-event.ts";
 export {
+  attachSourceSeal,
   delegatedIncept,
   delegatedRotate,
   incept,
   interact,
   isEstablishment,
   isKeyEvent,
+  keyEventSeal,
   rotate,
 } from "./key-event.ts";
 export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";

@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "../cesr/main.ts";
-import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
+import { attachSourceSeal, delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { signWith as sign } from "./signing.test.ts";
@@ -507,6 +507,59 @@ describe(basename(import.meta.url), () => {
       assert.throws(() => dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator }), {
         message: /No anchoring event found in delegator KEL/,
       });
+    });
+
+    // A drt carries no `di`, so the delegator it is held to is the one the dip established.
+    test("should throw when a drt is appended under a different delegator KEL", () => {
+      const delegatorKey = generateKeyPair();
+      const delegatorNext = generateKeyPair();
+      const delegateKey = generateKeyPair();
+      const delegateNext = generateKeyPair();
+      const delegateNext2 = generateKeyPair();
+
+      let delegator = makeDelegator(delegatorKey, delegatorNext);
+      const dip = delegatedIncept({
+        signingKeys: [delegateKey.publicKey],
+        nextKeyDigests: [delegateNext.publicKeyDigest],
+        delegator: delegator.state.identifier,
+      });
+      delegator = anchorDip(delegator, delegatorKey, dip.body);
+
+      const dipSigs = sign(dip, [delegateKey]);
+      const dipLog = KeyEventLog.empty().append(new Message(dip.body, { ControllerIdxSigs: dipSigs }), { delegator });
+
+      const drt = delegatedRotate(dipLog.state, {
+        signingKeys: [delegateNext.publicKey],
+        nextKeyDigests: [delegateNext2.publicKeyDigest],
+      });
+      const drtSigs = sign(drt, [delegateNext]);
+
+      const impostorKey = generateKeyPair();
+      const impostor = anchorDip(makeDelegator(impostorKey, generateKeyPair()), impostorKey, drt.body);
+
+      assert.throws(
+        () => dipLog.append(new Message(drt.body, { ControllerIdxSigs: drtSigs }), { delegator: impostor }),
+        { message: /Delegation mismatch/ },
+      );
+    });
+
+    test("should accept a dip whose couple was built by attachSourceSeal", () => {
+      const delegatorKey = generateKeyPair();
+      const delegateKey = generateKeyPair();
+
+      let delegator = makeDelegator(delegatorKey, generateKeyPair());
+      const dip = delegatedIncept({
+        signingKeys: [delegateKey.publicKey],
+        nextKeyDigests: [generateKeyPair().publicKeyDigest],
+        delegator: delegator.state.identifier,
+      });
+      delegator = anchorDip(delegator, delegatorKey, dip.body);
+
+      const message = new Message(dip.body, { ControllerIdxSigs: sign(dip, [delegateKey]) });
+      attachSourceSeal(message, delegator.events[delegator.events.length - 1]);
+
+      const log = KeyEventLog.empty().append(message, { delegator });
+      assert.equal(log.state.delegator, delegator.state.identifier);
     });
 
     test("should accept dip when SealSourceTriple with matching prefix points at the anchoring event", () => {

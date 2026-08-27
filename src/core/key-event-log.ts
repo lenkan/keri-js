@@ -200,7 +200,7 @@ export class KeyEventLog {
         }
 
         if (body.t === "dip" && delegator) {
-          verifyDelegationAnchor(body as DipEventBody, message.attachments, delegator);
+          verifyDelegationAnchor(body as DipEventBody, (body as DipEventBody).di, message.attachments, delegator);
         }
         break;
       }
@@ -244,7 +244,7 @@ export class KeyEventLog {
         }
 
         if (body.t === "drt" && delegator) {
-          verifyDelegationAnchor(body as DrtEventBody, message.attachments, delegator);
+          verifyDelegationAnchor(body as DrtEventBody, state.delegator, message.attachments, delegator);
         }
         break;
       }
@@ -322,14 +322,20 @@ export function findSealAnchor(
   return null;
 }
 
+/**
+ * `expected` rather than a field on the body: a `dip` names its delegator in `di`, but a `drt`
+ * carries no such field — v1 gives it the same fields as `rot` — so the delegator comes from the
+ * state the `dip` established.
+ */
 function verifyDelegationAnchor(
   body: DipEventBody | DrtEventBody,
+  expected: string | undefined,
   attachments: Attachments,
   delegator: KeyEventLog,
 ): void {
-  if (body.di !== delegator.state.identifier) {
+  if (expected !== delegator.state.identifier) {
     throw new Error(
-      `Delegation mismatch: event di=${body.di} does not match delegator KEL identifier=${delegator.state.identifier}`,
+      `Delegation mismatch: event di=${expected} does not match delegator KEL identifier=${delegator.state.identifier}`,
     );
   }
 
@@ -340,13 +346,15 @@ function verifyDelegationAnchor(
 
   switch (failure?.kind) {
     case "hint-missing":
-      throw new Error(`Delegator anchor not found in KEL: s=${failure.snu} d=${failure.digest} (delegator=${body.di})`);
+      throw new Error(
+        `Delegator anchor not found in KEL: s=${failure.snu} d=${failure.digest} (delegator=${expected})`,
+      );
     case "hint-unanchored":
       throw new Error(
         `Delegator event ${failure.digest} does not anchor ${body.t} ${body.d}: missing matching key-event seal in a[]`,
       );
     case "unanchored":
-      throw new Error(`No anchoring event found in delegator KEL for ${body.t} ${body.d} (delegator=${body.di})`);
+      throw new Error(`No anchoring event found in delegator KEL for ${body.t} ${body.d} (delegator=${expected})`);
   }
 }
 

@@ -22,12 +22,14 @@ export type {
   RotateEventBody,
 } from "../core/main.ts";
 export {
+  attachSourceSeal,
   delegatedIncept,
   delegatedRotate,
   incept,
   interact,
   isEstablishment,
   isKeyEvent,
+  keyEventSeal,
   receipt,
   rotate,
 } from "../core/main.ts";

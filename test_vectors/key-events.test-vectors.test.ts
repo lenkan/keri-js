@@ -66,6 +66,8 @@ type Establishment = {
   b?: string[];
   br?: string[];
   ba?: string[];
+  c?: string[];
+  di?: string;
 };
 
 const FIXTURES = new URL("../fixtures/events/", import.meta.url);
@@ -143,30 +145,39 @@ function signers(entry: Case, keys: string[], available: ReadonlyMap<string, Sig
 function build(entry: Case, state: KeyState | null): Message<KeyEventBody> {
   const sad = entry.sad as unknown as Establishment;
 
+  const inception = {
+    signingKeys: sad.k,
+    signingThreshold: sad.kt,
+    nextKeyDigests: sad.n,
+    nextThreshold: sad.nt,
+    backers: sad.b,
+    backerThreshold: Number.parseInt(sad.bt, 16),
+    configTraits: sad.c,
+  };
+
+  const rotation = {
+    signingKeys: sad.k,
+    signingThreshold: sad.kt,
+    nextKeyDigests: sad.n,
+    nextThreshold: sad.nt,
+    removeBackers: sad.br,
+    addBackers: sad.ba,
+    backerThreshold: Number.parseInt(sad.bt, 16),
+  };
+
   switch (entry.sad.t) {
     case "icp":
-      return KeyEvent.incept({
-        signingKeys: sad.k,
-        signingThreshold: sad.kt,
-        nextKeyDigests: sad.n,
-        nextThreshold: sad.nt,
-        backers: sad.b,
-        backerThreshold: Number.parseInt(sad.bt, 16),
-      });
+      return KeyEvent.incept(inception);
+    case "dip":
+      return KeyEvent.delegatedIncept({ ...inception, delegator: sad.di as string });
     case "ixn": {
       const data = (entry.sad as { a?: Record<string, unknown>[] }).a?.[0];
       return KeyEvent.interact(state as KeyState, data ? { data } : {});
     }
     case "rot":
-      return KeyEvent.rotate(state as KeyState, {
-        signingKeys: sad.k,
-        signingThreshold: sad.kt,
-        nextKeyDigests: sad.n,
-        nextThreshold: sad.nt,
-        removeBackers: sad.br,
-        addBackers: sad.ba,
-        backerThreshold: Number.parseInt(sad.bt, 16),
-      });
+      return KeyEvent.rotate(state as KeyState, rotation);
+    case "drt":
+      return KeyEvent.delegatedRotate(state as KeyState, rotation);
     default:
       throw new Error(`Unhandled event type ${entry.sad.t}`);
   }
@@ -191,8 +202,25 @@ function expectedState(state: KeyStateRecord): KeyState {
 }
 
 /**
- * Each event is built from the state its predecessors settled, so one failure blocks the rest —
- * they report that instead of a stale diff.
+ * The delegator's event that commits to `message`, found by the seal it carries. Derived rather
+ * than read out of the fixture's own `SealSourceCouple`, which would assert nothing.
+ */
+function anchoringEvent(message: Message<KeyEventBody>, delegator: KeyEventLog): Message<KeyEventBody> {
+  const seal = KeyEvent.keyEventSeal(message);
+  const anchoring = delegator.events.find((event) =>
+    ((event.body as { a?: { i?: string; s?: string; d?: string }[] }).a ?? []).some(
+      (candidate) => candidate.i === seal.i && candidate.s === seal.s && candidate.d === seal.d,
+    ),
+  );
+
+  assert.ok(anchoring, `no event in ${delegator.state.identifier} anchors ${message.body.t} ${message.body.d}`);
+  return anchoring;
+}
+
+/**
+ * Each event is built from the state its own identifier's predecessors settled, so one failure
+ * blocks the rest of that identifier — they report that instead of a stale diff. A delegated log
+ * carries two identifiers, and a broken delegate must not be reported as a diff on the delegator.
  *
  * KERIpy signs a backered event with its witnesses; keri-js has no way to produce those, so what
  * it rebuilds is replayed without requiring them.
@@ -201,27 +229,39 @@ function rebuild(log: Log) {
   const available = new Map([...log.controllers, ...log.backers].map((key) => [key.public, signerFor(key)]));
 
   const results: { entry: Case; message?: Message<KeyEventBody>; error?: unknown }[] = [];
-  let events = KeyEventLog.empty();
-  let state: KeyState | null = null;
-  let blocked: string | null = null;
+  const logs = new Map<string, KeyEventLog>();
+  const blocked = new Map<string, string>();
 
   for (const entry of log.events) {
-    if (blocked) {
-      results.push({ entry, error: new Error(`not reached: ${blocked} failed earlier in the KEL`) });
+    const identifier = entry.sad.i as string;
+    const stalled = blocked.get(identifier);
+    if (stalled) {
+      results.push({ entry, error: new Error(`not reached: ${stalled} failed earlier in the KEL`) });
       continue;
     }
 
     try {
+      const events = logs.get(identifier) ?? KeyEventLog.empty();
+      const state = events.events.length > 0 ? events.state : null;
+
       const message = build(entry, state);
       const keys = (entry.sad as unknown as Establishment).k ?? (state as KeyState).signingKeys;
       signEvent(message, { signers: signers(entry, keys, available), state: state ?? undefined });
 
-      // `append` verifies the signatures, so the chain also checks that what we built parses back.
-      events = events.append(message, { allowPartiallyWitnessed: true });
-      state = events.state;
+      let delegator: KeyEventLog | undefined;
+      if (message.body.t === "dip" || message.body.t === "drt") {
+        const delegatorAid = message.body.t === "dip" ? (entry.sad.di as string) : (state as KeyState).delegator;
+        delegator = logs.get(delegatorAid as string);
+        assert.ok(delegator, `${entry.name} is delegated by ${delegatorAid}, which the log does not carry`);
+        KeyEvent.attachSourceSeal(message, anchoringEvent(message, delegator));
+      }
+
+      // `append` verifies the signatures — and, for a delegated event, the anchor — so the chain
+      // also checks that what we built parses back.
+      logs.set(identifier, events.append(message, { allowPartiallyWitnessed: true, delegator }));
       results.push({ entry, message });
     } catch (error) {
-      blocked = entry.name;
+      blocked.set(identifier, entry.name);
       results.push({ entry, error });
     }
   }

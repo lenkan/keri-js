@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { Message } from "../cesr/main.ts";
-import { delegatedIncept, delegatedRotate, incept, interact, rotate } from "./key-event.ts";
+import {
+  attachSourceSeal,
+  delegatedIncept,
+  delegatedRotate,
+  incept,
+  interact,
+  keyEventSeal,
+  rotate,
+} from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
 import { signWith as sign } from "./signing.test.ts";
@@ -178,6 +186,18 @@ describe(basename(import.meta.url), () => {
       const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [next.publicKeyDigest] });
       const body = event.body;
       assert.equal(body.d, body.i);
+    });
+
+    test("should default to no config traits", () => {
+      const key = generateKeyPair({ insecureSeed: "k0" });
+      const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [] });
+      assert.deepEqual(event.body.c, []);
+    });
+
+    test("should write the given config traits", () => {
+      const key = generateKeyPair({ insecureSeed: "k0" });
+      const event = incept({ signingKeys: [key.publicKey], nextKeyDigests: [], configTraits: ["EO", "DND"] });
+      assert.deepEqual(event.body.c, ["EO", "DND"]);
     });
   });
 
@@ -456,6 +476,18 @@ describe(basename(import.meta.url), () => {
       });
       assert.equal(event.body.d, event.body.i);
     });
+
+    test("should write the given config traits", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const event = delegatedIncept({
+        signingKeys: [key0.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        configTraits: ["DND"],
+        delegator,
+      });
+      assert.deepEqual(event.body.c, ["DND"]);
+    });
   });
 
   describe("delegatedRotate", () => {
@@ -485,7 +517,7 @@ describe(basename(import.meta.url), () => {
       );
     });
 
-    test("should produce t=drt with di carried from state", () => {
+    test("should produce t=drt without restating the delegator", () => {
       const key0 = generateKeyPair({ insecureSeed: "k0" });
       const key1 = generateKeyPair({ insecureSeed: "k1" });
       const key2 = generateKeyPair({ insecureSeed: "k2" });
@@ -495,12 +527,29 @@ describe(basename(import.meta.url), () => {
         nextKeyDigests: [key2.publicKeyDigest],
       });
       assert.equal(event.body.t, "drt");
-      assert.equal(event.body.di, delegator);
       assert.equal(event.body.s, "1");
       assert.equal(event.body.p, log.state.lastEvent.d);
+
+      // v1 gives drt the same fields as rot; the delegator is established by the dip.
+      assert.ok(!("di" in event.body));
     });
 
-    test("should have fields in spec order ending with di", () => {
+    test("should carry the delegator into the state a drt settles", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const key2 = generateKeyPair({ insecureSeed: "k2" });
+      const log = delegatedInceptLog(key0, key1);
+      const event = delegatedRotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+      });
+      const sigs = sign(event, [key1]);
+      const rotated = log.append(new Message(event.body, { ControllerIdxSigs: sigs }));
+
+      assert.equal(rotated.state.delegator, delegator);
+    });
+
+    test("should have fields in spec order", () => {
       const key0 = generateKeyPair({ insecureSeed: "k0" });
       const key1 = generateKeyPair({ insecureSeed: "k1" });
       const key2 = generateKeyPair({ insecureSeed: "k2" });
@@ -524,8 +573,30 @@ describe(basename(import.meta.url), () => {
         "br",
         "ba",
         "a",
-        "di",
       ]);
+    });
+  });
+
+  describe("seals", () => {
+    test("should build a key event seal from the event it commits to", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const log = inceptLog(key0, key1);
+      const event = interact(log.state);
+
+      assert.deepEqual(keyEventSeal(event), { i: event.body.i, s: event.body.s, d: event.body.d });
+    });
+
+    test("should attach a source couple naming the anchoring event, not the anchored one", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const log = inceptLog(key0, key1);
+      const anchoring = interact(log.state, { data: { hello: "world" } });
+      const anchored = incept({ signingKeys: [key1.publicKey], nextKeyDigests: [] });
+
+      attachSourceSeal(anchored, anchoring);
+
+      assert.deepEqual(anchored.attachments.SealSourceCouples, [{ snu: anchoring.body.s, digest: anchoring.body.d }]);
     });
   });
 });

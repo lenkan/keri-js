@@ -62,9 +62,44 @@ KERIpy defaults to a majority, so pass them explicitly to build the same event f
 list. `backerThreshold` defaults to the KERI fault-tolerant threshold for the number of backers:
 three backers require all three.
 
+`configTraits` writes the `c` field, from KERI's trait codes: `EO` (establishment events only),
+`DND` (do not delegate). They are recorded in `KeyState.configTraits`; nothing enforces them.
+
 A key that must be awaited — an HSM, a hardware wallet, a non-extractable WebCrypto `CryptoKey` —
 is not a `Signer`, because `Signer.sign` is synchronous. Sign with it yourself and pass the result
 as `signatures: [{ publicKey, signature }]` instead.
+
+### Delegated identifiers
+
+A delegated event only counts once the delegator has anchored it: an event in the delegator's KEL
+whose `a` carries a seal naming the delegated event, and a `SealSourceCouple` on the delegated event
+naming that anchoring event back.
+
+```ts
+import { KeyEvent, KeyEventLog, signEvent } from "keri";
+
+const dip = KeyEvent.delegatedIncept({
+  signingKeys: [delegate.publicKey],
+  nextKeyDigests: [delegateNext.publicKeyDigest],
+  delegator: delegator.state.identifier,
+});
+
+const anchor = KeyEvent.interact(delegator.state, { data: KeyEvent.keyEventSeal(dip) });
+signEvent(anchor, { signers: [delegatorKey], state: delegator.state });
+const anchored = delegator.append(anchor);
+
+signEvent(dip, { signers: [delegate] });
+KeyEvent.attachSourceSeal(dip, anchor);
+
+const log = KeyEventLog.empty().append(dip, { delegator: anchored });
+```
+
+`append` verifies the anchor only when passed a `delegator` KEL; without one it takes the event on
+its signatures alone. `KeyEventLog.parse` builds the chain itself when the stream carries both
+identifiers, which is what an OOBI response for a delegated AID returns.
+
+A `drt` carries no `di` — v1 gives it the same fields as `rot` — so the delegator it is held to is
+the one its `dip` established.
 
 ### Read a key event log from a stream
 
@@ -186,7 +221,7 @@ That last one writes `fixtures/events/keri-<version>/`, one file per key event l
 directory and clears the `.json` in it first, so a renamed log leaves nothing stale behind. The test
 reads whatever directories are there, so a second KERIpy version is a directory to drop in.
 
-One file, one identifier:
+One file, one key event log:
 
 ```jsonc
 {
@@ -211,6 +246,10 @@ Nothing here is specific to keri-js. A message is `raw + attachments`, a log's s
 concatenated, and the arguments an event was built from are the fields of its own `sad`. Which keys
 signed is recorded only by the indices the attached signatures carry, so a 2-of-3 signed by keys 0
 and 2 says so on the wire.
+
+A delegated log carries the delegator's events too, in stream order, the way an OOBI response
+delivers them. `controllers` then covers every identifier in the file, and `state` is the delegate's
+— which its own `i` names.
 
 A seed derives both a transferable `D…` key and a non-transferable `B…` one, so each entry names the
 form its log uses. Checking that a seed derives the key beside it is a cheap first test of an

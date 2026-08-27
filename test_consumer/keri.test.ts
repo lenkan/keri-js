@@ -79,12 +79,14 @@ describe("keri", () => {
 
   test("groups every constructor under its protocol namespace", () => {
     assert.deepEqual(Object.keys(KeyEvent).sort(), [
+      "attachSourceSeal",
       "delegatedIncept",
       "delegatedRotate",
       "incept",
       "interact",
       "isEstablishment",
       "isKeyEvent",
+      "keyEventSeal",
       "receipt",
       "rotate",
     ]);
