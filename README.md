@@ -56,6 +56,12 @@ signEvent(icp, { signers: [current] });
 `nextKeyDigests` takes digests of the next keys, not the keys themselves. Use
 `nextKeyDigest(publicKey)` when rotating with a key you already hold.
 
+`signingThreshold` and `nextThreshold` accept a count as a hex string — ten is `"a"` — or a list of
+fractional weights such as `["1/2", "1/2", "1/2"]`. Both default to every key being required, where
+KERIpy defaults to a majority, so pass them explicitly to build the same event from the same key
+list. `backerThreshold` defaults to the KERI fault-tolerant threshold for the number of backers:
+three backers require all three.
+
 A key that must be awaited — an HSM, a hardware wallet, a non-extractable WebCrypto `CryptoKey` —
 is not a `Signer`, because `Signer.sign` is synchronous. Sign with it yourself and pass the result
 as `signatures: [{ publicKey, signature }]` instead.
@@ -173,11 +179,39 @@ from `requirements.txt`:
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/generate-codec.py > src/cesr/codes.ts
 .venv/bin/python scripts/generate-test-vector.py > fixtures/cesr_test_vectors.json
-.venv/bin/python scripts/generate-event-vectors.py > fixtures/events/keri-1.3.6.json
+.venv/bin/python scripts/generate-event-vectors.py fixtures/events
 ```
 
-The event vectors have two levels. `events` records each message KERIpy built from a fixed seed and
-the CESR stream it serialized, so keri-js is held to the same bytes one message at a time. `kel`
-records the whole log those messages form and the key state KERIpy settles on after reading it —
-the assertion that the same seeds driven through the same sequence of operations produce the same
-log and the same state in both implementations.
+That last one writes `fixtures/events/keri-<version>/`, one file per key event log. It owns that
+directory and clears the `.json` in it first, so a renamed log leaves nothing stale behind. The test
+reads whatever directories are there, so a second KERIpy version is a directory to drop in.
+
+One file, one identifier:
+
+```jsonc
+{
+  "keripy": "1.3.6",
+  "name": "backers",
+  "version": "1.0",
+  "controllers": [{ "seed": "<hex>", "public": "DGx7..." }, ...],
+  "backers":     [{ "seed": "<hex>", "public": "BKK9..." }, ...],
+  "events": [
+    {
+      "name": "icp",           // what the event is there to show, where `t` and `s` are not enough
+      "sad": { "v": "KERI10JSON...", "t": "icp", ... },
+      "raw": "{\"v\":\"KERI10JSON...\",...}",
+      "attachments": "-VBa-AAB...",
+    }
+  ],
+  "state": { "i": "...", "kt": "1", ... }   // KERIpy's key state record, minus its first-seen `dt`
+}
+```
+
+Nothing here is specific to keri-js. A message is `raw + attachments`, a log's stream is those
+concatenated, and the arguments an event was built from are the fields of its own `sad`. Which keys
+signed is recorded only by the indices the attached signatures carry, so a 2-of-3 signed by keys 0
+and 2 says so on the wire.
+
+A seed derives both a transferable `D…` key and a non-transferable `B…` one, so each entry names the
+form its log uses. Checking that a seed derives the key beside it is a cheap first test of an
+implementation's key derivation, before any of the events are read.

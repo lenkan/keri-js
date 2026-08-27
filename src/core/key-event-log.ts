@@ -9,7 +9,7 @@ import type {
   KeyState,
   RotateEventBody,
 } from "./key-event.ts";
-import { isEstablishment, isKelEventType } from "./key-event.ts";
+import { applyBackerChanges, isEstablishment, isKelEventType } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 
 export interface AppendOptions {
@@ -233,12 +233,14 @@ export class KeyEventLog {
           });
         }
 
-        if (state.backers && state.backers.length > 0 && !isZeroThreshold(state.backerThreshold as string)) {
-          verifyWitness(bodyRaw, {
-            keys: state.backers,
-            threshold: state.backerThreshold as string[] | string,
-            sigs: wigs,
-          });
+        // A rotation is receipted by the backer set it establishes, not the one it replaces, so
+        // its own `bt` and `br`/`ba` decide who has to sign. An `ixn` changes neither.
+        const rot = isEstablishment(body.t) ? (body as RotateEventBody | DrtEventBody) : null;
+        const backers = rot ? applyBackerChanges(state.backers, rot.br, rot.ba) : state.backers;
+        const threshold = rot ? rot.bt : (state.backerThreshold as string);
+
+        if (backers.length > 0 && !isZeroThreshold(threshold)) {
+          verifyWitness(bodyRaw, { keys: backers, threshold, sigs: wigs });
         }
 
         if (body.t === "drt" && delegator) {
@@ -387,6 +389,8 @@ function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
         backerThreshold: icp.bt,
         backers: icp.b,
         configTraits: icp.c,
+        // Present but undefined, matching what `merge` leaves once any later event is applied.
+        delegator: undefined,
         lastEvent: { i: icp.i, s: icp.s, d: icp.d },
         lastEstablishment: { i: icp.i, s: icp.s, d: icp.d },
       };
@@ -417,7 +421,7 @@ function reduceKeyState(state: KeyState | null, body: KeyEventBody): KeyState {
       assertDefined(state);
       const rot = body as RotateEventBody | DrtEventBody;
       return merge(state, {
-        backers: state.backers.filter((b) => !rot.br.includes(b)).concat(rot.ba),
+        backers: applyBackerChanges(state.backers, rot.br, rot.ba),
         backerThreshold: rot.bt,
         signingKeys: rot.k,
         signingThreshold: rot.kt,

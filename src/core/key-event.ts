@@ -40,8 +40,10 @@ export interface InteractArgs {
 
 export interface RotateArgs {
   signingKeys: string[];
+  signingThreshold?: Threshold;
   /** Digests of the next keys, not the keys themselves — see {@link nextKeyDigest}. */
   nextKeyDigests: string[];
+  nextThreshold?: Threshold;
   data?: Record<string, unknown>;
   removeBackers?: string[];
   addBackers?: string[];
@@ -122,13 +124,34 @@ export type KeyEventBody = {
   [key: string]: unknown;
 };
 
-/** Default backer threshold: all but one, so a single backer is still required. */
-function defaultBackerThreshold(backers: string[]): string {
-  if (backers.length === 0) {
+/** KERI writes a threshold in hex: ten is `"a"`, sixteen is `"10"`. */
+function toThreshold(count: number): string {
+  return count.toString(16);
+}
+
+/**
+ * Defaults to KERI's `ample`: the smallest threshold that still tolerates the
+ * largest fault count the backer set admits. Not a plain majority — three
+ * backers require all three.
+ */
+function backerThreshold(explicit: number | undefined, backers: string[]): string {
+  if (explicit !== undefined) {
+    return toThreshold(explicit);
+  }
+
+  const n = backers.length;
+  if (n === 0) {
     return "0";
   }
 
-  return backers.length === 1 ? "1" : (backers.length - 1).toString();
+  const least = Math.max(1, Math.floor((n - 1) / 3));
+  const most = Math.max(1, Math.ceil((n - 1) / 3));
+  return toThreshold(Math.min(n, Math.ceil((n + least + 1) / 2), Math.ceil((n + most + 1) / 2)));
+}
+
+/** The backer set a rotation establishes, which is the one that has to receipt it. */
+export function applyBackerChanges(backers: string[], removed: string[], added: string[]): string[] {
+  return backers.filter((backer) => !removed.includes(backer)).concat(added);
 }
 
 export function incept(args: InceptArgs): Message<InceptEventBody> {
@@ -148,11 +171,11 @@ export function incept(args: InceptArgs): Message<InceptEventBody> {
       d: "",
       i: transferable ? "" : keys[0],
       s: "0",
-      kt: keys.length.toString() as Threshold,
+      kt: args.signingThreshold ?? toThreshold(keys.length),
       k: keys,
-      nt: args.nextKeyDigests.length.toString() as Threshold,
+      nt: args.nextThreshold ?? toThreshold(args.nextKeyDigests.length),
       n: args.nextKeyDigests,
-      bt: args.backerThreshold?.toString() ?? defaultBackerThreshold(backers),
+      bt: backerThreshold(args.backerThreshold, backers),
       b: backers,
       c: [] as string[],
       a: [] as Record<string, unknown>[],
@@ -194,11 +217,14 @@ export function rotate(state: KeyState, args: RotateArgs): Message<RotateEventBo
       i: state.identifier,
       s: (parseInt(state.lastEvent.s, 16) + 1).toString(16),
       p: state.lastEvent.d,
-      kt: "1",
+      kt: args.signingThreshold ?? toThreshold(args.signingKeys.length),
       k: args.signingKeys,
-      nt: "1",
+      nt: args.nextThreshold ?? toThreshold(args.nextKeyDigests.length),
       n: args.nextKeyDigests,
-      bt: args.backerThreshold?.toString() ?? "0",
+      bt: backerThreshold(
+        args.backerThreshold,
+        applyBackerChanges(state.backers, args.removeBackers ?? [], args.addBackers ?? []),
+      ),
       br: args.removeBackers ?? ([] as string[]),
       ba: args.addBackers ?? ([] as string[]),
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),
@@ -224,11 +250,11 @@ export function delegatedIncept(args: DelegatedInceptArgs): Message<DipEventBody
       d: "",
       i: "",
       s: "0",
-      kt: keys.length.toString() as Threshold,
+      kt: args.signingThreshold ?? toThreshold(keys.length),
       k: keys,
-      nt: args.nextKeyDigests.length.toString() as Threshold,
+      nt: args.nextThreshold ?? toThreshold(args.nextKeyDigests.length),
       n: args.nextKeyDigests,
-      bt: args.backerThreshold?.toString() ?? defaultBackerThreshold(backers),
+      bt: backerThreshold(args.backerThreshold, backers),
       b: backers,
       c: [] as string[],
       a: [] as Record<string, unknown>[],
@@ -258,11 +284,14 @@ export function delegatedRotate(state: KeyState, args: DelegatedRotateArgs): Mes
       i: state.identifier,
       s: (parseInt(state.lastEvent.s, 16) + 1).toString(16),
       p: state.lastEvent.d,
-      kt: "1",
+      kt: args.signingThreshold ?? toThreshold(args.signingKeys.length),
       k: args.signingKeys,
-      nt: "1",
+      nt: args.nextThreshold ?? toThreshold(args.nextKeyDigests.length),
       n: args.nextKeyDigests,
-      bt: args.backerThreshold?.toString() ?? "0",
+      bt: backerThreshold(
+        args.backerThreshold,
+        applyBackerChanges(state.backers, args.removeBackers ?? [], args.addBackers ?? []),
+      ),
       br: args.removeBackers ?? ([] as string[]),
       ba: args.addBackers ?? ([] as string[]),
       a: args.data ? [args.data] : ([] as Record<string, unknown>[]),

@@ -1,43 +1,179 @@
 import assert from "node:assert";
 import { Buffer } from "node:buffer";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import fixture from "../fixtures/events/keri-1.3.6.json" with { type: "json" };
-import { encodeText, type Message } from "../src/cesr/main.ts";
-import { decodeUtf8 } from "../src/encoding/main.ts";
+import { Attachments, encodeText, Indexer, type Message } from "../src/cesr/main.ts";
+import { decodeUtf8, encodeUtf8 } from "../src/encoding/main.ts";
 import {
   ed25519Signer,
-  type InceptArgs,
-  type InteractArgs,
   KeyEvent,
   type KeyEventBody,
   KeyEventLog,
   type KeyState,
   parse,
-  type RotateArgs,
+  type Signer,
   signEvent,
+  type Threshold,
 } from "../src/main.ts";
 
-const fixtures = [fixture];
+/** A seed and the one of its two derivable public keys that this log uses. */
+interface Key {
+  seed: string;
+  public: string;
+}
 
-type Fixture = typeof fixture;
-type Case = Fixture["events"][number];
+interface Case {
+  name: string;
+  sad: Record<string, unknown> & { t: string };
+  raw: string;
+  attachments: string;
+}
+
+/** KERIpy's `KeyStateRecord`, minus the first-seen `dt` the generator drops as non-deterministic. */
+interface KeyStateRecord {
+  i: string;
+  s: string;
+  d: string;
+  kt: Threshold;
+  k: string[];
+  nt: Threshold;
+  n: string[];
+  bt: string;
+  b: string[];
+  c: string[];
+  di: string;
+  ee: { s: string; d: string };
+}
+
+interface Log {
+  keripy: string;
+  name: string;
+  version: string;
+  controllers: Key[];
+  backers: Key[];
+  events: Case[];
+  state: KeyStateRecord;
+}
+
+/** The wire fields the constructors take their arguments from. `ixn` carries none of them. */
+type Establishment = {
+  k: string[];
+  kt: Threshold;
+  n: string[];
+  nt: Threshold;
+  bt: string;
+  b?: string[];
+  br?: string[];
+  ba?: string[];
+};
+
+const FIXTURES = new URL("../fixtures/events/", import.meta.url);
+
+/** One file per log, one directory per KERIpy version, so a new version is a directory to drop in. */
+function load(): Log[] {
+  const logs: Log[] = [];
+
+  for (const version of readdirSync(FIXTURES).sort()) {
+    const directory = new URL(`${version}/`, FIXTURES);
+    for (const file of readdirSync(directory).sort()) {
+      if (file.endsWith(".json")) {
+        logs.push(JSON.parse(readFileSync(new URL(file, directory), "utf8")));
+      }
+    }
+  }
+
+  if (logs.length === 0) {
+    throw new Error(`No event vectors under ${FIXTURES.pathname} — run scripts/generate-event-vectors.py`);
+  }
+
+  return logs;
+}
+
+function message(entry: Case): string {
+  return entry.raw + entry.attachments;
+}
+
+function attachmentsOf(entry: Case): Attachments {
+  const attachments = Attachments.parse(encodeUtf8(entry.attachments));
+  assert.ok(attachments, `${entry.name} has no attachments`);
+  return attachments;
+}
+
+/**
+ * keri-js has no `WitnessIdxSigs` write path yet, so a witnessed event is held to its controller
+ * signatures alone. They are re-emitted from the fixture's own attachment rather than sliced out
+ * of it, because both groups sit inside one enclosing frame whose size covers them together.
+ */
+function expectedAttachments(entry: Case): string {
+  const attachments = attachmentsOf(entry);
+  if (attachments.WitnessIdxSigs.length === 0) {
+    return entry.attachments;
+  }
+
+  return encodeText(new Attachments({ ControllerIdxSigs: attachments.ControllerIdxSigs }).frames());
+}
+
+/** Also checks the log's own claim: the seed has to derive the public key listed beside it. */
+function signerFor(key: Key): Signer {
+  const raw = Uint8Array.from(Buffer.from(key.seed, "hex"));
+
+  for (const signer of [ed25519Signer(raw), ed25519Signer(raw, { nonTransferable: true })]) {
+    if (signer.publicKey === key.public) {
+      return signer;
+    }
+  }
+
+  return assert.fail(`the seed listed for ${key.public} derives neither form of that key`);
+}
+
+/**
+ * Which keys signed, read off the indices the attached signatures carry. The fixture records no
+ * signer list of its own — a 2-of-3 signed by keys 0 and 2 says so in its attachments.
+ */
+function signers(entry: Case, keys: string[], available: ReadonlyMap<string, Signer>): Signer[] {
+  return attachmentsOf(entry).ControllerIdxSigs.map((sig) => {
+    const key = keys[Indexer.parse(sig).index];
+    const signer = available.get(key);
+    assert.ok(signer, `${entry.name} is signed by ${key}, which the log declares no seed for`);
+    return signer;
+  });
+}
 
 function build(entry: Case, state: KeyState | null): Message<KeyEventBody> {
+  const sad = entry.sad as unknown as Establishment;
+
   switch (entry.sad.t) {
     case "icp":
-      return KeyEvent.incept(entry.args as InceptArgs);
-    case "ixn":
-      return KeyEvent.interact(state as KeyState, entry.args as InteractArgs);
+      return KeyEvent.incept({
+        signingKeys: sad.k,
+        signingThreshold: sad.kt,
+        nextKeyDigests: sad.n,
+        nextThreshold: sad.nt,
+        backers: sad.b,
+        backerThreshold: Number.parseInt(sad.bt, 16),
+      });
+    case "ixn": {
+      const data = (entry.sad as { a?: Record<string, unknown>[] }).a?.[0];
+      return KeyEvent.interact(state as KeyState, data ? { data } : {});
+    }
     case "rot":
-      return KeyEvent.rotate(state as KeyState, entry.args as RotateArgs);
+      return KeyEvent.rotate(state as KeyState, {
+        signingKeys: sad.k,
+        signingThreshold: sad.kt,
+        nextKeyDigests: sad.n,
+        nextThreshold: sad.nt,
+        removeBackers: sad.br,
+        addBackers: sad.ba,
+        backerThreshold: Number.parseInt(sad.bt, 16),
+      });
     default:
       throw new Error(`Unhandled event type ${entry.sad.t}`);
   }
 }
 
 /** `vn`, `f` and `et` have no keri-js counterpart; `ee.br`/`ee.ba` are folded into `backers`. */
-function expectedState(state: Fixture["kel"]["state"]): KeyState {
+function expectedState(state: KeyStateRecord): KeyState {
   return {
     identifier: state.i,
     signingThreshold: state.kt,
@@ -57,27 +193,32 @@ function expectedState(state: Fixture["kel"]["state"]): KeyState {
 /**
  * Each event is built from the state its predecessors settled, so one failure blocks the rest —
  * they report that instead of a stale diff.
+ *
+ * KERIpy signs a backered event with its witnesses; keri-js has no way to produce those, so what
+ * it rebuilds is replayed without requiring them.
  */
-function rebuild(events: readonly Case[]) {
+function rebuild(log: Log) {
+  const available = new Map([...log.controllers, ...log.backers].map((key) => [key.public, signerFor(key)]));
+
   const results: { entry: Case; message?: Message<KeyEventBody>; error?: unknown }[] = [];
-  let log = KeyEventLog.empty();
+  let events = KeyEventLog.empty();
   let state: KeyState | null = null;
   let blocked: string | null = null;
 
-  for (const entry of events) {
+  for (const entry of log.events) {
     if (blocked) {
       results.push({ entry, error: new Error(`not reached: ${blocked} failed earlier in the KEL`) });
       continue;
     }
 
     try {
-      const signers = entry.seeds.map((seed) => ed25519Signer(Uint8Array.from(Buffer.from(seed, "hex"))));
       const message = build(entry, state);
-      signEvent(message, { signers, state: state ?? undefined });
+      const keys = (entry.sad as unknown as Establishment).k ?? (state as KeyState).signingKeys;
+      signEvent(message, { signers: signers(entry, keys, available), state: state ?? undefined });
 
       // `append` verifies the signatures, so the chain also checks that what we built parses back.
-      log = log.append(message);
-      state = log.state;
+      events = events.append(message, { allowPartiallyWitnessed: true });
+      state = events.state;
       results.push({ entry, message });
     } catch (error) {
       blocked = entry.name;
@@ -113,59 +254,58 @@ function assertSameStream(actual: string, expected: string): void {
   );
 }
 
+const byVersion = Map.groupBy(load(), (log) => log.keripy);
+
 describe(path.parse(import.meta.url).base, () => {
-  for (const { keripy, events, kel } of fixtures) {
+  for (const [keripy, logs] of byVersion) {
     describe(`keripy ${keripy}`, () => {
-      const rebuilt = rebuild(events);
+      for (const log of logs) {
+        describe(log.name, () => {
+          const rebuilt = rebuild(log);
+          const stream = log.events.map(message).join("");
+          const writable = log.events.map((entry) => entry.raw + expectedAttachments(entry)).join("");
 
-      describe("events", () => {
-        for (const entry of events) {
-          test(`reads ${entry.name}`, async () => {
-            const messages = await Array.fromAsync(parse(entry.stream));
+          for (const entry of log.events) {
+            test(`reads ${entry.name}`, async () => {
+              const messages = await Array.fromAsync(parse(message(entry)));
 
-            assert.strictEqual(messages.length, 1);
-            assert.deepStrictEqual(messages[0].body, entry.sad);
-          });
-        }
-
-        for (const { entry, message, error } of rebuilt) {
-          test(`writes ${entry.name}`, () => {
-            if (error || !message) {
-              throw error;
-            }
-
-            // Bodies first: a field-level diff names the culprit where two 400-character JSON
-            // strings do not. The byte comparison is the real claim — it also pins field order.
-            assert.deepStrictEqual(message.body, entry.sad, "event body");
-            assert.strictEqual(decodeUtf8(message.raw), entry.raw, "serialized body");
-
-            // The body is checked above, so comparing only the attachment tail keeps a signature
-            // mismatch down to one short line.
-            assert.strictEqual(
-              encodeText(message.attachments.frames()),
-              entry.stream.slice(entry.raw.length),
-              "attachments",
-            );
-          });
-        }
-      });
-
-      describe("key event log", () => {
-        test("rebuilds the same KEL from the same seeds", () => {
-          const failed = rebuilt.find(({ error }) => error);
-          if (failed) {
-            throw failed.error;
+              assert.strictEqual(messages.length, 1);
+              assert.deepStrictEqual(messages[0].body, entry.sad);
+            });
           }
 
-          assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), kel.stream);
-        });
+          for (const { entry, message, error } of rebuilt) {
+            test(`writes ${entry.name}`, () => {
+              if (error || !message) {
+                throw error;
+              }
 
-        test("settles the same key state", async () => {
-          const log = await KeyEventLog.parse(kel.stream);
+              // Bodies first: a field-level diff names the culprit where two 400-character JSON
+              // strings do not. The byte comparison is the real claim — it also pins field order.
+              assert.deepStrictEqual(message.body, entry.sad, "event body");
+              assert.strictEqual(decodeUtf8(message.raw), entry.raw, "serialized body");
+              assert.strictEqual(encodeText(message.attachments.frames()), expectedAttachments(entry), "attachments");
+            });
+          }
 
-          assert.deepStrictEqual(log.state, expectedState(kel.state));
+          test("rebuilds the same KEL from the same seeds", () => {
+            const failed = rebuilt.find(({ error }) => error);
+            if (failed) {
+              throw failed.error;
+            }
+
+            assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), writable);
+          });
+
+          // No `allowPartiallyWitnessed` here: the fixture carries KERIpy's own witness signatures,
+          // so a backered log has to clear its own backer threshold to settle.
+          test("settles the same key state", async () => {
+            const parsed = await KeyEventLog.parse(stream);
+
+            assert.deepStrictEqual(parsed.state, expectedState(log.state));
+          });
         });
-      });
+      }
     });
   }
 });

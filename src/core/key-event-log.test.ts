@@ -204,6 +204,46 @@ describe(basename(import.meta.url), () => {
     });
   });
 
+  describe("witnesses", () => {
+    test("should verify a rotation against the backers it establishes", () => {
+      const key0 = generateKeyPair();
+      const key1 = generateKeyPair();
+      const key2 = generateKeyPair();
+      const witnesses = [generateKeyPair(), generateKeyPair(), generateKeyPair()];
+
+      const icp = incept({
+        signingKeys: [key0.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        backers: [witnesses[0].publicKey, witnesses[1].publicKey],
+      });
+      const log = KeyEventLog.empty().append(
+        new Message(icp.body, {
+          ControllerIdxSigs: sign(icp, [key0]),
+          WitnessIdxSigs: sign(icp, [witnesses[0], witnesses[1]]),
+        }),
+      );
+
+      const rot = rotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+        removeBackers: [witnesses[0].publicKey],
+        addBackers: [witnesses[2].publicKey],
+      });
+
+      // The surviving witness and the new one, indexed 0 and 1 of the resulting set — not of the
+      // set the rotation replaces, where the surviving witness sits at index 1.
+      const rotated = log.append(
+        new Message(rot.body, {
+          ControllerIdxSigs: sign(rot, [key1]),
+          WitnessIdxSigs: sign(rot, [witnesses[1], witnesses[2]]),
+        }),
+      );
+
+      assert.deepEqual(rotated.state.backers, [witnesses[1].publicKey, witnesses[2].publicKey]);
+      assert.equal(rotated.state.backerThreshold, "2");
+    });
+  });
+
   describe("delegated", () => {
     const delegator = "EAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 

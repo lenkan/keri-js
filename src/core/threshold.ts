@@ -32,12 +32,12 @@ function findLeastCommonDenominator(denominators: number[]): number {
   }, 1);
 }
 
-function parsePositiveInteger(value: string, errorMessage: string): number {
-  if (!/^\d+$/.test(value)) {
+function parsePositiveInteger(value: string, errorMessage: string, radix: 10 | 16 = 10): number {
+  if (!(radix === 16 ? /^[0-9a-fA-F]+$/ : /^\d+$/).test(value)) {
     throw new Error(errorMessage);
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(value, radix);
   if (parsed <= 0) {
     throw new Error(errorMessage);
   }
@@ -59,7 +59,8 @@ function parseFraction(fraction: string): [number, number] {
 
 export function parseThreshold(threshold: Threshold, numKeys: number): WeightedThreshold {
   if (typeof threshold === "string") {
-    const required = parsePositiveInteger(threshold, `Invalid threshold: ${threshold}`);
+    // An unweighted threshold is hex — ten is "a" — while the parts of a weight are decimal.
+    const required = parsePositiveInteger(threshold, `Invalid threshold: ${threshold}`, 16);
 
     if (required > numKeys) {
       throw new Error(`Invalid threshold: ${threshold} exceeds number of parties: ${numKeys}`);

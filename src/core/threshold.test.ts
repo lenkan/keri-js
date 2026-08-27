@@ -11,6 +11,12 @@ describe(basename(import.meta.url), () => {
       assert.deepEqual(parseThreshold("3", 3), { weights: [1, 1, 1], required: 3 });
     });
 
+    test("should read the value as hex", () => {
+      assert.deepEqual(parseThreshold("a", 10).required, 10);
+      assert.deepEqual(parseThreshold("A", 10).required, 10);
+      assert.deepEqual(parseThreshold("10", 16).required, 16);
+    });
+
     test("should throw when threshold exceeds number of keys", () => {
       assert.throws(() => parseThreshold("4", 3), {
         message: "Invalid threshold: 4 exceeds number of parties: 3",

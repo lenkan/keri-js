@@ -108,7 +108,7 @@ describe(basename(import.meta.url), () => {
       assert.equal(event.body.bt, "1");
     });
 
-    test("should default toad to n-1 with multiple witnesses", () => {
+    test("should default toad to all three with three witnesses", () => {
       const key = generateKeyPair({ insecureSeed: "k0" });
       const event = incept({
         signingKeys: [key.publicKey],
@@ -119,7 +119,7 @@ describe(basename(import.meta.url), () => {
           "BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX",
         ],
       });
-      assert.equal(event.body.bt, "2");
+      assert.equal(event.body.bt, "3");
     });
 
     test("should override default toad when explicitly set", () => {
@@ -131,6 +131,38 @@ describe(basename(import.meta.url), () => {
         backerThreshold: 0,
       });
       assert.equal(event.body.bt, "0");
+    });
+
+    test("should default the thresholds to every key", () => {
+      const keys = ["k0", "k1", "k2"].map((seed) => generateKeyPair({ insecureSeed: seed }));
+      const event = incept({
+        signingKeys: keys.map((key) => key.publicKey),
+        nextKeyDigests: keys.map((key) => key.publicKeyDigest),
+      });
+      assert.equal(event.body.kt, "3");
+      assert.equal(event.body.nt, "3");
+    });
+
+    test("should use the given thresholds", () => {
+      const keys = ["k0", "k1", "k2"].map((seed) => generateKeyPair({ insecureSeed: seed }));
+      const event = incept({
+        signingKeys: keys.map((key) => key.publicKey),
+        signingThreshold: "2",
+        nextKeyDigests: keys.map((key) => key.publicKeyDigest),
+        nextThreshold: ["1/2", "1/2", "1/2"],
+      });
+      assert.equal(event.body.kt, "2");
+      assert.deepEqual(event.body.nt, ["1/2", "1/2", "1/2"]);
+    });
+
+    test("should write a threshold of ten as hex", () => {
+      const keys = Array.from({ length: 10 }, (_, i) => generateKeyPair({ insecureSeed: `k${i}` }));
+      const event = incept({
+        signingKeys: keys.map((key) => key.publicKey),
+        nextKeyDigests: keys.map((key) => key.publicKeyDigest),
+      });
+      assert.equal(event.body.kt, "a");
+      assert.equal(event.body.nt, "a");
     });
 
     test("should have fields in spec order", () => {
@@ -287,11 +319,12 @@ describe(basename(import.meta.url), () => {
         i: "EPR7FWsN3tOM8PqfMap2FRfF4MFQ4v3ZXjBUcMVtvhmB",
         s: "2",
         p: "EDeCPBTHAt75Acgi9PfEciHFnc1r2DKAno3s9_QIYrXk",
-        kt: "1",
+        kt: "3",
         k: event.body.k,
-        nt: "1",
+        nt: "3",
         n: event.body.n,
-        bt: "0",
+        // One backer cut and two added leaves two, and KERI's threshold for two is both.
+        bt: "2",
         br: ["BA4PSatfQMw1lYhQoZkSSvOCrE0Sdw1hmmniDL-yDtrB"],
         ba: ["BO3cCAfQiqndZBBxwNk6RGkyA-OA1XbZhBj3s4-VIsCo", "BPowpltoeF14nMbU1ng89JSoYf3AmWhZ50KaCaVO6SIW"],
         a: [
@@ -326,6 +359,43 @@ describe(basename(import.meta.url), () => {
       });
       assert.equal(event.body.s, "1");
       assert.equal(event.body.p, log.state.lastEvent.d);
+    });
+
+    test("should use the given thresholds", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const key2 = generateKeyPair({ insecureSeed: "k2" });
+      const log = inceptLog(key0, key1);
+      const event = rotate(log.state, {
+        signingKeys: [key1.publicKey],
+        signingThreshold: "1",
+        nextKeyDigests: [key2.publicKeyDigest],
+        nextThreshold: ["1"],
+      });
+      assert.equal(event.body.kt, "1");
+      assert.deepEqual(event.body.nt, ["1"]);
+    });
+
+    test("should carry the backer threshold forward when nothing changes", () => {
+      const key0 = generateKeyPair({ insecureSeed: "k0" });
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const key2 = generateKeyPair({ insecureSeed: "k2" });
+      const backers = ["BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM", "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"];
+
+      const icp = incept({
+        signingKeys: [key0.publicKey],
+        nextKeyDigests: [key1.publicKeyDigest],
+        backers,
+      });
+      const log = KeyEventLog.empty().append(new Message(icp.body, { ControllerIdxSigs: sign(icp, [key0]) }), {
+        allowPartiallyWitnessed: true,
+      });
+
+      const event = rotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [key2.publicKeyDigest],
+      });
+      assert.equal(event.body.bt, "2");
     });
   });
 
