@@ -10,17 +10,19 @@ This codebase implements **KERI v1** (legacy version strings). Witness-agreement
 
 | Concern | File(s) |
 | --- | --- |
-| Event construction (`icp`/`rot`/`ixn`/`dip`/`drt`) | `src/core/key-event.ts` |
-| Event encoding / SAID prep | `src/core/events.ts` |
-| KEL replay, sequence/prior-digest validation, state transitions, delegator-anchor verification | `src/core/key-event-log.ts` |
-| Signature & threshold verification | `src/core/verify.ts` |
-| Signing | `src/core/sign.ts`, `src/core/keys.ts` |
-| SAID computation | `src/core/said.ts` |
-| Threshold logic | `src/core/threshold.ts` |
-| Receipts (`rct`) | `src/core/receipt-event.ts` |
-| Routed envelopes (`qry`/`rpy`/`exn`) | `src/core/routed-event.ts` |
-| Identifier controller | `src/controller/` |
-| Credentials (ACDC-adjacent) | `src/core/credential.ts`, `src/core/credential-event.ts`, `src/core/registry-event.ts` |
+| Event construction (`icp`/`rot`/`ixn`/`dip`/`drt`) | `src/key-events/key-event.ts` |
+| Event encoding / SAID prep | `src/events/encode.ts` |
+| KEL replay, sequence/prior-digest validation, state transitions, delegator-anchor verification | `src/key-events/log.ts` |
+| Signature & threshold verification | `src/keys/verify.ts` |
+| Signing | `src/keys/signer.ts`, `src/keys/keys.ts`, `src/key-events/sign.ts` |
+| Endorsement of routed messages | `src/routed-events/endorse.ts` |
+| SAID computation | `src/events/said.ts` |
+| Threshold logic | `src/keys/threshold.ts` |
+| Receipts (`rct`) | `src/key-events/receipt-event.ts` |
+| Routed envelopes (`qry`/`rpy`/`exn`) | `src/routed-events/routed-event.ts` |
+| Credentials (ACDC) | `src/credentials/credential.ts` |
+| Registry TEL (`vcp`/`iss`/`rev`) | `src/transaction-events/` |
+| Cross-protocol verification | `src/verification/` |
 
 **Implementation status:** establishment events implemented are `icp`, `rot`, `ixn`, `rct`, `dip`, and `drt`. Delegated events are parsed by `KeyEventLog`, builders (`delegatedIncept` / `delegatedRotate`) live in `key-event.ts`, and the controller exposes `Controller.delegatedIncept`. When the delegator's KEL is supplied via `AppendOptions.delegator`, dip/drt anchor seals are verified against it; `KeyEventLog.parse` (and `fromMessages`) does this automatically for multi-AID streams by selecting the leaf AID and chaining the delegator log bottom-up.
 
@@ -104,7 +106,7 @@ Two attachment groups can carry a *hint* about which delegator event holds the a
 | `SealSourceCouples` | `(snu, digest)` | Delegator event's sequence + SAID. Used when delegator is implied. |
 | `SealSourceTriples` | `(prefix, snu, digest)` | Same, plus explicit delegator prefix. Filtered on `prefix == body.di`. |
 
-`KeyEventLog.append` (via `verifyDelegationAnchor` in `key-event-log.ts`) treats every attached hint as required — all referenced delegator events must exist and must contain a matching seal. If no hint is attached, the verifier scans the delegator's KEL for any event whose `a` field anchors the dip/drt (the wire-form keripy uses when transmitting only the delegator KEL). Verification is **opt-in**: callers must pass `AppendOptions.delegator`; `KeyEventLog.from(storage.getKeyEvents(...))` does not re-verify by default.
+`KeyEventLog.append` (via `verifyDelegationAnchor` in `key-events/log.ts`) treats every attached hint as required — all referenced delegator events must exist and must contain a matching seal. If no hint is attached, the verifier scans the delegator's KEL for any event whose `a` field anchors the dip/drt (the wire-form keripy uses when transmitting only the delegator KEL). Verification is **opt-in**: callers must pass `AppendOptions.delegator`; `KeyEventLog.from(storage.getKeyEvents(...))` does not re-verify by default.
 
 ## 4. SAID
 
@@ -134,7 +136,7 @@ Seals appear in the `a` field of events and bind external data into the KEL.
 
 ## 6. Per-event processing
 
-Replaying a KEL from `icp` forward yields deterministic state. Per-event flow lives in `KeyEventLog.append` (`src/core/key-event-log.ts`):
+Replaying a KEL from `icp` forward yields deterministic state. Per-event flow lives in `KeyEventLog.append` (`src/key-events/log.ts`):
 
 1. Validate structure and event type (`icp`/`ixn`/`rot`/`dip`/`drt`).
 2. Verify SAID — recompute and compare `d`.

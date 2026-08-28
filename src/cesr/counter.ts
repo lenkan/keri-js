@@ -1,6 +1,6 @@
-import { decodeUtf8 } from "../encoding/main.ts";
 import { CountCode_10, CountCode_20 } from "./codes.ts";
 import { decodeText, type Frame, type FrameSize, peekText, type ReadResult } from "./frame.ts";
+import { decodeUtf8 } from "./utf8.ts";
 
 export interface CounterInit {
   type: string;

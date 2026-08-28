@@ -1,13 +1,7 @@
-import {
-  decodeBase64Int,
-  decodeBase64Url,
-  decodeUtf8,
-  encodeBase64Int,
-  encodeBase64Url,
-  encodeUtf8,
-} from "../encoding/main.ts";
 import { prepad, toArray } from "./array-utils.ts";
+import { decodeBase64Int, decodeBase64Url, encodeBase64Int, encodeBase64Url } from "./base64.ts";
 import { lshift } from "./shifting.ts";
+import { decodeUtf8, encodeUtf8 } from "./utf8.ts";
 
 export interface ReadResult {
   /**

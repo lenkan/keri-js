@@ -1,8 +1,7 @@
 import assert from "node:assert";
 import { createReadStream } from "node:fs";
 import { describe, test } from "node:test";
-import { encodeText, Matter, parse } from "keri/cesr";
-import { decodeBase64Url, encodeBase64Url } from "keri/encoding";
+import { decodeBase64Url, encodeBase64Url, encodeText, Matter, parse } from "keri/cesr";
 
 const fixture = (name: string) => new URL(`../fixtures/${name}`, import.meta.url);
 
@@ -24,7 +23,7 @@ describe("cesr", () => {
   });
 });
 
-describe("cesr/encoding", () => {
+describe("cesr encoding helpers", () => {
   test("round-trips bytes through base64url", () => {
     const raw = Uint8Array.from([0, 1, 2, 250, 251, 252]);
 

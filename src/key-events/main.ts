@@ -1,10 +1,9 @@
 /**
- * Key events — the messages that make up a Key Event Log, plus the receipt that
- * endorses one.
+ * Key events — the messages that make up a Key Event Log, the receipt that
+ * endorses one, and the log itself.
  *
- * Re-exported from the package root as the `KeyEvent` namespace, so
- * `KeyEvent.incept(...)` and `import { incept } from "keri/key-events"` name the
- * same function.
+ * Re-exported from the package root as the `KeyEvent` namespace. Submodules
+ * needing more than this list import `./internal.ts`.
  */
 export type {
   DelegatedInceptArgs,
@@ -17,13 +16,10 @@ export type {
   InteractEventBody,
   KeyEventBody,
   KeyState,
-  ReceiptArgs,
-  ReceiptEventBody,
   RotateArgs,
   RotateEventBody,
-} from "../core/main.ts";
+} from "./key-event.ts";
 export {
-  applyReceipt,
   attachSourceSeal,
   backersFor,
   delegatedIncept,
@@ -33,6 +29,8 @@ export {
   isEstablishment,
   isKeyEvent,
   keyEventSeal,
-  receipt,
   rotate,
-} from "../core/main.ts";
+} from "./key-event.ts";
+export { type AppendOptions, KeyEventLog } from "./log.ts";
+export { applyReceipt, type ReceiptArgs, type ReceiptEventBody, receipt } from "./receipt-event.ts";
+export { type SignEventOptions, signEvent } from "./sign.ts";

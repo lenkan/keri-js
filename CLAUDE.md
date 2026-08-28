@@ -10,12 +10,26 @@ Witness, mailbox, controller and verifier implementations, the HTTP layer and th
 composed them are **not** in this repository. They live on the `legacy` branch and are being moved
 to a separate closed-source service.
 
-Each submodule has a `main.ts` that defines its public surface. Every import that crosses into or
-between submodules must target `../<submodule>/main.ts` or `../main.ts` — never another submodule's
-internal files. `test_consumer/` is the exception in the other direction: it consumes the library
-through the package name (`keri`, `keri/cesr`, `keri/encoding`, …) the way a dependent would, which
-is what makes it a test of the published surface. Both rules are enforced by
-`scripts/check-imports.ts`, run as part of `npm run lint`.
+`src/` is laid out as a strict DAG: `cesr` is bytes, `keys` and `events` are the KERI primitives
+above it, the four protocol submodules (`key-events`, `transaction-events`, `credentials`,
+`routed-events`) own their own messages, and `verification` is the only one allowed to see all four
+at once.
+
+Each submodule has a `main.ts` that defines what it shows consumers. Some also have an `internal.ts`
+— what they show their siblings — so the four namespaces stay the size of their public list and an
+import of `internal.ts` says at its own call site that it reaches past that. Every import crossing
+between submodules must target one of those two, or `../main.ts`; never another submodule's other
+files. `src/main.ts` may only use `main.ts`, since the package surface is assembled from what each
+submodule publishes.
+
+`test_consumer/` is the exception in the other direction: it consumes the library through the
+package name (`keri`, `keri/cesr`) the way a dependent would, which is what makes it a test of the
+published surface. Unit tests under `src/` may also reach `test_utils/`, which never ships. All of
+this is enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
+
+The package has exactly two entry points, `keri` and `keri/cesr`. There are no per-protocol
+subpaths: `import { incept } from "keri/key-events"` would hand out `incept` with the namespace
+stripped off, which is the one thing the grouping exists to prevent.
 
 `node:` builtins may not be imported from `src/` at all; `*.test.ts` files are exempt. This keeps
 the package runnable on Deno and in the browser, and is enforced by the same script.

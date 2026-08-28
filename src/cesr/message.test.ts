@@ -2,11 +2,11 @@ import assert from "node:assert";
 import { basename } from "node:path";
 import test, { describe } from "node:test";
 import { inspect } from "node:util";
-import { decodeUtf8, encodeUtf8 } from "../encoding/main.ts";
 import { Attachments } from "./attachments.ts";
 import { encodeText } from "./frame.ts";
 import { Indexer } from "./indexer.ts";
 import { Message } from "./message.ts";
+import { decodeUtf8, encodeUtf8 } from "./utf8.ts";
 import { VersionString } from "./version-string.ts";
 
 describe(basename(import.meta.url), () => {

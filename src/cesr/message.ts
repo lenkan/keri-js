@@ -1,5 +1,5 @@
-import { decodeUtf8, encodeUtf8 } from "../encoding/main.ts";
 import { Attachments, type AttachmentsInit } from "./attachments.ts";
+import { decodeUtf8, encodeUtf8 } from "./utf8.ts";
 import { VersionString } from "./version-string.ts";
 
 export interface MessageBody {

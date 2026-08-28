@@ -3,15 +3,13 @@ import { Buffer } from "node:buffer";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { Attachments, encodeText, Indexer, Message } from "../src/cesr/main.ts";
-import { decodeUtf8, encodeUtf8 } from "../src/encoding/main.ts";
+import { Attachments, decodeUtf8, encodeText, encodeUtf8, Indexer, Message, parse } from "../src/cesr/main.ts";
 import {
   ed25519Signer,
   KeyEvent,
   type KeyEventBody,
   KeyEventLog,
   type KeyState,
-  parse,
   type ReceiptEventBody,
   type Signer,
   signEvent,

@@ -1,4 +1,5 @@
-import { decodeBase64Int, decodeUtf8, encodeBase64Int } from "../encoding/main.ts";
+import { decodeBase64Int, encodeBase64Int } from "./base64.ts";
+import { decodeUtf8 } from "./utf8.ts";
 
 const REGEX_VERSION_STRING_PROTOCOL = /^[A-Z]{4}$/;
 const REGEX_VERSION_JSON = /^\{"v":"(.*?)".*$/;

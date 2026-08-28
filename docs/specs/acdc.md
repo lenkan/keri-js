@@ -12,11 +12,12 @@ Builds on [`./cesr.md`](./cesr.md) (encoding) and [`./keri.md`](./keri.md) (KELs
 
 | Concern | File(s) |
 | --- | --- |
-| ACDC construction (`createCredential`) | `src/core/credential.ts` |
-| Credential events (`iss` / `rev`) | `src/core/credential-event.ts` |
-| TEL registry events (`vcp`) | `src/core/registry-event.ts` |
-| Routed `exn` envelopes (IPEX carriers) | `src/core/routed-event.ts` |
-| SAID computation | `src/core/said.ts` |
+| ACDC construction (`createCredential`) | `src/credentials/credential.ts` |
+| Credential events (`iss` / `rev`) | `src/transaction-events/credential-event.ts` |
+| TEL registry events (`vcp`) | `src/transaction-events/registry-event.ts` |
+| Routed `exn` envelopes (IPEX carriers) | `src/routed-events/routed-event.ts` |
+| SAID computation | `src/events/said.ts` |
+| Credential verification | `src/verification/credential-verification.ts` |
 | KERI seals | see [`./keri.md`](./keri.md) §5 |
 
 ## 2. What an ACDC is
@@ -31,7 +32,7 @@ ACDCs may be chained via **edges** (each edge points to another ACDC's SAID), fo
 
 ## 3. ACDC body (this implementation)
 
-`createCredential` (`src/core/credential.ts`) emits:
+`createCredential` (`src/credentials/credential.ts`) emits:
 
 ```ts
 {
@@ -119,9 +120,9 @@ ACDC dynamic state lives in a **Transaction Event Log** (TEL) — a hash-chained
 
 | Type | Purpose | File |
 | :---: | --- | --- |
-| `vcp` | Registry inception | `src/core/registry-event.ts` |
-| `iss` | Credential issuance | `src/core/credential-event.ts` |
-| `rev` | Credential revocation | `src/core/credential-event.ts` |
+| `vcp` | Registry inception | `src/transaction-events/registry-event.ts` |
+| `iss` | Credential issuance | `src/transaction-events/credential-event.ts` |
+| `rev` | Credential revocation | `src/transaction-events/credential-event.ts` |
 
 ### Registry inception (`vcp`)
 
@@ -163,7 +164,7 @@ ACDC dynamic state lives in a **Transaction Event Log** (TEL) — a hash-chained
 
 ## 6. IPEX (Issuance and Presentation Exchange)
 
-A uniform exchange protocol for both issuance and presentation, modeled as **disclosure from a Discloser to a Disclosee**. Carried over KERI **routed exchange (`exn`) messages** (`src/core/routed-event.ts`); the `r` route field selects the IPEX message type.
+A uniform exchange protocol for both issuance and presentation, modeled as **disclosure from a Discloser to a Disclosee**. Carried over KERI **routed exchange (`exn`) messages** (`src/routed-events/routed-event.ts`); the `r` route field selects the IPEX message type.
 
 | Sender | Route | Purpose |
 | :---: | :---: | --- |
