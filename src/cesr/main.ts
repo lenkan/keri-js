@@ -10,6 +10,7 @@ export {
   type TransIdxSigGroup,
   type TransLastIdxSigGroup,
 } from "./attachments.ts";
+export { decodeBase64Int, decodeBase64Url, encodeBase64Int, encodeBase64Url } from "./base64.ts";
 export { Counter, type CounterInit } from "./counter.ts";
 export {
   encodeBinary,
@@ -23,4 +24,5 @@ export { Indexer, type IndexerInit } from "./indexer.ts";
 export { Matter, type MatterInit } from "./matter.ts";
 export { Message, type MessageBody } from "./message.ts";
 export { type ParseInput, type ParseOptions, parse } from "./parse.ts";
+export { decodeUtf8, encodeUtf8 } from "./utf8.ts";
 export { VersionString, type VersionStringInit } from "./version-string.ts";

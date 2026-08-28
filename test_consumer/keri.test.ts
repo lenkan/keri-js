@@ -20,6 +20,20 @@ describe("keri", () => {
     assert.deepEqual(verifySignature(icp.raw, current.publicKey, detached), { ok: true });
   });
 
+  // The root's verbs compose, so a signed inception reaches its log in one expression.
+  test("chains construction, signing and append", () => {
+    const key = generateKeyPair();
+    const next = generateKeyPair();
+
+    const log = KeyEventLog.empty().append(
+      signEvent(KeyEvent.incept({ signingKeys: [key.publicKey], nextKeyDigests: [next.publicKeyDigest] }), {
+        signers: [key],
+      }),
+    );
+
+    assert.equal(log.state.lastEvent.s, "0");
+  });
+
   test("adopts a private key held elsewhere", () => {
     const key = generateKeyPair();
     const adopted = ed25519Signer(key.privateKey);
@@ -47,29 +61,23 @@ describe("keri", () => {
   // Anything added here ships to consumers forever. Infrastructure — witness, mailbox, controller,
   // transports, storage — belongs in @keri-js/infra, so a new name showing up must be deliberate.
   //
-  // Constructors reach the root only through the four namespaces. They are not also flat exports
-  // here: the same function is available loose from its subpath, under the same name.
+  // Namespaces are nouns, the top level is verbs and the state they act on. The byte layer lives at
+  // `keri/cesr`; only `Message` is repeated here, because every constructor returns one.
   test("exports exactly the toolbox surface", () => {
     assert.deepEqual(Object.keys(surface).sort(), [
-      "Attachments",
-      "Counter",
       "Credential",
       "EventIndex",
-      "Indexer",
       "KeyEvent",
       "KeyEventLog",
-      "Matter",
       "Message",
       "RoutedEvent",
       "TransactionEvent",
-      "VersionString",
       "collect",
       "ed25519Signer",
       "endorse",
       "formatDate",
       "generateKeyPair",
       "nextKeyDigest",
-      "parse",
       "saidify",
       "signEvent",
       "verify",
@@ -79,6 +87,7 @@ describe("keri", () => {
 
   test("groups every constructor under its protocol namespace", () => {
     assert.deepEqual(Object.keys(KeyEvent).sort(), [
+      "KeyEventLog",
       "applyReceipt",
       "attachSourceSeal",
       "backersFor",
@@ -91,6 +100,7 @@ describe("keri", () => {
       "keyEventSeal",
       "receipt",
       "rotate",
+      "signEvent",
     ]);
 
     assert.deepEqual(Object.keys(surface.TransactionEvent).sort(), ["incept", "isTransactionEvent", "issue", "revoke"]);
@@ -99,6 +109,7 @@ describe("keri", () => {
       "CHALLENGE_RESPONSE_ROUTE",
       "IPEX_GRANT_ROUTE",
       "embeds",
+      "endorse",
       "exchange",
       "isRoutedEvent",
       "query",
@@ -110,6 +121,16 @@ describe("keri", () => {
     assert.deepEqual(Object.keys(Credential).sort(), ["create", "disclosedAttributes", "isCredential"]);
   });
 
+  // A namespace member and its top-level name are the same function, not two copies.
+  test("namespace members and top-level verbs are the same function", () => {
+    assert.equal(KeyEvent.signEvent, signEvent);
+    assert.equal(KeyEvent.KeyEventLog, KeyEventLog);
+    assert.equal(surface.RoutedEvent.endorse, surface.endorse);
+
+    // The two inceptions are distinct functions told apart by their namespace.
+    assert.notEqual(KeyEvent.incept, surface.TransactionEvent.incept);
+  });
+
   // The namespaces are ES module namespaces, not classes: `KeyEvent.incept` returns a Message, so a
   // class would promise an instance type it can never produce.
   test("namespaces are module namespaces, not constructible", () => {
@@ -119,26 +140,18 @@ describe("keri", () => {
     }
   });
 
-  // Each namespace member is also importable one at a time, under the same name.
-  test("subpaths expose the same functions loose", async () => {
-    const [keyEvents, transactionEvents, routedEvents, credentials] = await Promise.all([
-      import("keri/key-events"),
-      import("keri/transaction-events"),
-      import("keri/routed-events"),
-      import("keri/credentials"),
-    ]);
-
-    assert.equal(keyEvents.incept, KeyEvent.incept);
-    assert.equal(transactionEvents.incept, surface.TransactionEvent.incept);
-    assert.equal(routedEvents.reply, surface.RoutedEvent.reply);
-    assert.equal(credentials.create, Credential.create);
-
-    // The two inceptions are distinct functions reached under one name from different paths.
-    assert.notEqual(keyEvents.incept, transactionEvents.incept);
-  });
-
+  // Two entry points, and only two. A per-protocol subpath would hand out `incept` with the
+  // namespace stripped off — the one thing the grouping exists to prevent.
   test("exposes no other entry points", async () => {
-    for (const subpath of ["keri/witness", "keri/mailbox", "keri/sqlite-storage", "keri/nodejs-utils"]) {
+    for (const subpath of [
+      "keri/key-events",
+      "keri/transaction-events",
+      "keri/routed-events",
+      "keri/credentials",
+      "keri/encoding",
+      "keri/witness",
+      "keri/sqlite-storage",
+    ]) {
       await assert.rejects(() => import(subpath), `${subpath} must not resolve`);
     }
   });

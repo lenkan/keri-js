@@ -1,4 +1,4 @@
-import { decodeBase64Int, encodeBase64Int } from "../encoding/main.ts";
+import { decodeBase64Int, encodeBase64Int } from "./base64.ts";
 import { IndexCode, IndexTableInit } from "./codes.ts";
 import { decodeText, type Frame, type FrameSize, peekText, type ReadResult, resolveQuadletCount } from "./frame.ts";
 import { Matter } from "./matter.ts";

@@ -21,8 +21,11 @@ function submodule(path: string): string {
   return path.split("/")[0];
 }
 
+// `main.ts` is what a submodule shows consumers; `internal.ts` is what it shows its siblings. The
+// split keeps the four namespaces the size of their public list, and makes an import of the second
+// say at its own call site that it is reaching past that.
 function isEntryPoint(path: string): boolean {
-  return path === "main.ts" || path === `${submodule(path)}/main.ts`;
+  return path === "main.ts" || path === `${submodule(path)}/main.ts` || path === `${submodule(path)}/internal.ts`;
 }
 
 // `test_consumer` is the one place that must reach the library the way a dependent does, through the
@@ -81,6 +84,12 @@ for await (const file of files) {
     }
 
     if (to === null) {
+      // Tests may reach `test_utils`. They are excluded from the published tarball, so the
+      // boundary that protects consumers does not apply to them.
+      if (file.endsWith(".test.ts") && resolve(dirname(absFile), spec).startsWith(resolve(ROOT, "test_utils"))) {
+        continue;
+      }
+
       violations.push(`${file}: imports "${spec}" — leaves src`);
       continue;
     }
@@ -90,7 +99,16 @@ for await (const file of files) {
     }
 
     if (!isEntryPoint(to)) {
-      violations.push(`${file}: imports "${spec}" — must target src/main.ts or ../${submodule(to)}/main.ts`);
+      violations.push(
+        `${file}: imports "${spec}" — must target src/main.ts, ../${submodule(to)}/main.ts or ../${submodule(to)}/internal.ts`,
+      );
+      continue;
+    }
+
+    // The package surface is assembled from what each submodule publishes, never from what it
+    // keeps for its siblings.
+    if (from === "main.ts" && to.endsWith("/internal.ts")) {
+      violations.push(`${file}: imports "${spec}" — the public surface is built from main.ts only`);
     }
   }
 }

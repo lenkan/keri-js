@@ -1,7 +1,8 @@
-import { decodeBase64Int, decodeBase64Url, decodeUtf8, encodeBase64Url, encodeUtf8 } from "../encoding/main.ts";
 import { concat } from "./array-utils.ts";
+import { decodeBase64Int, decodeBase64Url, encodeBase64Url } from "./base64.ts";
 import { MatterCode, MatterTableInit } from "./codes.ts";
 import { decodeText, type Frame, type FrameSize, peekText, type ReadResult } from "./frame.ts";
+import { decodeUtf8, encodeUtf8 } from "./utf8.ts";
 
 const REGEX_BASE64_CHARACTER = /^[A-Za-z0-9\-_]+$/;
 

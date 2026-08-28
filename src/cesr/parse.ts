@@ -1,4 +1,3 @@
-import { encodeUtf8 } from "../encoding/main.ts";
 import { concat } from "./array-utils.ts";
 import type { Attachments } from "./attachments.ts";
 import { AttachmentsReader } from "./attachments-reader.ts";
@@ -7,6 +6,7 @@ import { Counter } from "./counter.ts";
 import { resolveQuadletCount } from "./frame.ts";
 import { Genus } from "./genus.ts";
 import { Message } from "./message.ts";
+import { encodeUtf8 } from "./utf8.ts";
 
 export type ParseInput = Uint8Array | string | AsyncIterable<Uint8Array>;
 
