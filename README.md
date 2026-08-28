@@ -101,6 +101,45 @@ identifiers, which is what an OOBI response for a delegated AID returns.
 A `drt` carries no `di` — v1 gives it the same fields as `rot` — so the delegator it is held to is
 the one its `dip` established.
 
+### Witness receipts
+
+A backer receipts an event by signing the event and returning an `rct`. The controller folds those
+receipts back onto the event, which is the form an exported KEL travels in.
+
+```ts
+import { KeyEvent, KeyEventLog, signEvent } from "keri";
+
+const icp = KeyEvent.incept({
+  signingKeys: [current.publicKey],
+  nextKeyDigests: [next.publicKeyDigest],
+  backers: [witness.publicKey],
+});
+
+signEvent(icp, { signers: [current] });
+
+const backers = KeyEvent.backersFor(icp, null);
+const rct = KeyEvent.receipt(icp, { signers: [witness], backers });
+KeyEvent.applyReceipt(icp, rct, backers);
+
+const log = KeyEventLog.empty().append(icp);
+```
+
+`receipt` signs the event, not the receipt — a signature over the `rct` itself would verify against
+nothing. Passing `backers` is what makes it a witness receipt, indexed by position in that set;
+leave it out and the signature travels as a bare couple naming its own key, which `applyReceipt`
+promotes back to an indexed one. A couple from outside the backer set is dropped: a key event has
+nowhere to carry it.
+
+`backersFor` gives the set that has to receipt an event — `null` for an inception, which carries its
+backers itself, and the key state for anything after one. A rotation is receipted by the set it
+establishes, not the one it replaces.
+
+`append` requires the backer threshold to be met. Pass `allowPartiallyWitnessed` for an event still
+collecting receipts.
+
+`rct` is not a key event: `append` rejects it and `KeyEventLog.parse` ignores it. Apply a receipt to
+the event it names before storing the event.
+
 ### Read a key event log from a stream
 
 Anything async-iterable works, whether it came from a file, an HTTP response or a socket:
@@ -184,7 +223,7 @@ codes, which the encoder does not do.
 | `keri` | everything: the four namespaces, key event logs, verification, signing, and the CESR types |
 | `keri/cesr` | CESR encoding, decoding and stream parsing: `Matter`, `Indexer`, `Counter`, `Attachments`, `parse` |
 | `keri/encoding` | Base64url and UTF-8 helpers |
-| `keri/key-events` | `incept`, `interact`, `rotate`, `delegatedIncept`, `delegatedRotate`, `receipt`, `isKeyEvent` |
+| `keri/key-events` | `incept`, `interact`, `rotate`, `delegatedIncept`, `delegatedRotate`, `receipt`, `applyReceipt`, `isKeyEvent` |
 | `keri/transaction-events` | `incept` (registry `vcp`), `issue`, `revoke`, `isTransactionEvent` |
 | `keri/routed-events` | `exchange`, `query`, `reply`, `embeds`, `IPEX_GRANT_ROUTE`, `isRoutedEvent` |
 | `keri/credentials` | `create`, `disclosedAttributes`, `isCredential` |
@@ -250,6 +289,9 @@ and 2 says so on the wire.
 A delegated log carries the delegator's events too, in stream order, the way an OOBI response
 delivers them. `controllers` then covers every identifier in the file, and `state` is the delegate's
 — which its own `i` names.
+
+`backers` holds the log's non-transferable keys, which is not quite the same as the `b` field of its
+events: the `receipts` log also lists a receiptor that no event designates as a backer.
 
 A seed derives both a transferable `D…` key and a non-transferable `B…` one, so each entry names the
 form its log uses. Checking that a seed derives the key beside it is a cheap first test of an

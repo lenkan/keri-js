@@ -9,7 +9,7 @@ import type {
   KeyState,
   RotateEventBody,
 } from "./key-event.ts";
-import { applyBackerChanges, isEstablishment, isKelEventType } from "./key-event.ts";
+import { applyBackerChanges, backersFor, isEstablishment, isKelEventType } from "./key-event.ts";
 import { verifySignaturesOrThrow, verifyThresholdOrThrow } from "./verify.ts";
 
 export interface AppendOptions {
@@ -191,9 +191,10 @@ export class KeyEventLog {
         // A zero backer threshold is valid KERI — witnesses listed, no
         // receipts required — and must not reach the threshold parser, which
         // (correctly) rejects 0 for signing thresholds.
-        if (icp.b && Array.isArray(icp.b) && icp.b.length > 0 && !isZeroThreshold(icp.bt)) {
+        const backers = backersFor(message, null);
+        if (backers.length > 0 && !isZeroThreshold(icp.bt)) {
           verifyWitness(bodyRaw, {
-            keys: icp.b,
+            keys: backers,
             threshold: icp.bt,
             sigs: wigs,
           });
@@ -234,10 +235,11 @@ export class KeyEventLog {
         }
 
         // A rotation is receipted by the backer set it establishes, not the one it replaces, so
-        // its own `bt` and `br`/`ba` decide who has to sign. An `ixn` changes neither.
-        const rot = isEstablishment(body.t) ? (body as RotateEventBody | DrtEventBody) : null;
-        const backers = rot ? applyBackerChanges(state.backers, rot.br, rot.ba) : state.backers;
-        const threshold = rot ? rot.bt : (state.backerThreshold as string);
+        // its own `bt` decides how many have to sign. An `ixn` changes neither.
+        const backers = backersFor(message, state);
+        const threshold = isEstablishment(body.t)
+          ? (body as RotateEventBody | DrtEventBody).bt
+          : (state.backerThreshold as string);
 
         if (backers.length > 0 && !isZeroThreshold(threshold)) {
           verifyWitness(bodyRaw, { keys: backers, threshold, sigs: wigs });

@@ -122,6 +122,11 @@ export function endorse<T extends Message>(message: T, options: EndorseOptions):
     throw new Error(`${message.body.t} is a key event — use signEvent() instead`);
   }
 
+  // A receipt is signed over the event it receipts, which this never sees.
+  if (message.body.t === "rct") {
+    throw new Error("A receipt is signed over the event it receipts — use receipt() instead");
+  }
+
   const { state, latest } = options;
   const signatures = collectSignatures(message, options);
 
@@ -177,7 +182,8 @@ export function endorse<T extends Message>(message: T, options: EndorseOptions):
   return message;
 }
 
-function collectSignatures(message: Message, options: SignerInput): Signature[] {
+/** Not on the package surface: `receipt` needs it to sign the event a receipt is *about*. */
+export function collectSignatures(message: Message, options: SignerInput): Signature[] {
   const { signers = [], signatures = [] } = options;
 
   if (signers.length === 0 && signatures.length === 0) {

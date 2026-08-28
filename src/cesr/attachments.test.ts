@@ -92,6 +92,20 @@ describe(basename(import.meta.url), () => {
       );
     });
 
+    // The order keripy's `messagize` writes them in: sigers, then wigers, then cigars.
+    test("should serialize witness signatures before receipt couples", () => {
+      const couple = {
+        prefix: "BEZbsFd5_-IEwhnvsaqKvPuTSm9sa9crR_ip7PU1BryR",
+        sig: "0BBWy3Amd7MoMXfG30UXr-fg6vChLBvtW0ojQqIdhE373PquVbWl4tHJYMRWbytqETC_bVMRkve9v_C9fCo1KfgN",
+      };
+      const attachments = new Attachments({ NonTransReceiptCouples: [couple], WitnessIdxSigs: [sig0] });
+
+      assert.deepStrictEqual(
+        encodeText(attachments.frames()),
+        ["-VA5", "-BAB", sig0, "-CAB", couple.prefix, couple.sig].join(""),
+      );
+    });
+
     test("should serialize embedded attachment without group wrapper", () => {
       const attachments = new Attachments({
         PathedMaterialCouples: [

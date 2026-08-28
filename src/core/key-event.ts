@@ -174,6 +174,34 @@ export function applyBackerChanges(backers: string[], removed: string[], added: 
   return backers.filter((backer) => !removed.includes(backer)).concat(added);
 }
 
+/**
+ * The backer set that has to receipt `event`, and so the positions its witness signatures are
+ * indexed by.
+ *
+ * A rotation is receipted by the set it establishes, not the one it replaces, so its own `br`/`ba`
+ * decide. `state` is the key state the event applies to, and is only needed for a `dip`'s
+ * successors — an inception carries its backers itself.
+ */
+export function backersFor(event: Message<KeyEventBody>, state: KeyState | null): string[] {
+  const body = event.body;
+
+  if (body.t === "icp" || body.t === "dip") {
+    const { b } = body as InceptEventBody;
+    return Array.isArray(b) ? b : [];
+  }
+
+  if (state === null) {
+    throw new Error(`Backers of a ${body.t} come from the key state, which was not given`);
+  }
+
+  if (body.t === "rot" || body.t === "drt") {
+    const rot = body as RotateEventBody | DrtEventBody;
+    return applyBackerChanges(state.backers, rot.br, rot.ba);
+  }
+
+  return state.backers;
+}
+
 export function incept(args: InceptArgs): Message<InceptEventBody> {
   const keys = args.signingKeys;
   if (keys.length === 0) {

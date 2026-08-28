@@ -17,12 +17,15 @@ export type {
   InteractEventBody,
   KeyEventBody,
   KeyState,
+  ReceiptArgs,
   ReceiptEventBody,
   RotateArgs,
   RotateEventBody,
 } from "../core/main.ts";
 export {
+  applyReceipt,
   attachSourceSeal,
+  backersFor,
   delegatedIncept,
   delegatedRotate,
   incept,

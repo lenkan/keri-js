@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 import { Message } from "../cesr/main.ts";
 import {
   attachSourceSeal,
+  backersFor,
   delegatedIncept,
   delegatedRotate,
   incept,
@@ -597,6 +598,54 @@ describe(basename(import.meta.url), () => {
       attachSourceSeal(anchored, anchoring);
 
       assert.deepEqual(anchored.attachments.SealSourceCouples, [{ snu: anchoring.body.s, digest: anchoring.body.d }]);
+    });
+  });
+
+  describe("backersFor", () => {
+    const witnesses = ["BAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "BAbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"];
+    const added = "BAcccccccccccccccccccccccccccccccccccccccccc";
+
+    function backeredLog(key: KeyPair, nextKey: KeyPair): KeyEventLog {
+      const event = incept({
+        signingKeys: [key.publicKey],
+        nextKeyDigests: [nextKey.publicKeyDigest],
+        backers: witnesses,
+        backerThreshold: 0,
+      });
+      return KeyEventLog.empty().append(new Message(event.body, { ControllerIdxSigs: sign(event, [key]) }));
+    }
+
+    test("should take an inception's backers from the event itself", () => {
+      const event = incept({ signingKeys: [generateKeyPair().publicKey], nextKeyDigests: [], backers: witnesses });
+
+      assert.deepEqual(backersFor(event, null), witnesses);
+    });
+
+    test("should throw for a non-inception without key state", () => {
+      const log = backeredLog(generateKeyPair({ insecureSeed: "k0" }), generateKeyPair({ insecureSeed: "k1" }));
+
+      assert.throws(() => backersFor(interact(log.state), null), { message: /come from the key state/ });
+    });
+
+    test("should carry the backer set through an interaction", () => {
+      const log = backeredLog(generateKeyPair({ insecureSeed: "k0" }), generateKeyPair({ insecureSeed: "k1" }));
+
+      assert.deepEqual(backersFor(interact(log.state), log.state), witnesses);
+    });
+
+    // A rotation is receipted by the set it establishes, not the one it replaces, so the surviving
+    // witness moves to index 0.
+    test("should give a rotation the backer set it establishes", () => {
+      const key1 = generateKeyPair({ insecureSeed: "k1" });
+      const log = backeredLog(generateKeyPair({ insecureSeed: "k0" }), key1);
+      const event = rotate(log.state, {
+        signingKeys: [key1.publicKey],
+        nextKeyDigests: [],
+        removeBackers: [witnesses[0]],
+        addBackers: [added],
+      });
+
+      assert.deepEqual(backersFor(event, log.state), [witnesses[1], added]);
     });
   });
 });

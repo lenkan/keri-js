@@ -13,7 +13,7 @@ import keri
 from keri.core import eventing, parsing
 from keri.core.coring import Diger, MtrDex, Seqner
 from keri.core.counting import Codens, Counter
-from keri.core.eventing import delcept, deltate, incept, interact, messagize, rotate
+from keri.core.eventing import delcept, deltate, incept, interact, messagize, receipt, rotate
 from keri.core.signing import Signer
 from keri.db import basing
 from keri.kering import Vrsn_1_0
@@ -92,6 +92,19 @@ class Log:
             group = Counter(Codens.AttachmentGroup, count=len(attachments) // 4, gvrsn=Vrsn_1_0)
             attachments = group.qb64 + attachments
 
+        self.record(name, serder, attachments)
+
+    def receipt(self, name, event, backers, indices=(), receiptors=()):
+        """A receipt travels as its own message, signed over the event it receipts, not over itself."""
+        serder = receipt(pre=event.pre, sn=event.sn, said=event.said)
+
+        wigers = [backers[index].sign(event.raw, index) for index in indices]
+        cigars = [receiptor.sign(event.raw) for receiptor in receiptors]
+
+        stream = messagize(serder=serder, wigers=wigers, cigars=cigars, pipelined=True).decode("utf-8")
+        self.record(name, serder, stream[len(serder.raw) :])
+
+    def record(self, name, serder, attachments):
         self.events.append(
             {
                 "name": name,
@@ -306,6 +319,31 @@ def config_traits():
     return log
 
 
+def receipts():
+    current, next_ = make_signer(), make_signer()
+    witnesses = [make_signer(transferable=False) for _ in range(2)]
+    watcher = make_signer(transferable=False)
+
+    log = Log("receipts", [current, next_], witnesses + [watcher])
+
+    inception = incept(
+        keys=[current.verfer.qb64],
+        ndigs=[commitment(next_)],
+        wits=[witness.verfer.qb64 for witness in witnesses],
+        code=MtrDex.Blake3_256,
+    )
+    log.append("icp", inception, [current], witnesses=witnesses)
+
+    log.receipt("rct-witness", inception, witnesses, indices=[0])
+    # A backer receipting in the generic form. keripy promotes the couple to an indexed signature,
+    # because the prefix it names is in the witness list.
+    log.receipt("rct-couple", inception, witnesses, receiptors=[witnesses[1]])
+    # Both groups in one message, which is the only thing that pins their order.
+    log.receipt("rct-mixed", inception, witnesses, indices=[0], receiptors=[watcher])
+
+    return log
+
+
 logs = [
     single(),
     multisig("multisig", "2"),
@@ -314,6 +352,7 @@ logs = [
     hex_threshold(),
     delegated(),
     config_traits(),
+    receipts(),
 ]
 
 parser = argparse.ArgumentParser(description=__doc__)

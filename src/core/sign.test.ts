@@ -6,6 +6,7 @@ import { verifyReply } from "./exchange-verification.ts";
 import { incept, interact, rotate } from "./key-event.ts";
 import { KeyEventLog } from "./key-event-log.ts";
 import { generateKeyPair, type KeyPair } from "./keys.ts";
+import { receipt } from "./receipt-event.ts";
 import { reply } from "./routed-event.ts";
 import { ed25519Signer, endorse, signEvent } from "./sign.ts";
 import { verifyThreshold } from "./verify.ts";
@@ -331,6 +332,14 @@ describe(basename(import.meta.url), () => {
       const { event, log } = inceptLog([key]);
 
       assert.throws(() => endorse(event, { signers: [key], state: log.state }), /use signEvent\(\)/);
+    });
+
+    // A receipt is signed over the event it receipts, so endorsing it would sign the wrong bytes.
+    test("should reject a receipt", () => {
+      const key = generateKeyPair({ nonTransferable: true });
+      const { event, log } = inceptLog([key], { nonTransferable: true });
+
+      assert.throws(() => endorse(receipt(event), { signers: [key], state: log.state }), /use receipt\(\)/);
     });
 
     test("should reject latest for a non-transferable identifier", () => {

@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { Attachments, encodeText, Indexer, type Message } from "../src/cesr/main.ts";
+import { Attachments, encodeText, Indexer, Message } from "../src/cesr/main.ts";
 import { decodeUtf8, encodeUtf8 } from "../src/encoding/main.ts";
 import {
   ed25519Signer,
@@ -12,6 +12,7 @@ import {
   KeyEventLog,
   type KeyState,
   parse,
+  type ReceiptEventBody,
   type Signer,
   signEvent,
   type Threshold,
@@ -102,20 +103,6 @@ function attachmentsOf(entry: Case): Attachments {
   return attachments;
 }
 
-/**
- * keri-js has no `WitnessIdxSigs` write path yet, so a witnessed event is held to its controller
- * signatures alone. They are re-emitted from the fixture's own attachment rather than sliced out
- * of it, because both groups sit inside one enclosing frame whose size covers them together.
- */
-function expectedAttachments(entry: Case): string {
-  const attachments = attachmentsOf(entry);
-  if (attachments.WitnessIdxSigs.length === 0) {
-    return entry.attachments;
-  }
-
-  return encodeText(new Attachments({ ControllerIdxSigs: attachments.ControllerIdxSigs }).frames());
-}
-
 /** Also checks the log's own claim: the seed has to derive the public key listed beside it. */
 function signerFor(key: Key): Signer {
   const raw = Uint8Array.from(Buffer.from(key.seed, "hex"));
@@ -138,6 +125,24 @@ function signers(entry: Case, keys: string[], available: ReadonlyMap<string, Sig
     const key = keys[Indexer.parse(sig).index];
     const signer = available.get(key);
     assert.ok(signer, `${entry.name} is signed by ${key}, which the log declares no seed for`);
+    return signer;
+  });
+}
+
+/**
+ * Which backers receipted, read off the same wire the controller indices come from. A couple names
+ * its signer by prefix and an indexed signature by position, so both resolve against `backers`.
+ */
+function receiptors(entry: Case, backers: string[], available: ReadonlyMap<string, Signer>): Signer[] {
+  const attachments = attachmentsOf(entry);
+  const keys = [
+    ...attachments.WitnessIdxSigs.map((sig) => backers[Indexer.parse(sig).index]),
+    ...attachments.NonTransReceiptCouples.map((couple) => couple.prefix),
+  ];
+
+  return keys.map((key) => {
+    const signer = available.get(key);
+    assert.ok(signer, `${entry.name} is receipted by ${key}, which the log declares no seed for`);
     return signer;
   });
 }
@@ -222,15 +227,17 @@ function anchoringEvent(message: Message<KeyEventBody>, delegator: KeyEventLog):
  * blocks the rest of that identifier — they report that instead of a stale diff. A delegated log
  * carries two identifiers, and a broken delegate must not be reported as a diff on the delegator.
  *
- * KERIpy signs a backered event with its witnesses; keri-js has no way to produce those, so what
- * it rebuilds is replayed without requiring them.
+ * A backered event is receipted the way the protocol does it: every backer the fixture says signed
+ * issues a receipt, and the receipts are folded back onto the event. Nothing fabricates a witness
+ * signature directly, because nothing in KERI does.
  */
 function rebuild(log: Log) {
   const available = new Map([...log.controllers, ...log.backers].map((key) => [key.public, signerFor(key)]));
 
-  const results: { entry: Case; message?: Message<KeyEventBody>; error?: unknown }[] = [];
+  const results: { entry: Case; message?: Message; error?: unknown }[] = [];
   const logs = new Map<string, KeyEventLog>();
   const blocked = new Map<string, string>();
+  const built = new Map<string, { message: Message<KeyEventBody>; backers: string[] }>();
 
   for (const entry of log.events) {
     const identifier = entry.sad.i as string;
@@ -244,6 +251,25 @@ function rebuild(log: Log) {
       const events = logs.get(identifier) ?? KeyEventLog.empty();
       const state = events.events.length > 0 ? events.state : null;
 
+      // A receipt is not a KEL event, so it is rebuilt from the event it receipts and never appended.
+      if (entry.sad.t === "rct") {
+        const target = built.get(entry.sad.d as string);
+        assert.ok(target, `${entry.name} receipts ${entry.sad.d}, which the log does not carry`);
+        const { backers } = target;
+        // Whether a backer receipted as a witness or in the generic form is a caller's choice in
+        // both implementations — `Hab.witness` against `Hab.receipt` — so it is read off the wire,
+        // the same way which keys signed is.
+        const asWitness = attachmentsOf(entry).WitnessIdxSigs.length > 0;
+        results.push({
+          entry,
+          message: KeyEvent.receipt(target.message, {
+            signers: receiptors(entry, backers, available),
+            backers: asWitness ? backers : [],
+          }),
+        });
+        continue;
+      }
+
       const message = build(entry, state);
       const keys = (entry.sad as unknown as Establishment).k ?? (state as KeyState).signingKeys;
       signEvent(message, { signers: signers(entry, keys, available), state: state ?? undefined });
@@ -256,9 +282,16 @@ function rebuild(log: Log) {
         KeyEvent.attachSourceSeal(message, anchoringEvent(message, delegator));
       }
 
-      // `append` verifies the signatures — and, for a delegated event, the anchor — so the chain
-      // also checks that what we built parses back.
-      logs.set(identifier, events.append(message, { allowPartiallyWitnessed: true, delegator }));
+      const backers = KeyEvent.backersFor(message, state);
+      const witnesses = receiptors(entry, backers, available);
+      if (witnesses.length > 0) {
+        KeyEvent.applyReceipt(message, KeyEvent.receipt(message, { signers: witnesses, backers }), backers);
+      }
+
+      // `append` verifies the signatures — controller and witness both — and, for a delegated
+      // event, the anchor, so the chain also checks that what we built parses back.
+      logs.set(identifier, events.append(message, { delegator }));
+      built.set(message.body.d, { message, backers });
       results.push({ entry, message });
     } catch (error) {
       blocked.set(identifier, entry.name);
@@ -303,7 +336,7 @@ describe(path.parse(import.meta.url).base, () => {
         describe(log.name, () => {
           const rebuilt = rebuild(log);
           const stream = log.events.map(message).join("");
-          const writable = log.events.map((entry) => entry.raw + expectedAttachments(entry)).join("");
+          const writable = log.events.map((entry) => entry.raw + entry.attachments).join("");
 
           for (const entry of log.events) {
             test(`reads ${entry.name}`, async () => {
@@ -324,7 +357,7 @@ describe(path.parse(import.meta.url).base, () => {
               // strings do not. The byte comparison is the real claim — it also pins field order.
               assert.deepStrictEqual(message.body, entry.sad, "event body");
               assert.strictEqual(decodeUtf8(message.raw), entry.raw, "serialized body");
-              assert.strictEqual(encodeText(message.attachments.frames()), expectedAttachments(entry), "attachments");
+              assert.strictEqual(encodeText(message.attachments.frames()), entry.attachments, "attachments");
             });
           }
 
@@ -336,6 +369,35 @@ describe(path.parse(import.meta.url).base, () => {
 
             assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), writable);
           });
+
+          // Against KERIpy's own bytes on both sides, so it holds whether or not the rebuild works:
+          // a couple naming a backer has to promote to the very signature the event already carries.
+          for (const entry of log.events.filter((candidate) => candidate.sad.t === "rct")) {
+            test(`applies ${entry.name} to the event it receipts`, async () => {
+              const target = log.events.find(
+                (candidate) => candidate.sad.t !== "rct" && candidate.sad.d === entry.sad.d,
+              );
+              assert.ok(target, `${entry.name} receipts ${entry.sad.d}, which the log does not carry`);
+
+              const [receipt] = await Array.fromAsync(parse(message(entry)));
+              const [event] = await Array.fromAsync(parse(message(target)));
+
+              const backers = KeyEvent.backersFor(event as Message<KeyEventBody>, null);
+              const applied = KeyEvent.applyReceipt(
+                new Message(event.body as KeyEventBody),
+                receipt as Message<ReceiptEventBody>,
+                backers,
+              );
+
+              assert.ok(applied.attachments.WitnessIdxSigs.length > 0, "no witness signature came out of the receipt");
+              for (const sig of applied.attachments.WitnessIdxSigs) {
+                assert.ok(
+                  event.attachments.WitnessIdxSigs.includes(sig),
+                  `${sig} is not one of the witness signatures ${target.name} carries`,
+                );
+              }
+            });
+          }
 
           // No `allowPartiallyWitnessed` here: the fixture carries KERIpy's own witness signatures,
           // so a backered log has to clear its own backer threshold to settle.

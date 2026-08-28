@@ -67,6 +67,7 @@ export type {
   KeyState,
   QueryEventArgs,
   QueryEventBody,
+  ReceiptArgs,
   ReceiptEventBody,
   RegistryInceptEventArgs,
   RegistryInceptEventBody,

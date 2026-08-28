@@ -58,6 +58,7 @@ export type {
 } from "./key-event.ts";
 export {
   attachSourceSeal,
+  backersFor,
   delegatedIncept,
   delegatedRotate,
   incept,
@@ -70,8 +71,8 @@ export {
 export { type AppendOptions, KeyEventLog } from "./key-event-log.ts";
 export type { GenerateKeyPairOptions, KeyPair } from "./keys.ts";
 export { generateKeyPair } from "./keys.ts";
-export type { ReceiptEventBody } from "./receipt-event.ts";
-export { receipt } from "./receipt-event.ts";
+export type { ReceiptArgs, ReceiptEventBody } from "./receipt-event.ts";
+export { applyReceipt, receipt } from "./receipt-event.ts";
 export type { RegistryInceptEventArgs, RegistryInceptEventBody } from "./registry-event.ts";
 // Aliased because the package exposes two inceptions — this one is the registry's
 // `vcp`. At the root they are told apart by namespace, not by name.

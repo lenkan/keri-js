@@ -89,7 +89,9 @@ State-preserving — anchors external data via seals in `a`. Signed by current k
 
 Field order: `[v, t, d, i, s]`.
 
-Body is just a reference to a key event; the signatures are attached via CESR groups. Witness receipts use the `NonTransReceiptCouples` group (count code `C` in v1, `M` in v2) carrying `(prefix, signature)` couples; the signature primitive is Ed25519 (`0B`) or ECDSA-256k1 (`0C`). Transferable signers use indexed signatures instead.
+Body is just a reference to a key event; the signatures are attached via CESR groups, and are over the **receipted event's** bytes, not the receipt's. A witness names itself by its position in the event's `b`, using the `WitnessIdxSigs` group (count code `B` in v1, `L` in v2); anyone else non-transferable names itself by prefix, using `NonTransReceiptCouples` (`C` in v1, `M` in v2) carrying `(prefix, signature)` couples. The signature primitive is Ed25519 (`0B`) or ECDSA-256k1 (`0C`). A couple whose prefix is in `b` is promoted back to an indexed signature by the reader. Transferable signers use a `TransIdxSigGroups` seal instead.
+
+An exported KEL carries no `rct` at all: the witness signatures ride on the events themselves as `WitnessIdxSigs`. The standalone `rct` is the witness-to-controller hop.
 
 ### Delegation (`dip` / `drt`)
 

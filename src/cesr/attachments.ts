@@ -160,19 +160,21 @@ export class Attachments implements AttachmentsInit {
       }
     }
 
+    // Witness signatures before receipt couples, the order keripy's `messagize` writes them in
+    // (eventing.py: wigers, then cigars).
+    if (this.WitnessIdxSigs && this.WitnessIdxSigs.length > 0) {
+      frames.push(
+        Counter.v1.WitnessIdxSigs(this.WitnessIdxSigs.length),
+        ...this.WitnessIdxSigs.map((sig) => Indexer.parse(sig)),
+      );
+    }
+
     if (this.NonTransReceiptCouples && this.NonTransReceiptCouples.length > 0) {
       frames.push(
         Counter.v1.NonTransReceiptCouples(this.NonTransReceiptCouples.length),
         ...this.NonTransReceiptCouples.flatMap((receipt) => {
           return [Matter.parse(receipt.prefix), Matter.parse(receipt.sig)];
         }),
-      );
-    }
-
-    if (this.WitnessIdxSigs && this.WitnessIdxSigs.length > 0) {
-      frames.push(
-        Counter.v1.WitnessIdxSigs(this.WitnessIdxSigs.length),
-        ...this.WitnessIdxSigs.map((sig) => Indexer.parse(sig)),
       );
     }
 

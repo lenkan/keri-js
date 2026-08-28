@@ -68,7 +68,8 @@ witness's receipt, forming a complete KERL entry.
 ## Implementation
 
 This package implements the primitives KAWA is built from — receipt messages
-(`KeyEvent.receipt`), witness-indexed signatures on attachments, and the
-first-seen policy in `src/core/key-event-log.ts`. Witness coordination itself
-(collecting and forwarding receipts over HTTP) is not part of this package; it
-lives on the `legacy` branch.
+(`KeyEvent.receipt`), folding a receipt back onto its event as a wig
+(`KeyEvent.applyReceipt`), and the threshold check in
+`src/core/key-event-log.ts`. Witness coordination itself (collecting and
+forwarding receipts over HTTP) is not part of this package; it lives on the
+`legacy` branch.
