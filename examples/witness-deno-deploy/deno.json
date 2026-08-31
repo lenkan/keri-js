@@ -1,0 +1,10 @@
+{
+  "nodeModulesDir": "manual",
+  "imports": {
+    "keri/cesr": "../../src/cesr/main.ts",
+    "keri/witness": "../../src/witness/main.ts"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --unstable-kv main.ts"
+  }
+}

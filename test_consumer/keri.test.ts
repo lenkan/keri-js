@@ -140,16 +140,16 @@ describe("keri", () => {
     }
   });
 
-  // Two entry points, and only two. A per-protocol subpath would hand out `incept` with the
-  // namespace stripped off — the one thing the grouping exists to prevent.
-  test("exposes no other entry points", async () => {
+  // No per-protocol subpath: it would hand out `incept` with the namespace stripped off, the one
+  // thing the grouping exists to prevent. `keri/witness` is not one — it publishes an application
+  // over the primitives, not a slice of them.
+  test("exposes no per-protocol entry points", async () => {
     for (const subpath of [
       "keri/key-events",
       "keri/registries",
       "keri/routed-events",
       "keri/credentials",
       "keri/encoding",
-      "keri/witness",
       "keri/sqlite-storage",
     ]) {
       await assert.rejects(() => import(subpath), `${subpath} must not resolve`);

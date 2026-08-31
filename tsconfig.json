@@ -10,5 +10,12 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "test_vectors/**/*.ts", "test_consumer/**/*.ts", "test_utils/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "test_vectors/**/*.ts",
+    "test_consumer/**/*.ts",
+    "test_interop/**/*.ts",
+    "test_utils/**/*.ts"
+  ]
 }

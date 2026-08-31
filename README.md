@@ -7,6 +7,9 @@ streams.
 The package is platform, transport and storage agnostic: it operates on messages and byte streams
 and performs no I/O. Bring your own network and database.
 
+`keri/witness` builds a deployable witness on top of those primitives. It performs no I/O either —
+it hands you a request handler and reads through a storage port you supply.
+
 ## Install
 
 ```sh
@@ -220,16 +223,44 @@ minor version and serialization kind included.
 Writing v2 is not supported yet. It needs CESR attachment groups to be emitted with v2 counter
 codes, which the encoder does not do.
 
+## Run a witness
+
+`keri/witness` is a witness built on those primitives: it receipts key events, holds mailboxes and
+serves OOBIs. It hands back a `fetch(request)` and reads and writes through a `Store` you supply, so
+it does no I/O of its own either.
+
+```ts
+import { MemoryStore, Witness } from "keri/witness";
+
+const witness = new Witness({
+  privateKey,                    // 32 bytes; the witness AID is derived from it
+  url: "https://witness.example.com",
+  store: new MemoryStore(),      // swap for something durable
+});
+
+Deno.serve(witness.fetch);       // or export default witness, or wrap it in node:http
+```
+
+`MemoryStore` is for tests and for trying it out. A real deployment needs a durable `Store`: six
+methods over an ordered key-value space — `get`, `put`, `create`, `delete`, `scan` and `last`.
+`create` is `put` for a key that must not already exist, the way Elasticsearch splits
+`op_type=index` from `op_type=create`; it is what keeps two simultaneous mailbox deposits from
+claiming the same slot. [`examples/witness-deno-deploy`](examples/witness-deno-deploy) is a working
+one, over Deno KV.
+
 ## Entry points
 
-Two, and only two.
+Three.
 
 | Import | Contents |
 | --- | --- |
 | `keri` | the four namespaces, `KeyEventLog`, signing and endorsement, keys, verification, `Message` |
 | `keri/cesr` | the byte layer: `Matter`, `Indexer`, `Counter`, `Attachments`, `parse`, `VersionString`, base64url and UTF-8 |
+| `keri/witness` | `Witness`, the `Store` port and `MemoryStore` |
 
-`Message` is the one name in both, because every constructor returns one.
+`Message` is the one name in both of the first two, because every constructor returns one. There is
+no per-protocol subpath: `keri/key-events` would hand out `incept` with the namespace stripped off,
+which is the one thing the grouping exists to prevent.
 
 ## Development
 

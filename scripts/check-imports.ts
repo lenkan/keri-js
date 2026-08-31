@@ -34,7 +34,14 @@ function isEntryPoint(path: string): boolean {
 const PACKAGE_NAME_REQUIRED = "test_consumer/";
 
 const files = glob(
-  ["src/**/*.ts", "test_vectors/**/*.ts", "scripts/**/*.ts", "test_consumer/**/*.ts", "test_utils/**/*.ts"],
+  [
+    "src/**/*.ts",
+    "test_vectors/**/*.ts",
+    "scripts/**/*.ts",
+    "test_consumer/**/*.ts",
+    "test_interop/**/*.ts",
+    "test_utils/**/*.ts",
+  ],
   { cwd: ROOT },
 );
 
