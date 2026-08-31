@@ -3,9 +3,21 @@ import { randomBytes } from "node:crypto";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
 import { encodeText, Indexer } from "../cesr/main.ts";
-import { exchange } from "./routed-event.ts";
+import { exchange, query, reply } from "./routed-event.ts";
 
 describe(basename(import.meta.url), () => {
+  test("should carry a wire timestamp through to the event", () => {
+    const dt = "2025-04-17T21:53:17.019676+00:00";
+
+    for (const event of [
+      query({ q: {}, dt }),
+      reply({ r: "/end/role/add", a: {}, dt }),
+      exchange({ sender: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS", route: "/ipex/grant", timestamp: dt }),
+    ]) {
+      assert.equal(event.body.dt, dt);
+    }
+  });
+
   test("should create exchange event", () => {
     const event = exchange({
       sender: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS",

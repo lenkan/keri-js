@@ -12,6 +12,15 @@ export function formatDate(date: Date): string {
   return date.toISOString().replace("Z", "000+00:00");
 }
 
+/**
+ * A `Date` holds milliseconds, KERI writes microseconds, and the SAID is computed over the text.
+ * So a timestamp that came off the wire travels as the string it arrived as: round-tripping it
+ * through `Date` would round `…019676` to `…019000` and change the event's digest.
+ */
+export function timestamp(dt: Date | string | undefined): string {
+  return typeof dt === "string" ? dt : formatDate(dt ?? new Date());
+}
+
 export function randomNonce(): string {
   return encodeText(Matter.from(Matter.Code.Salt_128, crypto.getRandomValues(new Uint8Array(16))));
 }

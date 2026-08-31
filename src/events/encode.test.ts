@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { describe, test } from "node:test";
-import { encodeEvent } from "./encode.ts";
+import { encodeEvent, timestamp } from "./encode.ts";
 
 describe(basename(import.meta.url), () => {
+  // KERI writes microseconds and a `Date` holds milliseconds, so a timestamp off the wire has to
+  // travel as text. Rounding `…019676` to `…019000` would change the digest of the event carrying it.
+  test("should keep a timestamp given as a string", () => {
+    assert.equal(timestamp("2025-04-17T21:53:17.019676+00:00"), "2025-04-17T21:53:17.019676+00:00");
+  });
+
+  test("should format a timestamp given as a Date", () => {
+    assert.equal(timestamp(new Date("2025-04-17T21:53:17.019Z")), "2025-04-17T21:53:17.019000+00:00");
+  });
+
   test("should add a version string field", () => {
     const result = encodeEvent({ d: "", t: "icp" });
     assert.ok(result.v.startsWith("KERI10JSON"));

@@ -249,19 +249,27 @@ npm run test:deno       # The same suite on Deno, straight off src
 change makes the library touch the network, the environment or the filesystem, that job fails.
 
 `src/cesr/codes.ts` is generated from KERIpy's code tables, `fixtures/cesr_test_vectors.json` from
-its primitives, and `fixtures/events/` from its event constructors. All need a `.venv` with KERIpy
-from `requirements.txt`:
+its primitives, `fixtures/events/` from its event constructors and `fixtures/credentials/` from its
+registry and ACDC constructors. All need a `.venv` with KERIpy from `requirements.txt`:
 
 ```sh
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/generate-codec.py > src/cesr/codes.ts
 .venv/bin/python scripts/generate-test-vector.py > fixtures/cesr_test_vectors.json
 .venv/bin/python scripts/generate-event-vectors.py fixtures/events
+.venv/bin/python scripts/generate-credential-vectors.py fixtures/credentials
 ```
 
-That last one writes `fixtures/events/keri-<version>/`, one file per key event log. It owns that
-directory and clears the `.json` in it first, so a renamed log leaves nothing stale behind. The test
-reads whatever directories are there, so a second KERIpy version is a directory to drop in.
+The last two write `keri-<version>/` under the directory named, one file per log. Each owns its
+directory and clears it first, so a renamed log leaves nothing stale behind. The tests read whatever
+directories are there, so a second KERIpy version is a directory to drop in.
+
+`generate-credential-vectors.py` writes a `chained` log — GLEIF issues a QVI credential to the QVI,
+which issues a Legal Entity credential carrying an `e` edge back to it — and replays what it wrote
+through KERIpy's own `Kevery` and `Tevery` before writing anything. A registry missing its `NB`
+config trait still parses and its `iss` events still look well formed, but the registry rejects every
+one of them, so the generator refuses to emit a log KERIpy will not settle. Every timestamp in it is
+a constant: KERIpy would otherwise stamp `now` and the fixture would churn on each run.
 
 One file, one key event log:
 

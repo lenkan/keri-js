@@ -12,6 +12,7 @@ export {
   encodeEvent,
   formatDate,
   randomNonce,
+  timestamp,
   type VerifyEventSaidArgs,
   verifyEventSaid,
 } from "./encode.ts";

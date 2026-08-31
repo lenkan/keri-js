@@ -14,6 +14,21 @@ export interface AttachmentsReaderOptions {
   version?: number;
 }
 
+const DASH = 0x2d;
+const UNDERSCORE = 0x5f;
+const BRACE = 0x7b;
+
+/**
+ * Whether the buffer is positively past the end of an unframed run: at the next message body, or at
+ * a genus code, which belongs to the stream rather than to this message's attachments.
+ *
+ * Only a boundary this definite ends the run. A tail too short to classify falls through to the
+ * reader, which throws for want of data — treating it as the end would drop the rest in silence.
+ */
+function endsRun(buffer: Uint8Array): boolean {
+  return buffer[0] === BRACE || (buffer.length >= 2 && buffer[0] === DASH && buffer[1] === UNDERSCORE);
+}
+
 export class AttachmentsReader {
   #version: number;
   #buffer: Uint8Array<ArrayBufferLike>;
@@ -205,6 +220,7 @@ export class AttachmentsReader {
     const counter = Counter.parse(this.#buffer);
 
     let end = 0;
+    let framed = false;
 
     if (this.#version === 1 && counter.type === CountCode_10.AttachmentGroup) {
       const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
@@ -214,6 +230,7 @@ export class AttachmentsReader {
 
       this.#readBytes(peek.n);
       end = this.#buffer.length - counter.count * 4;
+      framed = true;
     } else if (this.#version === 2 && counter.type === CountCode_20.AttachmentGroup) {
       const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
       if (this.#buffer.length < requiredLength) {
@@ -222,11 +239,20 @@ export class AttachmentsReader {
 
       this.#readBytes(peek.n);
       end = this.#buffer.length - counter.count * 4;
+      framed = true;
     }
 
     const attachments = new Attachments();
 
     while (this.#buffer.length > end) {
+      // An attachment group counter declares how much follows; a bare one does not, so it runs
+      // until a message body or genus code says otherwise. Without this the reader swallows the
+      // next message — which only shows when one follows, and `kli vc export` writes a
+      // credential's seal bare.
+      if (!framed && endsRun(this.#buffer)) {
+        break;
+      }
+
       const counter = this.#readCounter();
 
       switch (this.#version) {

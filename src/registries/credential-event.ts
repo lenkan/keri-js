@@ -1,5 +1,5 @@
 import { Message } from "../cesr/main.ts";
-import { DUMMY_VERSION, encodeEvent, formatDate } from "../events/main.ts";
+import { DUMMY_VERSION, encodeEvent, timestamp } from "../events/main.ts";
 
 export interface IssueEventArgs {
   /**
@@ -11,7 +11,7 @@ export interface IssueEventArgs {
    * Registry SAID
    */
   ri: string;
-  dt?: Date;
+  dt?: Date | string;
 }
 
 export type IssueEventBody = {
@@ -47,7 +47,7 @@ export interface RevokeEventArgs {
    * Issuance event SAID
    */
   p: string;
-  dt?: Date;
+  dt?: Date | string;
 }
 
 export type RevokeEventBody = {
@@ -70,7 +70,7 @@ export function issue(args: IssueEventArgs): Message<IssueEventBody> {
       i: args.i,
       s: "0",
       ri: args.ri,
-      dt: formatDate(args.dt ?? new Date()),
+      dt: timestamp(args.dt),
     },
     { labels: ["d"] },
   );
@@ -88,7 +88,7 @@ export function revoke(args: RevokeEventArgs): Message<RevokeEventBody> {
       s: "1",
       ri: args.ri,
       p: args.p,
-      dt: formatDate(args.dt ?? new Date()),
+      dt: timestamp(args.dt),
     },
     { labels: ["d"] },
   );
