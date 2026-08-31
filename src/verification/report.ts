@@ -1,6 +1,6 @@
 import { type ParseInput, parse } from "../cesr/main.ts";
 import type { KeyState } from "../key-events/main.ts";
-import { type RegistryInceptEventBody, verifyTransactionEventSaid } from "../transaction-events/internal.ts";
+import { type RegistryInceptEventBody, verifyRegistryEventSaid } from "../registries/internal.ts";
 import type { CredentialVerification, VerificationContext } from "./credential-verification.ts";
 import { issuerLog, newContext, verifyCredentials } from "./credential-verification.ts";
 import { EventIndex } from "./event-index.ts";
@@ -91,13 +91,13 @@ function verifyIdentifier(context: VerificationContext, aid: string): Identifier
 }
 
 function verifyRegistry(index: EventIndex, registry: string): RegistryVerification {
-  const inception = index.transactionEvents(registry).find((event) => event.body.t === "vcp");
+  const inception = index.registryEvents(registry).find((event) => event.body.t === "vcp");
 
   if (!inception) {
     return { registry, issuer: null, ok: false, detail: "No registry inception event" };
   }
 
-  const said = verifyTransactionEventSaid(inception.body);
+  const said = verifyRegistryEventSaid(inception.body);
   if (!said.ok) {
     return { registry, issuer: null, ok: false, detail: said.error };
   }

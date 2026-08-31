@@ -59,6 +59,17 @@ export type {
 } from "./keys/main.ts";
 export { ed25519Signer, generateKeyPair, nextKeyDigest, verifySignature } from "./keys/main.ts";
 export type {
+  CredentialStatus,
+  IssueEventArgs,
+  IssueEventBody,
+  RegistryEventBody,
+  RegistryInceptEventArgs,
+  RegistryInceptEventBody,
+  RevokeEventArgs,
+  RevokeEventBody,
+} from "./registries/main.ts";
+export * as Registry from "./registries/main.ts";
+export type {
   EndorseOptions,
   ExchangeEventArgs,
   ExchangeEventBody,
@@ -72,17 +83,6 @@ export type {
 } from "./routed-events/main.ts";
 export * as RoutedEvent from "./routed-events/main.ts";
 export { endorse } from "./routed-events/main.ts";
-export type {
-  CredentialStatus,
-  IssueEventArgs,
-  IssueEventBody,
-  RegistryInceptEventArgs,
-  RegistryInceptEventBody,
-  RevokeEventArgs,
-  RevokeEventBody,
-  TransactionEventBody,
-} from "./transaction-events/main.ts";
-export * as TransactionEvent from "./transaction-events/main.ts";
 export type {
   CheckStatus,
   CredentialCheck,

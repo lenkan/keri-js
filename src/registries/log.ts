@@ -1,12 +1,13 @@
 /**
- * Verification of registry transaction events (`vcp`, `iss`, `rev`).
+ * Verification of registry events (`vcp`, `iss`, `rev`) — a registry's
+ * Transaction Event Log.
  *
  * These are functions rather than a `KeyEventLog`-style class: a TEL carries no
  * reduced state for each event to consult, and callers need each failure
  * reported separately rather than collapsed into a single throw.
  *
  * TEL events are not signed. Authenticity comes from the seal that anchors them
- * into the issuer's signed KEL, which is what {@link verifyTransactionEventAnchor}
+ * into the issuer's signed KEL, which is what {@link verifyRegistryEventAnchor}
  * checks.
  */
 
@@ -17,7 +18,7 @@ import type { VerifyResult } from "../keys/main.ts";
 import type { IssueEventBody, RevokeEventBody } from "./credential-event.ts";
 import type { RegistryInceptEventBody } from "./registry-event.ts";
 
-export type TransactionEventBody = RegistryInceptEventBody | IssueEventBody | RevokeEventBody;
+export type RegistryEventBody = RegistryInceptEventBody | IssueEventBody | RevokeEventBody;
 
 export type CredentialStatus = "issued" | "revoked" | "unknown";
 
@@ -43,23 +44,20 @@ export function isTelEventType(t: unknown): boolean {
   return t === "vcp" || t === "iss" || t === "rev";
 }
 
-export function isTransactionEvent(message: Message): message is Message<TransactionEventBody> {
+export function isRegistryEvent(message: Message): message is Message<RegistryEventBody> {
   return isTelEventType(message.body.t);
 }
 
-export function verifyTransactionEventSaid(body: TransactionEventBody): VerifyResult {
+export function verifyRegistryEventSaid(body: RegistryEventBody): VerifyResult {
   const labels = SAID_LABELS[body.t];
   if (!labels) {
-    return { ok: false, error: `Unsupported transaction event type: ${body.t}` };
+    return { ok: false, error: `Unsupported registry event type: ${body.t}` };
   }
 
   return verifyEventSaid(body, { labels, subject: body.t });
 }
 
-export function verifyTransactionEventAnchor(
-  message: Message<TransactionEventBody>,
-  issuer: KeyEventLog,
-): VerifyResult {
+export function verifyRegistryEventAnchor(message: Message<RegistryEventBody>, issuer: KeyEventLog): VerifyResult {
   const body = message.body;
   const failure = findSealAnchor(body, message.attachments, {
     identifier: issuer.state.identifier,
@@ -82,7 +80,7 @@ export function verifyTransactionEventAnchor(
 }
 
 export function resolveCredentialTel(
-  events: Iterable<Message<TransactionEventBody>>,
+  events: Iterable<Message<RegistryEventBody>>,
   args: ResolveCredentialTelArgs,
 ): CredentialTel {
   let registry: Message<RegistryInceptEventBody> | null = null;

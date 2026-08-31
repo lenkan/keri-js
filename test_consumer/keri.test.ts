@@ -70,8 +70,8 @@ describe("keri", () => {
       "KeyEvent",
       "KeyEventLog",
       "Message",
+      "Registry",
       "RoutedEvent",
-      "TransactionEvent",
       "collect",
       "ed25519Signer",
       "endorse",
@@ -103,7 +103,7 @@ describe("keri", () => {
       "signEvent",
     ]);
 
-    assert.deepEqual(Object.keys(surface.TransactionEvent).sort(), ["incept", "isTransactionEvent", "issue", "revoke"]);
+    assert.deepEqual(Object.keys(surface.Registry).sort(), ["incept", "isRegistryEvent", "issue", "revoke"]);
 
     assert.deepEqual(Object.keys(surface.RoutedEvent).sort(), [
       "CHALLENGE_RESPONSE_ROUTE",
@@ -128,13 +128,13 @@ describe("keri", () => {
     assert.equal(surface.RoutedEvent.endorse, surface.endorse);
 
     // The two inceptions are distinct functions told apart by their namespace.
-    assert.notEqual(KeyEvent.incept, surface.TransactionEvent.incept);
+    assert.notEqual(KeyEvent.incept, surface.Registry.incept);
   });
 
   // The namespaces are ES module namespaces, not classes: `KeyEvent.incept` returns a Message, so a
   // class would promise an instance type it can never produce.
   test("namespaces are module namespaces, not constructible", () => {
-    for (const ns of [KeyEvent, surface.TransactionEvent, surface.RoutedEvent, Credential]) {
+    for (const ns of [KeyEvent, surface.Registry, surface.RoutedEvent, Credential]) {
       assert.equal(typeof ns, "object");
       assert.throws(() => new (ns as unknown as new () => unknown)());
     }
@@ -145,7 +145,7 @@ describe("keri", () => {
   test("exposes no other entry points", async () => {
     for (const subpath of [
       "keri/key-events",
-      "keri/transaction-events",
+      "keri/registries",
       "keri/routed-events",
       "keri/credentials",
       "keri/encoding",

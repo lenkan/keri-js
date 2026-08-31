@@ -21,7 +21,7 @@ This codebase implements **KERI v1** (legacy version strings). Witness-agreement
 | Receipts (`rct`) | `src/key-events/receipt-event.ts` |
 | Routed envelopes (`qry`/`rpy`/`exn`) | `src/routed-events/routed-event.ts` |
 | Credentials (ACDC) | `src/credentials/credential.ts` |
-| Registry TEL (`vcp`/`iss`/`rev`) | `src/transaction-events/` |
+| Registry TEL (`vcp`/`iss`/`rev`) | `src/registries/` |
 | Cross-protocol verification | `src/verification/` |
 
 **Implementation status:** establishment events implemented are `icp`, `rot`, `ixn`, `rct`, `dip`, and `drt`. Delegated events are parsed by `KeyEventLog`, builders (`delegatedIncept` / `delegatedRotate`) live in `key-event.ts`, and the controller exposes `Controller.delegatedIncept`. When the delegator's KEL is supplied via `AppendOptions.delegator`, dip/drt anchor seals are verified against it; `KeyEventLog.parse` (and `fromMessages`) does this automatically for multi-AID streams by selecting the leaf AID and chaining the delegator log bottom-up.

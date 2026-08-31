@@ -1,8 +1,8 @@
 import { type Attachments, type AttachmentsInit, Message } from "../cesr/main.ts";
 import type { CredentialBody } from "../credentials/main.ts";
 import { type DipEventBody, isKelEventType, type KeyEventBody } from "../key-events/internal.ts";
+import { isTelEventType, type RegistryEventBody } from "../registries/internal.ts";
 import { type ExchangeEventBody, embeds } from "../routed-events/main.ts";
-import { isTelEventType, type TransactionEventBody } from "../transaction-events/internal.ts";
 
 // A replayed stream would otherwise double every signature it carries.
 function unique<T>(entries: T[]): T[] {
@@ -29,7 +29,7 @@ function unique<T>(entries: T[]): T[] {
  */
 export class EventIndex {
   #keyEvents = new Map<string, Message<KeyEventBody>[]>();
-  #transactionEvents = new Map<string, Message<TransactionEventBody>[]>();
+  #registryEvents = new Map<string, Message<RegistryEventBody>[]>();
   #credentials = new Map<string, Message<CredentialBody>>();
 
   constructor(messages: Iterable<Message>) {
@@ -38,8 +38,8 @@ export class EventIndex {
         const event = message as Message<KeyEventBody>;
         push(this.#keyEvents, event.body.i, event);
       } else if (isTelEventType(message.body.t)) {
-        const event = message as Message<TransactionEventBody>;
-        push(this.#transactionEvents, event.body.t === "vcp" ? event.body.i : event.body.ri, event);
+        const event = message as Message<RegistryEventBody>;
+        push(this.#registryEvents, event.body.t === "vcp" ? event.body.i : event.body.ri, event);
       } else if (message.version.protocol === "ACDC") {
         const credential = message as Message<CredentialBody>;
         this.#credentials.set(credential.body.d, credential);
@@ -75,8 +75,8 @@ export class EventIndex {
     return chain;
   }
 
-  transactionEvents(registry: string): Message<TransactionEventBody>[] {
-    return this.#transactionEvents.get(registry) ?? [];
+  registryEvents(registry: string): Message<RegistryEventBody>[] {
+    return this.#registryEvents.get(registry) ?? [];
   }
 
   get credentials(): Message<CredentialBody>[] {
@@ -92,7 +92,7 @@ export class EventIndex {
   }
 
   get registries(): string[] {
-    return Array.from(this.#transactionEvents.keys());
+    return Array.from(this.#registryEvents.keys());
   }
 }
 

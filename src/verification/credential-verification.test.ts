@@ -7,7 +7,7 @@ import { Message, parse } from "../cesr/main.ts";
 import { type CredentialBody, create as createCredential } from "../credentials/main.ts";
 import { incept, interact, KeyEventLog } from "../key-events/main.ts";
 import { generateKeyPair } from "../keys/main.ts";
-import { type IssueEventBody, issue, incept as registry, revoke } from "../transaction-events/main.ts";
+import { type IssueEventBody, issue, incept as registry, revoke } from "../registries/main.ts";
 import type { CheckStatus, CredentialCheckId, CredentialVerification } from "./credential-verification.ts";
 import { verifyCredential, verifyCredentials } from "./credential-verification.ts";
 import { EventIndex } from "./event-index.ts";
@@ -204,7 +204,7 @@ describe(basename(import.meta.url), () => {
   });
 
   // A stream that simply omits the issuance must not compute as verified.
-  test("should fail when no transaction events are present", async () => {
+  test("should fail when no registry events are present", async () => {
     const messages = await fixtureMessages("credential.cesr");
     const index = new EventIndex(
       messages.filter(

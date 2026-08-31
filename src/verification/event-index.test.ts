@@ -39,7 +39,7 @@ describe(basename(import.meta.url), () => {
       ["icp", "ixn", "ixn"],
     );
     assert.deepEqual(
-      index.transactionEvents(REGISTRY).map((event) => event.body.t),
+      index.registryEvents(REGISTRY).map((event) => event.body.t),
       ["vcp", "iss"],
     );
   });
@@ -55,7 +55,7 @@ describe(basename(import.meta.url), () => {
     const index = await collect(await fixture("credential.cesr"));
 
     assert.deepEqual(index.keyEvents("EUnknown"), []);
-    assert.deepEqual(index.transactionEvents("EUnknown"), []);
+    assert.deepEqual(index.registryEvents("EUnknown"), []);
   });
 
   test("should ignore duplicate events when messages are replayed", async () => {
@@ -63,7 +63,7 @@ describe(basename(import.meta.url), () => {
     const index = new EventIndex([...parsed, ...parsed]);
 
     assert.equal(index.keyEvents(ISSUER).length, 3);
-    assert.equal(index.transactionEvents(REGISTRY).length, 2);
+    assert.equal(index.registryEvents(REGISTRY).length, 2);
     assert.equal(index.credentials.length, 1);
   });
 
@@ -143,7 +143,7 @@ describe(basename(import.meta.url), () => {
 
     const forged = new Message(iss.body, { SealSourceCouples: [{ snu: "9", digest: "EBogusAnchorDigest" }] });
     const index = new EventIndex([...parsed, forged]);
-    const indexed = index.transactionEvents(REGISTRY).find((event) => event.body.t === "iss");
+    const indexed = index.registryEvents(REGISTRY).find((event) => event.body.t === "iss");
 
     assert.ok(indexed);
     assert.deepEqual(indexed.attachments.SealSourceCouples, iss.attachments.SealSourceCouples);
