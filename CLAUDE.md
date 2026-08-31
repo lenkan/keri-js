@@ -48,6 +48,12 @@ Unit tests and vector tests run directly off `src/` with no build step, since No
 natively. `test:consumer` is the exception: it imports the package by name, so it resolves through
 `dist` and its `pretest:consumer` hook builds first.
 
+`test_vectors/support/fixtures.ts` holds the shape of a generated fixture — the JSON the
+`scripts/generate-*.py` write, and the seed and signature-index lookups every consumer of one needs.
+The protocol-specific rebuild belongs in the `.test.ts` beside it, not here.
+
+`test:vector` reports through `scripts/test-reporter.ts` — `dot` plus a closing count.
+
 ## Commands
 
 ```sh

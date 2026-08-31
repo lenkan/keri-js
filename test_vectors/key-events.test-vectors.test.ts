@@ -1,11 +1,8 @@
 import assert from "node:assert";
-import { Buffer } from "node:buffer";
-import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { Attachments, decodeUtf8, encodeText, encodeUtf8, Indexer, Message, parse } from "../src/cesr/main.ts";
+import { decodeUtf8, encodeText, Indexer, Message, parse } from "../src/cesr/main.ts";
 import {
-  ed25519Signer,
   KeyEvent,
   type KeyEventBody,
   KeyEventLog,
@@ -15,19 +12,19 @@ import {
   signEvent,
   type Threshold,
 } from "../src/main.ts";
-
-/** A seed and the one of its two derivable public keys that this log uses. */
-interface Key {
-  seed: string;
-  public: string;
-}
-
-interface Case {
-  name: string;
-  sad: Record<string, unknown> & { t: string };
-  raw: string;
-  attachments: string;
-}
+import {
+  anchoringEvent,
+  assertSameStream,
+  attachmentsOf,
+  type Log as BaseLog,
+  type Case,
+  type Key,
+  load,
+  message,
+  type Rebuilt,
+  signerRegistry,
+  signers,
+} from "./support/fixtures.ts";
 
 /** KERIpy's `KeyStateRecord`, minus the first-seen `dt` the generator drops as non-deterministic. */
 interface KeyStateRecord {
@@ -45,13 +42,8 @@ interface KeyStateRecord {
   ee: { s: string; d: string };
 }
 
-interface Log {
-  keripy: string;
-  name: string;
-  version: string;
-  controllers: Key[];
+interface Log extends BaseLog {
   backers: Key[];
-  events: Case[];
   state: KeyStateRecord;
 }
 
@@ -68,64 +60,6 @@ type Establishment = {
   c?: string[];
   di?: string;
 };
-
-const FIXTURES = new URL("../fixtures/events/", import.meta.url);
-
-/** One file per log, one directory per KERIpy version, so a new version is a directory to drop in. */
-function load(): Log[] {
-  const logs: Log[] = [];
-
-  for (const version of readdirSync(FIXTURES).sort()) {
-    const directory = new URL(`${version}/`, FIXTURES);
-    for (const file of readdirSync(directory).sort()) {
-      if (file.endsWith(".json")) {
-        logs.push(JSON.parse(readFileSync(new URL(file, directory), "utf8")));
-      }
-    }
-  }
-
-  if (logs.length === 0) {
-    throw new Error(`No event vectors under ${FIXTURES.pathname} — run scripts/generate-event-vectors.py`);
-  }
-
-  return logs;
-}
-
-function message(entry: Case): string {
-  return entry.raw + entry.attachments;
-}
-
-function attachmentsOf(entry: Case): Attachments {
-  const attachments = Attachments.parse(encodeUtf8(entry.attachments));
-  assert.ok(attachments, `${entry.name} has no attachments`);
-  return attachments;
-}
-
-/** Also checks the log's own claim: the seed has to derive the public key listed beside it. */
-function signerFor(key: Key): Signer {
-  const raw = Uint8Array.from(Buffer.from(key.seed, "hex"));
-
-  for (const signer of [ed25519Signer(raw), ed25519Signer(raw, { nonTransferable: true })]) {
-    if (signer.publicKey === key.public) {
-      return signer;
-    }
-  }
-
-  return assert.fail(`the seed listed for ${key.public} derives neither form of that key`);
-}
-
-/**
- * Which keys signed, read off the indices the attached signatures carry. The fixture records no
- * signer list of its own — a 2-of-3 signed by keys 0 and 2 says so in its attachments.
- */
-function signers(entry: Case, keys: string[], available: ReadonlyMap<string, Signer>): Signer[] {
-  return attachmentsOf(entry).ControllerIdxSigs.map((sig) => {
-    const key = keys[Indexer.parse(sig).index];
-    const signer = available.get(key);
-    assert.ok(signer, `${entry.name} is signed by ${key}, which the log declares no seed for`);
-    return signer;
-  });
-}
 
 /**
  * Which backers receipted, read off the same wire the controller indices come from. A couple names
@@ -205,22 +139,6 @@ function expectedState(state: KeyStateRecord): KeyState {
 }
 
 /**
- * The delegator's event that commits to `message`, found by the seal it carries. Derived rather
- * than read out of the fixture's own `SealSourceCouple`, which would assert nothing.
- */
-function anchoringEvent(message: Message<KeyEventBody>, delegator: KeyEventLog): Message<KeyEventBody> {
-  const seal = KeyEvent.keyEventSeal(message);
-  const anchoring = delegator.events.find((event) =>
-    ((event.body as { a?: { i?: string; s?: string; d?: string }[] }).a ?? []).some(
-      (candidate) => candidate.i === seal.i && candidate.s === seal.s && candidate.d === seal.d,
-    ),
-  );
-
-  assert.ok(anchoring, `no event in ${delegator.state.identifier} anchors ${message.body.t} ${message.body.d}`);
-  return anchoring;
-}
-
-/**
  * Each event is built from the state its own identifier's predecessors settled, so one failure
  * blocks the rest of that identifier — they report that instead of a stale diff. A delegated log
  * carries two identifiers, and a broken delegate must not be reported as a diff on the delegator.
@@ -229,10 +147,10 @@ function anchoringEvent(message: Message<KeyEventBody>, delegator: KeyEventLog):
  * issues a receipt, and the receipts are folded back onto the event. Nothing fabricates a witness
  * signature directly, because nothing in KERI does.
  */
-function rebuild(log: Log) {
-  const available = new Map([...log.controllers, ...log.backers].map((key) => [key.public, signerFor(key)]));
+function rebuild(log: Log): Rebuilt[] {
+  const available = signerRegistry([...log.controllers, ...log.backers]);
 
-  const results: { entry: Case; message?: Message; error?: unknown }[] = [];
+  const results: Rebuilt[] = [];
   const logs = new Map<string, KeyEventLog>();
   const blocked = new Map<string, string>();
   const built = new Map<string, { message: Message<KeyEventBody>; backers: string[] }>();
@@ -277,7 +195,7 @@ function rebuild(log: Log) {
         const delegatorAid = message.body.t === "dip" ? (entry.sad.di as string) : (state as KeyState).delegator;
         delegator = logs.get(delegatorAid as string);
         assert.ok(delegator, `${entry.name} is delegated by ${delegatorAid}, which the log does not carry`);
-        KeyEvent.attachSourceSeal(message, anchoringEvent(message, delegator));
+        KeyEvent.attachSourceSeal(message, anchoringEvent(KeyEvent.keyEventSeal(message), delegator, message.body.t));
       }
 
       const backers = KeyEvent.backersFor(message, state);
@@ -304,37 +222,15 @@ function serialize(message: Message): string {
   return decodeUtf8(message.raw) + encodeText(message.attachments.frames());
 }
 
-/** `strictEqual` would print a few thousand characters twice and leave you to spot the difference. */
-function assertSameStream(actual: string, expected: string): void {
-  if (actual === expected) {
-    return;
-  }
-
-  let at = 0;
-  while (at < actual.length && at < expected.length && actual[at] === expected[at]) {
-    at++;
-  }
-
-  const from = Math.max(0, at - 60);
-  const excerpt = (stream: string) => `${from > 0 ? "…" : ""}${stream.slice(from, at + 60)}…`;
-
-  assert.fail(
-    `KEL streams diverge at offset ${at} (expected ${expected.length} characters, got ${actual.length})\n` +
-      `  expected: ${excerpt(expected)}\n` +
-      `  actual:   ${excerpt(actual)}`,
-  );
-}
-
-const byVersion = Map.groupBy(load(), (log) => log.keripy);
+const byVersion = Map.groupBy(load<Log>("events", "generate-event-vectors.py"), ({ log }) => log.keripy);
 
 describe(path.parse(import.meta.url).base, () => {
-  for (const [keripy, logs] of byVersion) {
+  for (const [keripy, fixtures] of byVersion) {
     describe(`keripy ${keripy}`, () => {
-      for (const log of logs) {
+      for (const { log } of fixtures) {
         describe(log.name, () => {
           const rebuilt = rebuild(log);
           const stream = log.events.map(message).join("");
-          const writable = log.events.map((entry) => entry.raw + entry.attachments).join("");
 
           for (const entry of log.events) {
             test(`reads ${entry.name}`, async () => {
@@ -365,7 +261,7 @@ describe(path.parse(import.meta.url).base, () => {
               throw failed.error;
             }
 
-            assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), writable);
+            assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), stream);
           });
 
           // Against KERIpy's own bytes on both sides, so it holds whether or not the rebuild works:
