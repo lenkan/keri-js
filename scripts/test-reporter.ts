@@ -1,10 +1,5 @@
 import { dot, type TestEvent } from "node:test/reporters";
 
-/**
- * `dot` with a closing count. Two `--test-reporter` flags pointed at the same destination race and
- * the second one's output is dropped, so the count has to come from inside a single reporter.
- */
-
 // `@types/node@22` omits `counts.failed`; the runtime emits it.
 type Summary = Extract<TestEvent, { type: "test:summary" }>["data"] & { counts: { failed: number } };
 
@@ -18,11 +13,15 @@ function line({ counts, duration_ms }: Summary): string {
   return `${parts.join(", ")} in ${Math.round(duration_ms)}ms`;
 }
 
+/**
+ * `dot` with the closing count it does not emit. Two `--test-reporter` flags aimed at one
+ * destination write over each other, so the count has to come from inside a single reporter.
+ */
 export default async function* reporter(source: AsyncGenerator<TestEvent, void>) {
   let run: Summary | undefined;
 
   // One `test:summary` per file, then one for the whole run — the run's is the one with no `file`.
-  async function* tap(): AsyncGenerator<TestEvent, void> {
+  async function* passthrough(): AsyncGenerator<TestEvent, void> {
     for await (const event of source) {
       if (event.type === "test:summary" && event.data.file === undefined) {
         run = event.data as Summary;
@@ -31,7 +30,7 @@ export default async function* reporter(source: AsyncGenerator<TestEvent, void>)
     }
   }
 
-  yield* dot(tap());
+  yield* dot(passthrough());
 
   if (run) {
     yield `\n${line(run)}\n`;

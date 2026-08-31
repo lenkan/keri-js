@@ -114,7 +114,7 @@ jobs:
       # Only --allow-read, for the fixture files. Nothing in src reaches the network, the
       # environment or the filesystem, and the sandbox is what holds us to that.
       - name: Run tests in deno
-        run: deno test --allow-read src/ test_vectors/
+        run: npm run test:deno
 
       - name: Run consumer tests in deno
         run: deno test --allow-net --allow-read test_consumer

@@ -22,9 +22,10 @@ import {
   type Case,
   load,
   message,
+  type Rebuilt,
   signerRegistry,
   signers,
-} from "./support/keripy.ts";
+} from "./support/fixtures.ts";
 
 interface Log extends BaseLog {
   states: Record<string, { s: string; d: string }>;
@@ -49,18 +50,8 @@ function section(block: unknown): Record<string, unknown> {
   return rest;
 }
 
-function anchored(sad: Case["sad"]): string {
-  return `${String(sad.t)} ${String(sad.d)}`;
-}
-
 function seal(sad: Case["sad"]): { i: string; s: string; d: string } {
   return { i: sad.i as string, s: sad.s as string, d: sad.d as string };
-}
-
-interface Rebuilt {
-  entry: Case;
-  message?: Message;
-  error?: unknown;
 }
 
 function rebuild(log: Log): Rebuilt[] {
@@ -134,7 +125,7 @@ function build(
       const issuer = kels.get(sad.ii as string);
       assert.ok(issuer, `${entry.name} is anchored in ${String(sad.ii)}, which has no KEL yet`);
 
-      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, anchored(sad)));
+      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, String(sad.t)));
       return event;
     }
 
@@ -145,7 +136,7 @@ function build(
       const issuer = kels.get(owner);
       assert.ok(issuer, `${entry.name} is anchored in ${owner}, which has no KEL yet`);
 
-      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, anchored(sad)));
+      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, String(sad.t)));
       return event;
     }
 

@@ -21,9 +21,10 @@ import {
   type Key,
   load,
   message,
+  type Rebuilt,
   signerRegistry,
   signers,
-} from "./support/keripy.ts";
+} from "./support/fixtures.ts";
 
 /** KERIpy's `KeyStateRecord`, minus the first-seen `dt` the generator drops as non-deterministic. */
 interface KeyStateRecord {
@@ -146,10 +147,10 @@ function expectedState(state: KeyStateRecord): KeyState {
  * issues a receipt, and the receipts are folded back onto the event. Nothing fabricates a witness
  * signature directly, because nothing in KERI does.
  */
-function rebuild(log: Log) {
+function rebuild(log: Log): Rebuilt[] {
   const available = signerRegistry([...log.controllers, ...log.backers]);
 
-  const results: { entry: Case; message?: Message; error?: unknown }[] = [];
+  const results: Rebuilt[] = [];
   const logs = new Map<string, KeyEventLog>();
   const blocked = new Map<string, string>();
   const built = new Map<string, { message: Message<KeyEventBody>; backers: string[] }>();
@@ -194,8 +195,7 @@ function rebuild(log: Log) {
         const delegatorAid = message.body.t === "dip" ? (entry.sad.di as string) : (state as KeyState).delegator;
         delegator = logs.get(delegatorAid as string);
         assert.ok(delegator, `${entry.name} is delegated by ${delegatorAid}, which the log does not carry`);
-        const anchored = `${message.body.t} ${message.body.d}`;
-        KeyEvent.attachSourceSeal(message, anchoringEvent(KeyEvent.keyEventSeal(message), delegator, anchored));
+        KeyEvent.attachSourceSeal(message, anchoringEvent(KeyEvent.keyEventSeal(message), delegator, message.body.t));
       }
 
       const backers = KeyEvent.backersFor(message, state);
@@ -261,11 +261,7 @@ describe(path.parse(import.meta.url).base, () => {
               throw failed.error;
             }
 
-            assertSameStream(
-              rebuilt.map(({ message }) => serialize(message as Message)).join(""),
-              stream,
-              "KEL streams",
-            );
+            assertSameStream(rebuilt.map(({ message }) => serialize(message as Message)).join(""), stream);
           });
 
           // Against KERIpy's own bytes on both sides, so it holds whether or not the rebuild works:

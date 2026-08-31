@@ -26,16 +26,20 @@ export interface Log {
   events: Case[];
 }
 
-export interface Fixture<T extends Log> {
-  log: T;
-  /** The version directory the log was read from, for the sibling files a fixture may carry. */
-  directory: URL;
+/** The result of one rebuild attempt: a message, or the failure that stopped it. */
+export interface Rebuilt {
+  entry: Case;
+  message?: Message;
+  error?: unknown;
 }
 
-/** One file per log, one directory per KERIpy version, so a new version is a directory to drop in. */
-export function load<T extends Log>(folder: string, generator: string): Fixture<T>[] {
+/**
+ * One file per log, one directory per KERIpy version, so a new version is a directory to drop in.
+ * `directory` comes back for the sibling files a fixture may carry beside its JSON.
+ */
+export function load<T extends Log>(folder: string, generator: string): { log: T; directory: URL }[] {
   const root = new URL(`../../fixtures/${folder}/`, import.meta.url);
-  const fixtures: Fixture<T>[] = [];
+  const fixtures: { log: T; directory: URL }[] = [];
 
   for (const version of readdirSync(root).sort()) {
     const directory = new URL(`${version}/`, root);
@@ -64,7 +68,7 @@ export function attachmentsOf(entry: Case): Attachments {
 }
 
 /** Also checks the log's own claim: the seed has to derive the public key listed beside it. */
-export function signerFor(key: Key): Signer {
+function signerFor(key: Key): Signer {
   const raw = Uint8Array.from(Buffer.from(key.seed, "hex"));
 
   for (const signer of [ed25519Signer(raw), ed25519Signer(raw, { nonTransferable: true })]) {
@@ -100,7 +104,7 @@ export function signers(entry: Case, keys: string[], available: ReadonlyMap<stri
 export function anchoringEvent(
   seal: { i: string; s: string; d: string },
   kel: KeyEventLog,
-  anchored: string,
+  type: string,
 ): Message<KeyEventBody> {
   const event = kel.events.find((candidate) =>
     ((candidate.body.a ?? []) as Record<string, unknown>[]).some(
@@ -108,12 +112,12 @@ export function anchoringEvent(
     ),
   );
 
-  assert.ok(event, `no event in ${kel.state.identifier} anchors ${anchored}`);
+  assert.ok(event, `no event in ${kel.state.identifier} anchors ${type} ${seal.d}`);
   return event;
 }
 
 /** `strictEqual` would print a few thousand characters twice and leave you to spot the difference. */
-export function assertSameStream(actual: string, expected: string, subject = "streams"): void {
+export function assertSameStream(actual: string, expected: string): void {
   if (actual === expected) {
     return;
   }
@@ -127,7 +131,7 @@ export function assertSameStream(actual: string, expected: string, subject = "st
   const excerpt = (stream: string) => `${from > 0 ? "…" : ""}${stream.slice(from, at + 60)}…`;
 
   assert.fail(
-    `${subject} diverge at offset ${at} (expected ${expected.length} characters, got ${actual.length})\n` +
+    `streams diverge at offset ${at} (expected ${expected.length} characters, got ${actual.length})\n` +
       `  expected: ${excerpt(expected)}\n` +
       `  actual:   ${excerpt(actual)}`,
   );
