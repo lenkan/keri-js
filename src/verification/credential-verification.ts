@@ -5,15 +5,11 @@ import type { VerifyResult } from "../keys/main.ts";
 import type {
   CredentialStatus,
   IssueEventBody,
+  RegistryEventBody,
   RegistryInceptEventBody,
   RevokeEventBody,
-  TransactionEventBody,
-} from "../transaction-events/internal.ts";
-import {
-  resolveCredentialTel,
-  verifyTransactionEventAnchor,
-  verifyTransactionEventSaid,
-} from "../transaction-events/internal.ts";
+} from "../registries/internal.ts";
+import { resolveCredentialTel, verifyRegistryEventAnchor, verifyRegistryEventSaid } from "../registries/internal.ts";
 import type { EventIndex } from "./event-index.ts";
 
 export type CheckStatus =
@@ -172,7 +168,7 @@ function verify(context: Context, credential: Message<CredentialBody>): Credenti
     throw new TypeError("Malformed ACDC: 'd', 'i' and 'ri' must be strings");
   }
 
-  const tel = resolveCredentialTel(context.index.transactionEvents(body.ri), {
+  const tel = resolveCredentialTel(context.index.registryEvents(body.ri), {
     credential: body.d,
     registry: body.ri,
   });
@@ -315,7 +311,7 @@ const NO_KEL = "Issuer KEL did not verify";
 
 function anchorCheck(
   id: CredentialCheckId,
-  event: Message<TransactionEventBody> | null,
+  event: Message<RegistryEventBody> | null,
   issuer: KeyEventLog | null,
   prerequisite: CredentialCheck,
 ): CredentialCheck {
@@ -325,7 +321,7 @@ function anchorCheck(
   if (event === null || prerequisite.status !== "passed") {
     return { id, status: "skipped", detail: `${prerequisite.id} did not verify` };
   }
-  return toCheck(id, verifyTransactionEventAnchor(event, issuer));
+  return toCheck(id, verifyRegistryEventAnchor(event, issuer));
 }
 
 function toCheck(id: CredentialCheckId, result: VerifyResult): CredentialCheck {
@@ -337,7 +333,7 @@ function describe(error: unknown): string {
 }
 
 function verifyRegistryInception(vcp: RegistryInceptEventBody, body: CredentialBody): VerifyResult {
-  const said = verifyTransactionEventSaid(vcp);
+  const said = verifyRegistryEventSaid(vcp);
   if (!said.ok) {
     return said;
   }
@@ -348,7 +344,7 @@ function verifyRegistryInception(vcp: RegistryInceptEventBody, body: CredentialB
 }
 
 function verifyIssuance(iss: IssueEventBody, body: CredentialBody, credential: Message<CredentialBody>): VerifyResult {
-  const said = verifyTransactionEventSaid(iss);
+  const said = verifyRegistryEventSaid(iss);
   if (!said.ok) {
     return said;
   }
@@ -375,7 +371,7 @@ function verifyRevocation(
     return { id, status: "not-applicable", detail: "No revocation event presented" };
   }
 
-  const said = verifyTransactionEventSaid(revocation.body);
+  const said = verifyRegistryEventSaid(revocation.body);
   if (!said.ok) {
     return { id, status: "failed", detail: said.error };
   }

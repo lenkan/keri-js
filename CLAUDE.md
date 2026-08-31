@@ -11,9 +11,8 @@ composed them are **not** in this repository. They live on the `legacy` branch a
 to a separate closed-source service.
 
 `src/` is laid out as a strict DAG: `cesr` is bytes, `keys` and `events` are the KERI primitives
-above it, the four protocol submodules (`key-events`, `transaction-events`, `credentials`,
-`routed-events`) own their own messages, and `verification` is the only one allowed to see all four
-at once.
+above it, the four protocol submodules (`key-events`, `registries`, `credentials`, `routed-events`)
+own their own messages, and `verification` is the only one allowed to see all four at once.
 
 Each submodule has a `main.ts` that defines what it shows consumers. Some also have an `internal.ts`
 — what they show their siblings — so the four namespaces stay the size of their public list and an

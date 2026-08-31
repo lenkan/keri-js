@@ -13,8 +13,8 @@ Builds on [`./cesr.md`](./cesr.md) (encoding) and [`./keri.md`](./keri.md) (KELs
 | Concern | File(s) |
 | --- | --- |
 | ACDC construction (`createCredential`) | `src/credentials/credential.ts` |
-| Credential events (`iss` / `rev`) | `src/transaction-events/credential-event.ts` |
-| TEL registry events (`vcp`) | `src/transaction-events/registry-event.ts` |
+| Credential events (`iss` / `rev`) | `src/registries/credential-event.ts` |
+| TEL registry events (`vcp`) | `src/registries/registry-event.ts` |
 | Routed `exn` envelopes (IPEX carriers) | `src/routed-events/routed-event.ts` |
 | SAID computation | `src/events/said.ts` |
 | Credential verification | `src/verification/credential-verification.ts` |
@@ -120,9 +120,9 @@ ACDC dynamic state lives in a **Transaction Event Log** (TEL) — a hash-chained
 
 | Type | Purpose | File |
 | :---: | --- | --- |
-| `vcp` | Registry inception | `src/transaction-events/registry-event.ts` |
-| `iss` | Credential issuance | `src/transaction-events/credential-event.ts` |
-| `rev` | Credential revocation | `src/transaction-events/credential-event.ts` |
+| `vcp` | Registry inception | `src/registries/registry-event.ts` |
+| `iss` | Credential issuance | `src/registries/credential-event.ts` |
+| `rev` | Credential revocation | `src/registries/credential-event.ts` |
 
 ### Registry inception (`vcp`)
 

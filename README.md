@@ -17,10 +17,10 @@ Requires Node.js 22 or later. Runs unchanged in Deno and in the browser.
 
 ## Usage
 
-Message constructors are grouped by protocol: `KeyEvent` (KEL), `TransactionEvent` (registry TEL),
+Message constructors are grouped by protocol: `KeyEvent` (KEL), `Registry` (registry TEL),
 `RoutedEvent` (`exn`/`qry`/`rpy`) and `Credential` (ACDC). Both `KeyEvent.incept` and
-`TransactionEvent.incept` are called `incept` — one is a KEL inception, the other a registry's — so
-the grouping is what tells them apart.
+`Registry.incept` are called `incept` — one is a KEL inception, the other a registry's — so the
+grouping is what tells them apart.
 
 Namespaces are nouns; the top level is verbs and the state they act on, so a pipeline reads without
 a prefix:
@@ -177,9 +177,9 @@ report.problems;    // every failure, flattened
 ### Build a credential
 
 ```ts
-import { Credential, TransactionEvent } from "keri";
+import { Credential, Registry } from "keri";
 
-const vcp = TransactionEvent.incept({ ii: issuerAid });
+const vcp = Registry.incept({ ii: issuerAid });
 
 const acdc = Credential.create({
   i: issuerAid,
@@ -189,7 +189,7 @@ const acdc = Credential.create({
   r: {},
 });
 
-const iss = TransactionEvent.issue({ i: acdc.body.d, ri: vcp.body.i });
+const iss = Registry.issue({ i: acdc.body.d, ri: vcp.body.i });
 ```
 
 ### CESR primitives and streams

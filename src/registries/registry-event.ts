@@ -19,14 +19,6 @@ export type RegistryInceptEventBody = {
   n: string;
 };
 
-export type RegistryEventBody = {
-  v: string;
-  t: string;
-  d: string;
-  i: string;
-  [key: string]: unknown;
-};
-
 export function incept(args: RegistryInceptEventArgs): Message<RegistryInceptEventBody> {
   const body = encodeEvent<RegistryInceptEventBody>(
     {

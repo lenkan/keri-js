@@ -5,13 +5,8 @@ import { describe, test } from "node:test";
 import { Message, parse } from "../cesr/main.ts";
 import { isKelEventType, type KeyEventBody, KeyEventLog } from "../key-events/internal.ts";
 import type { IssueEventBody } from "./credential-event.ts";
-import type { TransactionEventBody } from "./log.ts";
-import {
-  isTelEventType,
-  resolveCredentialTel,
-  verifyTransactionEventAnchor,
-  verifyTransactionEventSaid,
-} from "./log.ts";
+import type { RegistryEventBody } from "./log.ts";
+import { isTelEventType, resolveCredentialTel, verifyRegistryEventAnchor, verifyRegistryEventSaid } from "./log.ts";
 import type { RegistryInceptEventBody } from "./registry-event.ts";
 
 const REGISTRY = "EEXV71avZSL6fKJnQky_oxHqRPlNYR3zNGD-OpJe0DJa";
@@ -35,7 +30,7 @@ async function loadFixture(): Promise<Fixture> {
 }
 
 describe(basename(import.meta.url), () => {
-  test("should identify transaction event types", () => {
+  test("should identify registry event types", () => {
     assert.ok(isTelEventType("vcp"));
     assert.ok(isTelEventType("iss"));
     assert.ok(isTelEventType("rev"));
@@ -45,19 +40,19 @@ describe(basename(import.meta.url), () => {
 
   test("should verify the said of a keripy vcp over both d and i", async () => {
     const { vcp } = await loadFixture();
-    assert.deepEqual(verifyTransactionEventSaid(vcp.body), { ok: true });
+    assert.deepEqual(verifyRegistryEventSaid(vcp.body), { ok: true });
   });
 
   test("should verify the said of a keripy iss", async () => {
     const { iss } = await loadFixture();
-    assert.deepEqual(verifyTransactionEventSaid(iss.body), { ok: true });
+    assert.deepEqual(verifyRegistryEventSaid(iss.body), { ok: true });
   });
 
   test("should reject a vcp whose nonce was altered", async () => {
     const { vcp } = await loadFixture();
     const tampered = { ...vcp.body, n: "0AAr75cmjijU8_h_MYwJAwuX" };
 
-    const result = verifyTransactionEventSaid(tampered);
+    const result = verifyRegistryEventSaid(tampered);
     assert.equal(result.ok, false);
     assert.match(result.error ?? "", /SAID mismatch on 'd' for vcp/);
   });
@@ -66,7 +61,7 @@ describe(basename(import.meta.url), () => {
     const { iss } = await loadFixture();
     const tampered = { ...iss.body, dt: "2026-01-01T00:00:00.000000+00:00" };
 
-    const result = verifyTransactionEventSaid(tampered);
+    const result = verifyRegistryEventSaid(tampered);
     assert.equal(result.ok, false);
   });
 
@@ -74,7 +69,7 @@ describe(basename(import.meta.url), () => {
     const { iss } = await loadFixture();
     const before = JSON.stringify(iss.body);
 
-    verifyTransactionEventSaid(iss.body);
+    verifyRegistryEventSaid(iss.body);
 
     assert.equal(JSON.stringify(iss.body), before);
   });
@@ -82,8 +77,8 @@ describe(basename(import.meta.url), () => {
   test("should verify the anchors of a keripy vcp and iss", async () => {
     const { issuer, vcp, iss } = await loadFixture();
 
-    assert.deepEqual(verifyTransactionEventAnchor(vcp, issuer), { ok: true });
-    assert.deepEqual(verifyTransactionEventAnchor(iss, issuer), { ok: true });
+    assert.deepEqual(verifyRegistryEventAnchor(vcp, issuer), { ok: true });
+    assert.deepEqual(verifyRegistryEventAnchor(iss, issuer), { ok: true });
   });
 
   test("should reject an anchor hint pointing at an event outside the issuer kel", async () => {
@@ -92,7 +87,7 @@ describe(basename(import.meta.url), () => {
       SealSourceCouples: [{ snu: "2", digest: "EJIHL_dGqxLeLVHg8gFTpbiQ15VoUjUGR6t0hI3ffWaX" }],
     });
 
-    const result = verifyTransactionEventAnchor(tampered, issuer);
+    const result = verifyRegistryEventAnchor(tampered, issuer);
     assert.equal(result.ok, false);
     assert.match(result.error ?? "", /Anchoring event not in issuer KEL/);
   });
@@ -103,7 +98,7 @@ describe(basename(import.meta.url), () => {
     const registryAnchor = vcp.attachments.SealSourceCouples[0];
     const tampered = new Message(iss.body, { SealSourceCouples: [registryAnchor] });
 
-    const result = verifyTransactionEventAnchor(tampered, issuer);
+    const result = verifyRegistryEventAnchor(tampered, issuer);
     assert.equal(result.ok, false);
     assert.match(result.error ?? "", /does not anchor iss/);
   });
@@ -114,21 +109,21 @@ describe(basename(import.meta.url), () => {
     const { issuer, iss } = await loadFixture();
     const stripped = new Message(iss.body);
 
-    assert.deepEqual(verifyTransactionEventAnchor(stripped, issuer), { ok: true });
+    assert.deepEqual(verifyRegistryEventAnchor(stripped, issuer), { ok: true });
   });
 
   test("should report a missing anchor when no issuer event carries the seal", async () => {
     const { issuer, iss } = await loadFixture();
     const unanchored = new Message({ ...iss.body, d: "EEUs6vfVMrXAwWmJAKX1yWtQTJ6AhCIEQF1K_HEXdNLX" });
 
-    const result = verifyTransactionEventAnchor(unanchored, issuer);
+    const result = verifyRegistryEventAnchor(unanchored, issuer);
     assert.equal(result.ok, false);
     assert.match(result.error ?? "", /No anchoring event in issuer KEL/);
   });
 
   test("should resolve the tel for the fixture credential", async () => {
     const { vcp, iss } = await loadFixture();
-    const events: Message<TransactionEventBody>[] = [vcp, iss];
+    const events: Message<RegistryEventBody>[] = [vcp, iss];
 
     const tel = resolveCredentialTel(events, { credential: CREDENTIAL, registry: REGISTRY });
 
@@ -140,7 +135,7 @@ describe(basename(import.meta.url), () => {
 
   test("should report unknown status for a credential with no issuance", async () => {
     const { vcp, iss } = await loadFixture();
-    const events: Message<TransactionEventBody>[] = [vcp, iss];
+    const events: Message<RegistryEventBody>[] = [vcp, iss];
 
     const tel = resolveCredentialTel(events, { credential: "EOther", registry: REGISTRY });
 
