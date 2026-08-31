@@ -312,6 +312,30 @@ describe(basename(import.meta.url), () => {
       assert.deepStrictEqual(events[1].attachments.ControllerIdxSigs, [sig1]);
     });
 
+    // A bare run has to end at a boundary it can see, never at one it merely ran out of data to
+    // read. Stopping on a short tail would report the groups already read as the whole attachment
+    // and lose the rest without a word — worse than failing, in a library that checks signatures.
+    test("should fail rather than drop attachments truncated mid-counter", async () => {
+      const message = new Message(
+        { v: VersionString.KERI_LEGACY, t: "icp" },
+        {
+          ControllerIdxSigs: [sig0],
+          SealSourceCouples: [{ snu: "1", digest: "EEXV71avZSL6fKJnQky_oxHqRPlNYR3zNGD-OpJe0DJa" }],
+        },
+      );
+
+      const bare = decodeUtf8(message.raw) + encodeText(message.attachments.frames().slice(1));
+      const bytes = encodeUtf8(bare);
+      const boundary = bare.indexOf("-GAB") + 2;
+
+      async function* split(): AsyncIterable<Uint8Array> {
+        yield bytes.slice(0, boundary);
+        yield bytes.slice(boundary);
+      }
+
+      await assert.rejects(collect(parse(split())), /not enough data/);
+    });
+
     test("should parse CESR 2.0 fixture", async () => {
       const input = await readFile(fixture("cesr_20.cesr"));
       const result = await collect(parse(input, { version: 2 }));

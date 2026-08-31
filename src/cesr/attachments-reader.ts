@@ -16,10 +16,17 @@ export interface AttachmentsReaderOptions {
 
 const DASH = 0x2d;
 const UNDERSCORE = 0x5f;
+const BRACE = 0x7b;
 
-/** `-_` opens a genus code, which belongs to the stream rather than to the message's attachments. */
-function startsCounter(buffer: Uint8Array): boolean {
-  return buffer.length >= 4 && buffer[0] === DASH && buffer[1] !== UNDERSCORE && !!Counter.peek(buffer).frame;
+/**
+ * Whether the buffer is positively past the end of an unframed run: at the next message body, or at
+ * a genus code, which belongs to the stream rather than to this message's attachments.
+ *
+ * Only a boundary this definite ends the run. A tail too short to classify falls through to the
+ * reader, which throws for want of data — treating it as the end would drop the rest in silence.
+ */
+function endsRun(buffer: Uint8Array): boolean {
+  return buffer[0] === BRACE || (buffer.length >= 2 && buffer[0] === DASH && buffer[1] === UNDERSCORE);
 }
 
 export class AttachmentsReader {
@@ -239,9 +246,10 @@ export class AttachmentsReader {
 
     while (this.#buffer.length > end) {
       // An attachment group counter declares how much follows; a bare one does not, so it runs
-      // until the counters stop. Without this the reader swallows the next message — which only
-      // shows when one follows, and `kli vc export` writes a credential's seal bare.
-      if (!framed && !startsCounter(this.#buffer)) {
+      // until a message body or genus code says otherwise. Without this the reader swallows the
+      // next message — which only shows when one follows, and `kli vc export` writes a
+      // credential's seal bare.
+      if (!framed && endsRun(this.#buffer)) {
         break;
       }
 

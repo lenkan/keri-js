@@ -19,9 +19,7 @@ describe(basename(import.meta.url), () => {
     });
   });
 
-  // KERI writes microseconds and a `Date` holds milliseconds, so a timestamp off the wire has to
-  // travel as text. Rounding `…019676` to `…019000` would change the event's digest.
-  test("should keep a timestamp given as a string", () => {
+  test("should carry a wire timestamp through to the event", () => {
     const dt = "2025-04-17T21:53:17.019676+00:00";
 
     for (const event of [
@@ -39,15 +37,5 @@ describe(basename(import.meta.url), () => {
     ]) {
       assert.equal(event.body.dt, dt);
     }
-  });
-
-  test("should format a timestamp given as a Date", () => {
-    const event = issue({
-      i: "EFAWQA1ktXrt5BFptVJrx6zKT8n6UIqU1XDP0tSB6yUS",
-      ri: "EGpWO66krJQ5KqdGbB35e_V_vF0BfHR8APf__IkZEkI3",
-      dt: new Date("2025-04-17T21:53:17.019Z"),
-    });
-
-    assert.equal(event.body.dt, "2025-04-17T21:53:17.019000+00:00");
   });
 });

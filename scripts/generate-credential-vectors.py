@@ -174,8 +174,10 @@ class Log:
 
     def kel(self, name, serder, signer):
         sigers = [signer.sign(serder.raw, 0)]
-        stream = messagize(serder=serder, sigers=sigers, pipelined=True).decode("utf-8")
-        self.key_events.append(entry(name, serder, stream[len(serder.raw) :]))
+        # Sliced as bytes before decoding: `len(serder.raw)` counts bytes, and the first non-ASCII
+        # claim would otherwise cut the body short and spill it into the attachment.
+        stream = messagize(serder=serder, sigers=sigers, pipelined=True)
+        self.key_events.append(entry(name, serder, stream[len(serder.raw) :].decode("utf-8")))
 
     def tel(self, name, serder, anchor):
         attachments = source_couple(anchor)
@@ -273,19 +275,24 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("directory", type=Path, help="where the keri-<version> directory is written")
 target = parser.parse_args().directory / f"keri-{keri.__version__}"
 
+# Everything is built before anything is removed: `dump` calls `settle`, which exits on a log
+# keripy will not accept, and clearing first would take the checked-in fixtures down with it.
+payloads = [
+    (
+        log.name,
+        json.dumps(log.dump(), indent=2) + "\n",
+        "".join(event["raw"] + event["attachments"] for event in log.events),
+    )
+    for log in logs
+]
+
 # The directory is owned by this script, so a renamed log leaves no stale file behind.
 if target.exists():
-    for stale in target.glob("*.json"):
-        stale.unlink()
-    for stale in target.glob("*.cesr"):
+    for stale in [*target.glob("*.json"), *target.glob("*.cesr")]:
         stale.unlink()
 target.mkdir(parents=True, exist_ok=True)
 
-for log in logs:
-    path = target / f"{log.name}.json"
-    path.write_text(json.dumps(log.dump(), indent=2) + "\n")
-    print(path)
-
-    stream = target / f"{log.name}.cesr"
-    stream.write_text("".join(event["raw"] + event["attachments"] for event in log.events))
-    print(stream)
+for name, document, stream in payloads:
+    for path, content in [(target / f"{name}.json", document), (target / f"{name}.cesr", stream)]:
+        path.write_text(content)
+        print(path)

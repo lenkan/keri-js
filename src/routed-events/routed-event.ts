@@ -1,8 +1,8 @@
 import { Attachments, Message, type MessageBody } from "../cesr/main.ts";
-import { DUMMY_VERSION, encodeEvent, formatDate, saidify } from "../events/main.ts";
+import { DUMMY_VERSION, encodeEvent, saidify, timestamp } from "../events/main.ts";
 
 export interface QueryEventArgs {
-  dt?: Date;
+  dt?: Date | string;
   r?: string;
   rr?: string;
   q: Record<string, unknown>;
@@ -19,7 +19,7 @@ export type QueryEventBody = {
 };
 
 export interface ReplyEventArgs {
-  dt?: Date;
+  dt?: Date | string;
   r: string;
   a: Record<string, unknown>;
 }
@@ -46,7 +46,7 @@ export function query(args: QueryEventArgs): Message<QueryEventBody> {
     v: DUMMY_VERSION,
     t: "qry",
     d: "",
-    dt: formatDate(args.dt ?? new Date()),
+    dt: timestamp(args.dt),
     r: args.r ?? "",
     rr: args.rr ?? "",
     q: args.q,
@@ -60,7 +60,7 @@ export function reply(args: ReplyEventArgs): Message<ReplyEventBody> {
     v: DUMMY_VERSION,
     t: "rpy",
     d: "",
-    dt: formatDate(args.dt ?? new Date()),
+    dt: timestamp(args.dt),
     r: args.r,
     a: args.a,
   });
@@ -72,7 +72,7 @@ export interface ExchangeEventArgs {
   sender: string;
   recipient?: string;
   p?: string;
-  timestamp?: Date;
+  timestamp?: Date | string;
   route: string;
   query?: Record<string, unknown>;
   anchor?: Record<string, unknown>;
@@ -121,7 +121,7 @@ export function exchange(args: ExchangeEventArgs): Message<ExchangeEventBody> {
     i: args.sender,
     rp: args.recipient ?? "",
     p: args.p ?? "",
-    dt: formatDate(args.timestamp ?? new Date()),
+    dt: timestamp(args.timestamp),
     r: args.route,
     q: args.query ?? {},
     a: args.anchor ?? {},

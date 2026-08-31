@@ -1,14 +1,5 @@
 import { Message } from "../cesr/main.ts";
-import { DUMMY_VERSION, encodeEvent, formatDate } from "../events/main.ts";
-
-/**
- * A `Date` holds milliseconds, KERI writes microseconds, and the SAID is computed over the text.
- * So a timestamp that came off the wire is passed through rather than round-tripped through
- * `Date`, which would round `…019676` to `…019000` and change the event's digest.
- */
-function timestamp(dt: Date | string | undefined): string {
-  return typeof dt === "string" ? dt : formatDate(dt ?? new Date());
-}
+import { DUMMY_VERSION, encodeEvent, timestamp } from "../events/main.ts";
 
 export interface IssueEventArgs {
   /**

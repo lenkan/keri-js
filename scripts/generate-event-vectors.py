@@ -84,8 +84,10 @@ class Log:
         # keripy attaches a delegation source seal outside messagize, which does not know about it
         # (habbing.makeOwnEvent), so the pipelined group has to be closed by hand once it is on.
         pipelined = source is None
-        stream = messagize(serder=serder, sigers=sigers, wigers=wigers, pipelined=pipelined).decode("utf-8")
-        attachments = stream[len(serder.raw) :]
+        # Sliced as bytes before decoding: `len(serder.raw)` counts bytes, and the first non-ASCII
+        # field would otherwise cut the body short and spill it into the attachment.
+        stream = messagize(serder=serder, sigers=sigers, wigers=wigers, pipelined=pipelined)
+        attachments = stream[len(serder.raw) :].decode("utf-8")
 
         if source is not None:
             attachments += source_seal(source)
@@ -101,8 +103,8 @@ class Log:
         wigers = [backers[index].sign(event.raw, index) for index in indices]
         cigars = [receiptor.sign(event.raw) for receiptor in receiptors]
 
-        stream = messagize(serder=serder, wigers=wigers, cigars=cigars, pipelined=True).decode("utf-8")
-        self.record(name, serder, stream[len(serder.raw) :])
+        stream = messagize(serder=serder, wigers=wigers, cigars=cigars, pipelined=True)
+        self.record(name, serder, stream[len(serder.raw) :].decode("utf-8"))
 
     def record(self, name, serder, attachments):
         self.events.append(
