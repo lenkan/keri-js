@@ -14,6 +14,14 @@ export interface AttachmentsReaderOptions {
   version?: number;
 }
 
+const DASH = 0x2d;
+const UNDERSCORE = 0x5f;
+
+/** `-_` opens a genus code, which belongs to the stream rather than to the message's attachments. */
+function startsCounter(buffer: Uint8Array): boolean {
+  return buffer.length >= 4 && buffer[0] === DASH && buffer[1] !== UNDERSCORE && !!Counter.peek(buffer).frame;
+}
+
 export class AttachmentsReader {
   #version: number;
   #buffer: Uint8Array<ArrayBufferLike>;
@@ -205,6 +213,7 @@ export class AttachmentsReader {
     const counter = Counter.parse(this.#buffer);
 
     let end = 0;
+    let framed = false;
 
     if (this.#version === 1 && counter.type === CountCode_10.AttachmentGroup) {
       const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
@@ -214,6 +223,7 @@ export class AttachmentsReader {
 
       this.#readBytes(peek.n);
       end = this.#buffer.length - counter.count * 4;
+      framed = true;
     } else if (this.#version === 2 && counter.type === CountCode_20.AttachmentGroup) {
       const requiredLength = counter.count * 4 + resolveQuadletCount(counter) * 4;
       if (this.#buffer.length < requiredLength) {
@@ -222,11 +232,19 @@ export class AttachmentsReader {
 
       this.#readBytes(peek.n);
       end = this.#buffer.length - counter.count * 4;
+      framed = true;
     }
 
     const attachments = new Attachments();
 
     while (this.#buffer.length > end) {
+      // An attachment group counter declares how much follows; a bare one does not, so it runs
+      // until the counters stop. Without this the reader swallows the next message — which only
+      // shows when one follows, and `kli vc export` writes a credential's seal bare.
+      if (!framed && !startsCounter(this.#buffer)) {
+        break;
+      }
+
       const counter = this.#readCounter();
 
       switch (this.#version) {

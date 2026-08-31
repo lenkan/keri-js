@@ -48,18 +48,22 @@ ACDCs may be chained via **edges** (each edge points to another ACDC's SAID), fo
     dt?: string,
     ...claims
   },
-  r: {          // Rule block (Ricardian terms)
-    d: string,
-    ...rules
-  },
   e?: {         // Edge block (links to other ACDCs)
     d: string,
     ...edges
+  },
+  r: {          // Rule block (Ricardian terms)
+    d: string,
+    ...rules
   }
 }
 ```
 
-**Field order on the wire:** `[v, d, (u), i, ri, s, a, r, (e)]`. Required: `v, d, i, ri, s, a, r`.
+**Field order on the wire:** `[v, d, (u), i, ri, s, a, (e), r]`. Required: `v, d, i, ri, s, a, r`.
+
+`e` precedes `r`, which is what `keri/vc/proving.py` emits — it assigns `vc["e"]` before `vc["r"]`,
+and insertion order is wire order. The SAID is computed over the serialized text, so the two are not
+interchangeable. `fixtures/credentials/keri-1.3.6/chained.json` pins it.
 
 ### Notes vs upstream spec
 

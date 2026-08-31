@@ -1,6 +1,15 @@
 import { Message } from "../cesr/main.ts";
 import { DUMMY_VERSION, encodeEvent, formatDate } from "../events/main.ts";
 
+/**
+ * A `Date` holds milliseconds, KERI writes microseconds, and the SAID is computed over the text.
+ * So a timestamp that came off the wire is passed through rather than round-tripped through
+ * `Date`, which would round `…019676` to `…019000` and change the event's digest.
+ */
+function timestamp(dt: Date | string | undefined): string {
+  return typeof dt === "string" ? dt : formatDate(dt ?? new Date());
+}
+
 export interface IssueEventArgs {
   /**
    * Credential SAID
@@ -11,7 +20,7 @@ export interface IssueEventArgs {
    * Registry SAID
    */
   ri: string;
-  dt?: Date;
+  dt?: Date | string;
 }
 
 export type IssueEventBody = {
@@ -47,7 +56,7 @@ export interface RevokeEventArgs {
    * Issuance event SAID
    */
   p: string;
-  dt?: Date;
+  dt?: Date | string;
 }
 
 export type RevokeEventBody = {
@@ -70,7 +79,7 @@ export function issue(args: IssueEventArgs): Message<IssueEventBody> {
       i: args.i,
       s: "0",
       ri: args.ri,
-      dt: formatDate(args.dt ?? new Date()),
+      dt: timestamp(args.dt),
     },
     { labels: ["d"] },
   );
@@ -88,7 +97,7 @@ export function revoke(args: RevokeEventArgs): Message<RevokeEventBody> {
       s: "1",
       ri: args.ri,
       p: args.p,
-      dt: formatDate(args.dt ?? new Date()),
+      dt: timestamp(args.dt),
     },
     { labels: ["d"] },
   );

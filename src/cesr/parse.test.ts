@@ -297,6 +297,21 @@ describe(basename(import.meta.url), () => {
       assert.match(events[5].body.v as string, /^ACDC/);
     });
 
+    // A bare attachment declares no length, so it ends where its counters do. `kli vc export`
+    // writes a credential's seal that way, and with `--chains` more than one of them in a row.
+    test("should parse messages whose attachments carry no group counter", async () => {
+      const bare = (message: Message) => decodeUtf8(message.raw) + encodeText(message.attachments.frames().slice(1));
+
+      const first = new Message({ v: VersionString.KERI_LEGACY, t: "icp" }, { ControllerIdxSigs: [sig0] });
+      const second = new Message({ v: VersionString.KERI_LEGACY, t: "ixn" }, { ControllerIdxSigs: [sig1] });
+
+      const events = await collect(parse(bare(first) + bare(second)));
+
+      assert.strictEqual(events.length, 2);
+      assert.deepStrictEqual(events[0].attachments.ControllerIdxSigs, [sig0]);
+      assert.deepStrictEqual(events[1].attachments.ControllerIdxSigs, [sig1]);
+    });
+
     test("should parse CESR 2.0 fixture", async () => {
       const input = await readFile(fixture("cesr_20.cesr"));
       const result = await collect(parse(input, { version: 2 }));
