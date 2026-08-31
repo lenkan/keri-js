@@ -1,23 +1,12 @@
 import assert from "node:assert";
-import { Buffer } from "node:buffer";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import {
-  Attachments,
-  decodeUtf8,
-  encodeText,
-  encodeUtf8,
-  type Frame,
-  Indexer,
-  type Message,
-  parse,
-} from "../src/cesr/main.ts";
+import { decodeUtf8, encodeText, type Frame, type Message, parse } from "../src/cesr/main.ts";
 import {
   Credential,
   type CredentialArgs,
   collect,
-  ed25519Signer,
   KeyEvent,
   type KeyEventBody,
   KeyEventLog,
@@ -26,29 +15,20 @@ import {
   signEvent,
   verify,
 } from "../src/main.ts";
+import {
+  anchoringEvent,
+  assertSameStream,
+  type Log as BaseLog,
+  type Case,
+  load,
+  message,
+  signerRegistry,
+  signers,
+} from "./support/keripy.ts";
 
-interface Key {
-  seed: string;
-  public: string;
-}
-
-interface Case {
-  name: string;
-  sad: Record<string, unknown> & { t?: string };
-  raw: string;
-  attachments: string;
-}
-
-interface Log {
-  keripy: string;
-  name: string;
-  version: string;
-  controllers: Key[];
-  events: Case[];
+interface Log extends BaseLog {
   states: Record<string, { s: string; d: string }>;
 }
-
-const FIXTURES = new URL("../fixtures/credentials/", import.meta.url);
 
 /** The recorded events, and beside them the stream a `kli vc export --full` of the same log emits. */
 interface Fixture {
@@ -56,53 +36,11 @@ interface Fixture {
   stream: string;
 }
 
-function load(): Fixture[] {
-  const fixtures: Fixture[] = [];
-
-  for (const version of readdirSync(FIXTURES).sort()) {
-    const directory = new URL(`${version}/`, FIXTURES);
-    for (const file of readdirSync(directory).sort()) {
-      if (file.endsWith(".json")) {
-        const log: Log = JSON.parse(readFileSync(new URL(file, directory), "utf8"));
-        fixtures.push({ log, stream: readFileSync(new URL(`${log.name}.cesr`, directory), "utf8") });
-      }
-    }
-  }
-
-  if (fixtures.length === 0) {
-    throw new Error(`No credential vectors under ${FIXTURES.pathname} — run scripts/generate-credential-vectors.py`);
-  }
-
-  return fixtures;
-}
-
-function message(entry: Case): string {
-  return entry.raw + entry.attachments;
-}
-
-function signerFor(key: Key): Signer {
-  const raw = Uint8Array.from(Buffer.from(key.seed, "hex"));
-
-  for (const signer of [ed25519Signer(raw), ed25519Signer(raw, { nonTransferable: true })]) {
-    if (signer.publicKey === key.public) {
-      return signer;
-    }
-  }
-
-  return assert.fail(`the seed listed for ${key.public} derives neither form of that key`);
-}
-
-/** Which keys signed, read off the indices the attached signatures carry. */
-function signers(entry: Case, keys: string[], available: ReadonlyMap<string, Signer>): Signer[] {
-  const attachments = Attachments.parse(encodeUtf8(entry.attachments));
-  assert.ok(attachments, `${entry.name} has no attachments`);
-
-  return attachments.ControllerIdxSigs.map((sig) => {
-    const key = keys[Indexer.parse(sig).index];
-    const signer = available.get(key);
-    assert.ok(signer, `${entry.name} is signed by ${key}, which the log declares no seed for`);
-    return signer;
-  });
+function loadFixtures(): Fixture[] {
+  return load<Log>("credentials", "generate-credential-vectors.py").map(({ log, directory }) => ({
+    log,
+    stream: readFileSync(new URL(`${log.name}.cesr`, directory), "utf8"),
+  }));
 }
 
 /** A section is rebuilt from its contents; its `d` is what the constructor recomputes. */
@@ -111,21 +49,12 @@ function section(block: unknown): Record<string, unknown> {
   return rest;
 }
 
-/**
- * The event in `issuer`'s KEL whose `a` anchors `sad` — found by scanning for the seal rather than
- * read off the fixture's own `SealSourceCouple`, so the couple this rebuild emits has to be earned.
- */
-function anchoringEvent(sad: Record<string, unknown>, issuer: KeyEventLog): Message<KeyEventBody> {
-  const seal = { i: sad.i, s: sad.s, d: sad.d };
+function anchored(sad: Case["sad"]): string {
+  return `${String(sad.t)} ${String(sad.d)}`;
+}
 
-  for (const event of issuer.events) {
-    const anchors = (event.body.a ?? []) as Record<string, unknown>[];
-    if (anchors.some((anchor) => anchor.i === seal.i && anchor.s === seal.s && anchor.d === seal.d)) {
-      return event;
-    }
-  }
-
-  return assert.fail(`no event in ${issuer.state.identifier} anchors ${sad.t} ${String(sad.d)}`);
+function seal(sad: Case["sad"]): { i: string; s: string; d: string } {
+  return { i: sad.i as string, s: sad.s as string, d: sad.d as string };
 }
 
 interface Rebuilt {
@@ -135,7 +64,7 @@ interface Rebuilt {
 }
 
 function rebuild(log: Log): Rebuilt[] {
-  const available = new Map(log.controllers.map((key) => [key.public, signerFor(key)]));
+  const available = signerRegistry(log.controllers);
   const kels = new Map<string, KeyEventLog>();
   const issuance = new Map<string, Case>();
   const results: Rebuilt[] = [];
@@ -205,7 +134,7 @@ function build(
       const issuer = kels.get(sad.ii as string);
       assert.ok(issuer, `${entry.name} is anchored in ${String(sad.ii)}, which has no KEL yet`);
 
-      KeyEvent.attachSourceSeal(event, anchoringEvent(sad, issuer));
+      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, anchored(sad)));
       return event;
     }
 
@@ -216,7 +145,7 @@ function build(
       const issuer = kels.get(owner);
       assert.ok(issuer, `${entry.name} is anchored in ${owner}, which has no KEL yet`);
 
-      KeyEvent.attachSourceSeal(event, anchoringEvent(sad, issuer));
+      KeyEvent.attachSourceSeal(event, anchoringEvent(seal(sad), issuer, anchored(sad)));
       return event;
     }
 
@@ -266,28 +195,7 @@ function serialize(entry: Case, message: Message): string {
   return decodeUtf8(message.raw) + encodeText(attachmentFrames(entry, message));
 }
 
-/** `strictEqual` would print a few thousand characters twice and leave you to spot the difference. */
-function assertSameStream(actual: string, expected: string): void {
-  if (actual === expected) {
-    return;
-  }
-
-  let at = 0;
-  while (at < actual.length && at < expected.length && actual[at] === expected[at]) {
-    at++;
-  }
-
-  const from = Math.max(0, at - 60);
-  const excerpt = (stream: string) => `${from > 0 ? "…" : ""}${stream.slice(from, at + 60)}…`;
-
-  assert.fail(
-    `streams diverge at offset ${at} (expected ${expected.length} characters, got ${actual.length})\n` +
-      `  expected: ${excerpt(expected)}\n` +
-      `  actual:   ${excerpt(actual)}`,
-  );
-}
-
-const byVersion = Map.groupBy(load(), (fixture) => fixture.log.keripy);
+const byVersion = Map.groupBy(loadFixtures(), (fixture) => fixture.log.keripy);
 
 describe(path.parse(import.meta.url).base, () => {
   for (const [keripy, fixtures] of byVersion) {
