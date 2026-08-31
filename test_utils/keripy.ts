@@ -107,7 +107,30 @@ export class KERIPy {
     await this.run(["status", "--name", this.name, ...this.baseArgs]);
   }
 
-  async incept(opts: { alias?: string; transferable?: boolean } = {}): Promise<void> {
+  oobi = {
+    resolve: async (oobi: string, alias?: string): Promise<void> => {
+      const args = ["oobi", "resolve", "--name", this.name, ...this.baseArgs];
+      if (alias) {
+        args.push("--oobi-alias", alias);
+      }
+      args.push("--oobi", oobi);
+      await this.run(args);
+    },
+  };
+
+  async incept(
+    opts: {
+      alias?: string;
+      transferable?: boolean;
+      wits?: string[];
+      toad?: number;
+      /**
+       * Publishes a `/end/role/add` naming each witness as a receipt endpoint,
+       * which is what makes `kli` collect receipts over HTTP rather than TCP.
+       */
+      receiptEndpoint?: boolean;
+    } = {},
+  ): Promise<void> {
     const args: string[] = [
       "incept",
       "--name",
@@ -124,15 +147,80 @@ export class KERIPy {
       "--nsith",
       "1",
       "--toad",
-      "0",
+      String(opts.toad ?? 0),
     ];
 
     if (opts.transferable !== false) {
       args.push("--transferable");
     }
 
+    for (const wit of opts.wits ?? []) {
+      args.push("--wits", wit);
+    }
+
+    if (opts.receiptEndpoint) {
+      args.push("--receipt-endpoint");
+    }
+
     await this.run(args);
   }
+
+  ends = {
+    add: async (opts: { alias?: string; eid: string; role?: string }): Promise<void> => {
+      await this.run([
+        "ends",
+        "add",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--role",
+        opts.role ?? "mailbox",
+        "--eid",
+        opts.eid,
+      ]);
+    },
+  };
+
+  challenge = {
+    generate: async (): Promise<string[]> => {
+      return JSON.parse(await this.run(["challenge", "generate", "--out", "json"])) as string[];
+    },
+
+    /** `recipient` is a contact alias, so resolve the recipient's OOBI under that alias first. */
+    respond: async (opts: { alias?: string; words: string[]; recipient: string }): Promise<void> => {
+      await this.run([
+        "challenge",
+        "respond",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--words",
+        opts.words.join(" "),
+        "--recipient",
+        opts.recipient,
+      ]);
+    },
+
+    verify: async (opts: { alias?: string; words: string[]; signer: string }): Promise<void> => {
+      await this.run([
+        "challenge",
+        "verify",
+        "--name",
+        this.name,
+        "--alias",
+        opts.alias ?? this.name,
+        ...this.baseArgs,
+        "--words",
+        opts.words.join(" "),
+        "--signer",
+        opts.signer,
+      ]);
+    },
+  };
 
   async rotate(opts: { alias?: string } = {}): Promise<void> {
     await this.run(["rotate", "--name", this.name, "--alias", opts.alias ?? this.name, ...this.baseArgs]);

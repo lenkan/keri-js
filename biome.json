@@ -33,7 +33,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/scripts/**/*.ts", "**/test_utils/**/*.ts"],
+      "includes": ["**/scripts/**/*.ts", "**/test_utils/**/*.ts", "**/examples/**/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

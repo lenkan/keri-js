@@ -3,16 +3,21 @@
 ## Project Overview
 
 KERI-JS is a TypeScript implementation of KERI (Key Event Receipt Infrastructure), a cryptographic
-key management and identity framework. It is a single published package, `keri`, containing only
+key management and identity framework. It is a single published package, `keri`. Its core is
 primitives: pure over bytes, no transport, no storage, no platform.
 
-Witness, mailbox, controller and verifier implementations, the HTTP layer and the apps that
-composed them are **not** in this repository. They live on the `legacy` branch and are being moved
-to a separate closed-source service.
+`src/witness/` is the one thing built on top of them, published separately as `keri/witness`. It
+does no I/O of its own either — it hands back a `fetch(request)` and reads through a `Store` port
+the caller supplies — but it owns a wire format, a storage layout and a retention policy, none of
+which belong on the `keri` surface.
+
+Controller, verifier and mailbox-service implementations and the apps that composed them are
+**not** in this repository. They live on the `legacy` branch.
 
 `src/` is laid out as a strict DAG: `cesr` is bytes, `keys` and `events` are the KERI primitives
 above it, the four protocol submodules (`key-events`, `registries`, `credentials`, `routed-events`)
-own their own messages, and `verification` is the only one allowed to see all four at once.
+own their own messages, `verification` is the only one allowed to see all four at once, and
+`witness` sits above the lot, reaching them through `../main.ts` the way a consumer would.
 
 Each submodule has a `main.ts` that defines what it shows consumers. Some also have an `internal.ts`
 — what they show their siblings — so the four namespaces stay the size of their public list and an
@@ -26,9 +31,11 @@ package name (`keri`, `keri/cesr`) the way a dependent would, which is what make
 published surface. Unit tests under `src/` may also reach `test_utils/`, which never ships. All of
 this is enforced by `scripts/check-imports.ts`, run as part of `npm run lint`.
 
-The package has exactly two entry points, `keri` and `keri/cesr`. There are no per-protocol
-subpaths: `import { incept } from "keri/key-events"` would hand out `incept` with the namespace
-stripped off, which is the one thing the grouping exists to prevent.
+The package has three entry points: `keri`, `keri/cesr` and `keri/witness`. There are no
+per-protocol subpaths: `import { incept } from "keri/key-events"` would hand out `incept` with the
+namespace stripped off, which is the one thing the grouping exists to prevent. `keri/witness` is not
+one of those — it publishes names that appear nowhere in `keri`, and keeping it out of the root is
+what stops a router, an SSE encoder and a storage layout landing in every consumer's bundle.
 
 `node:` builtins may not be imported from `src/` at all; `*.test.ts` files are exempt. This keeps
 the package runnable on Deno and in the browser, and is enforced by the same script.
